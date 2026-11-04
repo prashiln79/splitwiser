@@ -5,35 +5,66 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  Image,
-} from 'react-native';
-import {
   Text,
   TextInput,
+  TouchableOpacity,
   ActivityIndicator,
-  useTheme,
-} from 'react-native-paper';
-import HapticButton from '../components/ui/HapticButton';
+  ScrollView,
+} from 'react-native';
+import {
+  Wallet,
+  ArrowRight,
+  Users,
+  Sparkles,
+  CheckCircle2,
+  ShieldCheck,
+} from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '../context/AuthContext';
+import { useAppTheme, typography, spacing, radii, shadows } from '../theme';
+
+const FEATURES = [
+  {
+    icon: Users,
+    title: 'Split with Any Group',
+    desc: 'Roommates, trips, dinners, or events.',
+  },
+  {
+    icon: Sparkles,
+    title: 'Smart Debt Minimization',
+    desc: 'Fewer transactions to settle all debts.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Instant Guest Access',
+    desc: 'Get started immediately without friction.',
+  },
+];
 
 const OnboardingScreen = () => {
-  const { completeOnboarding, isLoading } = useAuth();
-  const theme = useTheme();
+  const { completeOnboarding } = useAuth();
+  const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
+
   const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleContinue = async () => {
     const trimmed = name.trim();
     if (!trimmed) {
-      Alert.alert('Name required', 'Please enter your name to continue.');
+      Alert.alert('Name Required', 'Please enter your name to continue.');
       return;
     }
     if (trimmed.length < 2) {
-      Alert.alert('Name too short', 'Your name must be at least 2 characters.');
+      Alert.alert('Name Too Short', 'Your name must be at least 2 characters.');
       return;
     }
     setIsSubmitting(true);
     try {
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      }
       await completeOnboarding(trimmed);
     } catch (err) {
       Alert.alert('Error', 'Something went wrong. Please try again.');
@@ -44,75 +75,150 @@ const OnboardingScreen = () => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <View style={styles.container}>
-        {/* Logo / branding */}
-        <View style={styles.brandContainer}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingTop: Math.max(insets.top, 24) + 16,
+              paddingBottom: Math.max(insets.bottom + 24, 48),
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Brand Hero */}
+          <View style={styles.brandContainer}>
+            <View
+              style={[
+                styles.logoCircle,
+                { backgroundColor: colors.primaryLight, borderColor: colors.primary + '30' },
+              ]}
+            >
+              <Wallet size={40} color={colors.primary} strokeWidth={2.2} />
+            </View>
+
+            <Text style={[styles.appName, { color: colors.textPrimary }]}>
+              Splitwiser
+            </Text>
+            <Text style={[styles.tagline, { color: colors.textSecondary }]}>
+              Split expenses, stay friends.
+            </Text>
+          </View>
+
+          {/* Value Propositions */}
           <View
             style={[
-              styles.logoCircle,
-              { backgroundColor: theme.colors.primary },
+              styles.featuresCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+              shadows.sm,
             ]}
           >
-            <Text style={styles.logoEmoji}>💸</Text>
+            {FEATURES.map((item, index) => {
+              const IconComp = item.icon;
+              return (
+                <View
+                  key={item.title}
+                  style={[
+                    styles.featureRow,
+                    index < FEATURES.length - 1 && [
+                      styles.featureBorder,
+                      { borderBottomColor: colors.borderLight },
+                    ],
+                  ]}
+                >
+                  <View style={[styles.featureIconBox, { backgroundColor: colors.primaryLight }]}>
+                    <IconComp size={18} color={colors.primary} strokeWidth={2.2} />
+                  </View>
+                  <View style={styles.featureTextCol}>
+                    <Text style={[styles.featureTitle, { color: colors.textPrimary }]}>
+                      {item.title}
+                    </Text>
+                    <Text style={[styles.featureDesc, { color: colors.textSecondary }]}>
+                      {item.desc}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
           </View>
-          <Text
-            variant="displaySmall"
-            style={[styles.appName, { color: theme.colors.primary }]}
-          >
-            Splitwiser
-          </Text>
-          <Text
-            variant="bodyMedium"
-            style={[styles.tagline, { color: theme.colors.onSurfaceVariant }]}
-          >
-            Split expenses, stay friends.
-          </Text>
-        </View>
 
-        {/* Name input */}
-        <View style={styles.formContainer}>
-          <Text variant="titleMedium" style={styles.label}>
-            What should we call you?
-          </Text>
-          <TextInput
-            label="Your name"
-            value={name}
-            onChangeText={setName}
-            style={styles.input}
-            autoFocus
-            autoCapitalize="words"
-            returnKeyType="done"
-            onSubmitEditing={handleContinue}
-            disabled={isSubmitting}
-            accessibilityLabel="Enter your name"
-          />
-
-          <HapticButton
-            mode="contained"
-            onPress={handleContinue}
-            loading={isSubmitting}
-            disabled={isSubmitting || !name.trim()}
-            style={styles.button}
-            contentStyle={styles.buttonContent}
-            accessibilityLabel="Continue to Splitwiser"
-            accessibilityRole="button"
+          {/* Form */}
+          <View
+            style={[
+              styles.formCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+              shadows.sm,
+            ]}
           >
-            Get Started
-          </HapticButton>
+            <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>
+              What should we call you?
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.surfaceVariant,
+                  borderColor: colors.border,
+                  color: colors.textPrimary,
+                },
+              ]}
+              placeholder="e.g. Alex Sharma"
+              placeholderTextColor={colors.textMuted}
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+              returnKeyType="done"
+              onSubmitEditing={handleContinue}
+              accessibilityLabel="Enter your name"
+            />
 
-          <Text
-            variant="bodySmall"
-            style={[styles.disclaimer, { color: theme.colors.onSurfaceVariant }]}
-          >
-            No account required. Your session persists automatically.
-          </Text>
-        </View>
-      </View>
-    </KeyboardAvoidingView>
+            <TouchableOpacity
+              style={[
+                styles.button,
+                {
+                  backgroundColor:
+                    name.trim().length >= 2 ? colors.primary : colors.surfaceVariant,
+                },
+              ]}
+              onPress={handleContinue}
+              disabled={isSubmitting || name.trim().length < 2}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Continue to Splitwiser"
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <>
+                  <Text
+                    style={[
+                      styles.buttonText,
+                      {
+                        color:
+                          name.trim().length >= 2 ? '#FFFFFF' : colors.textMuted,
+                      },
+                    ]}
+                  >
+                    Get Started
+                  </Text>
+                  <ArrowRight
+                    size={18}
+                    color={name.trim().length >= 2 ? '#FFFFFF' : colors.textMuted}
+                    strokeWidth={2.4}
+                    style={{ marginLeft: 6 }}
+                  />
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 };
 
@@ -120,57 +226,95 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 32,
+  scrollContent: {
+    padding: spacing.base,
+    paddingTop: Platform.OS === 'ios' ? 72 : 48,
+    paddingBottom: 48,
   },
   brandContainer: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: spacing.xl,
   },
   logoCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    justifyContent: 'center',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 1.5,
     alignItems: 'center',
-    marginBottom: 16,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  logoEmoji: {
-    fontSize: 44,
+    justifyContent: 'center',
+    marginBottom: spacing.md,
   },
   appName: {
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
+    fontSize: typography.sizes.xxl,
+    fontWeight: typography.weights.bold,
+    letterSpacing: -0.5,
   },
   tagline: {
-    marginTop: 8,
+    fontSize: typography.sizes.sm,
+    marginTop: 4,
   },
-  formContainer: {
-    gap: 8,
+  featuresCard: {
+    borderRadius: radii.xl,
+    padding: spacing.base,
+    borderWidth: 1,
+    marginBottom: spacing.lg,
   },
-  label: {
-    marginBottom: 4,
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+  },
+  featureBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  featureIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featureTextCol: {
+    flex: 1,
+  },
+  featureTitle: {
+    fontSize: typography.sizes.sm,
+    fontWeight: '700',
+  },
+  featureDesc: {
+    fontSize: typography.sizes.xs,
+    marginTop: 1,
+  },
+  formCard: {
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+  },
+  inputLabel: {
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.bold,
+    marginBottom: spacing.md,
   },
   input: {
-    marginBottom: 8,
+    borderWidth: 1,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: typography.sizes.base,
+    fontWeight: '600',
+    marginBottom: spacing.base,
   },
   button: {
-    marginTop: 8,
-    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.base,
+    borderRadius: radii.xl,
   },
-  buttonContent: {
-    paddingVertical: 6,
-  },
-  disclaimer: {
-    textAlign: 'center',
-    marginTop: 16,
+  buttonText: {
+    fontSize: typography.sizes.base,
+    fontWeight: '700',
   },
 });
 

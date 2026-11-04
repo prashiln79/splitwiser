@@ -1,20 +1,39 @@
 import React, { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
-import { Appbar, Avatar, TextInput, Title } from 'react-native-paper';
+import {
+  Alert,
+  StyleSheet,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Platform,
+} from 'react-native';
+import { Camera, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import HapticButton from '../components/ui/HapticButton';
-import { HapticAppbarBackAction } from '../components/ui/HapticAppbar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '../context/AuthContext';
+import { useAppTheme, typography, spacing, radii, shadows } from '../theme';
+import { AppHeader } from '../components/common/AppHeader';
+import { MemberAvatar } from '../components/common/MemberAvatar';
 
 const EditProfileScreen = ({ navigation }: any) => {
   const { user, updateProfile } = useAuth();
+  const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
+
   const [name, setName] = useState(user?.name ?? '');
-  const [pickedImage, setPickedImage] = useState<{ uri: string; base64?: string | null; mimeType?: string } | null>(null);
+  const [pickedImage, setPickedImage] = useState<{
+    uri: string;
+    base64?: string | null;
+    mimeType?: string;
+  } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleUpdateProfile = async () => {
     if (!name.trim()) {
-      Alert.alert('Error', 'Name cannot be empty.');
+      Alert.alert('Name Required', 'Your display name cannot be blank.');
       return;
     }
     setIsSubmitting(true);
@@ -25,10 +44,13 @@ const EditProfileScreen = ({ navigation }: any) => {
         updates.imageUrl = `data:${mime};base64,${pickedImage.base64}`;
       }
       await updateProfile(updates);
-      Alert.alert('Success', 'Profile updated!');
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
+      Alert.alert('Profile Updated', 'Your profile details have been saved.');
       navigation.goBack();
     } catch (error) {
-      Alert.alert('Error', 'Failed to update profile.');
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
       console.error(error);
     } finally {
       setIsSubmitting(false);
@@ -38,7 +60,7 @@ const EditProfileScreen = ({ navigation }: any) => {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission required', 'Allow media library access to select a photo.');
+      Alert.alert('Permission Required', 'Please allow photo library access to change your avatar.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -57,61 +79,151 @@ const EditProfileScreen = ({ navigation }: any) => {
   };
 
   return (
-    <View style={styles.container}>
-      <Appbar.Header>
-        <HapticAppbarBackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Edit Profile" />
-      </Appbar.Header>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <AppHeader
+        title="Edit Profile"
+        showBack
+        onBack={() => navigation.goBack()}
+      />
 
-      <View style={styles.content}>
-        <Title>Edit Your Details</Title>
-
-        <View style={styles.profilePictureSection}>
-          {pickedImage?.uri ? (
-            <Avatar.Image size={100} source={{ uri: pickedImage.uri }} />
-          ) : user?.imageUrl && /^(https?:|data:image)/.test(user.imageUrl) ? (
-            <Avatar.Image size={100} source={{ uri: user.imageUrl }} />
-          ) : (
-            <Avatar.Text size={100} label={(user?.name ?? '?').charAt(0)} />
-          )}
-          <HapticButton
-            mode="outlined"
-            onPress={pickImage}
-            icon="camera"
-            style={styles.imageButton}
-          >
-            {pickedImage ? 'Change Photo' : 'Add Photo'}
-          </HapticButton>
+      <View style={[styles.content, { paddingBottom: Math.max(insets.bottom + 24, 32) }]}>
+        {/* Avatar Section */}
+        <View style={styles.avatarSection}>
+          <View style={styles.avatarWrapper}>
+            <MemberAvatar
+              name={name || user?.name || 'User'}
+              imageUrl={pickedImage?.uri || user?.imageUrl}
+              size={96}
+            />
+            <TouchableOpacity
+              style={[styles.cameraBadge, { backgroundColor: colors.primary }]}
+              onPress={pickImage}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Change profile picture"
+            >
+              <Camera size={18} color="#FFFFFF" strokeWidth={2.2} />
+            </TouchableOpacity>
+          </View>
+          <Text style={[styles.avatarHint, { color: colors.textSecondary }]}>
+            Tap camera to change photo
+          </Text>
         </View>
 
-        <TextInput
-          label="Name"
-          value={name}
-          onChangeText={setName}
-          style={styles.input}
-          accessibilityLabel="Full Name"
-        />
-        <HapticButton
-          mode="contained"
-          onPress={handleUpdateProfile}
-          loading={isSubmitting}
-          disabled={isSubmitting}
-          style={styles.button}
+        {/* Form */}
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+            shadows.sm,
+          ]}
         >
-          Save Changes
-        </HapticButton>
+          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+            Display Name
+          </Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.surfaceVariant,
+                borderColor: colors.border,
+                color: colors.textPrimary,
+              },
+            ]}
+            value={name}
+            onChangeText={setName}
+            placeholder="Your name"
+            placeholderTextColor={colors.textMuted}
+            autoFocus
+            accessibilityLabel="Full Name"
+          />
+        </View>
+
+        {/* Submit Button */}
+        <TouchableOpacity
+          style={[
+            styles.saveButton,
+            { backgroundColor: colors.primary },
+            shadows.md,
+          ]}
+          onPress={handleUpdateProfile}
+          disabled={isSubmitting}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Save Profile Changes"
+        >
+          {isSubmitting ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Text style={styles.saveButtonText}>Save Changes</Text>
+          )}
+        </TouchableOpacity>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { padding: 16 },
-  profilePictureSection: { alignItems: 'center', marginBottom: 24 },
-  imageButton: { marginTop: 12 },
-  input: { marginBottom: 16 },
-  button: { marginTop: 8 },
+  container: {
+    flex: 1,
+  },
+  content: {
+    padding: spacing.base,
+  },
+  avatarSection: {
+    alignItems: 'center',
+    marginVertical: spacing.xl,
+  },
+  avatarWrapper: {
+    position: 'relative',
+  },
+  cameraBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  avatarHint: {
+    fontSize: typography.sizes.xs,
+    marginTop: spacing.sm,
+    fontWeight: '500',
+  },
+  card: {
+    borderRadius: radii.xl,
+    padding: spacing.base,
+    borderWidth: 1,
+    marginBottom: spacing.xl,
+  },
+  fieldLabel: {
+    fontSize: typography.sizes.xs,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: typography.sizes.base,
+    fontWeight: '600',
+  },
+  saveButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.base,
+    borderRadius: radii.xl,
+  },
+  saveButtonText: {
+    color: '#FFFFFF',
+    fontSize: typography.sizes.base,
+    fontWeight: '700',
+  },
 });
 
 export default EditProfileScreen;

@@ -1,23 +1,32 @@
-import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
-  Image,
   ScrollView,
   Share,
   StyleSheet,
   View,
-} from 'react-native';
-import {
-  ActivityIndicator,
-  Avatar,
-  Card,
   Text,
   TextInput,
-} from 'react-native-paper';
+  TouchableOpacity,
+  ActivityIndicator,
+  Platform,
+} from 'react-native';
+import {
+  Share2,
+  Copy,
+  Camera,
+  Trash2,
+  LogOut,
+  Shield,
+  User,
+  Users,
+  Check,
+  Edit2,
+  X,
+} from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import HapticButton from '../components/ui/HapticButton';
-import HapticIconButton from '../components/ui/HapticIconButton';
-import { HapticListItem } from '../components/ui/HapticList';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import {
   getGroupById,
   getGroupMembers,
@@ -29,21 +38,31 @@ import {
 import { getGroupExpenses } from '../services/expenses';
 import { getOptimizedSettlements } from '../utils/balanceCalculator';
 import { useAuth } from '../context/AuthContext';
+import { useAppTheme, typography, spacing, radii, shadows } from '../theme';
+import { AppHeader } from '../components/common/AppHeader';
+import { MemberAvatar } from '../components/common/MemberAvatar';
+import { StatusBadge } from '../components/common/StatusBadge';
+import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 import { Group, GroupMember } from '../types';
-
-const ICON_CHOICES = ['👥', '🏠', '🎉', '🧳', '🍽️', '🚗', '🏖️', '🎮', '💼'];
 
 const GroupSettingsScreen = ({ route, navigation }: any) => {
   const { groupId } = route.params;
   const { user } = useAuth();
+  const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [group, setGroup] = useState<Group | null>(null);
   const [name, setName] = useState('');
-  const [icon, setIcon] = useState('');
   const [pickedImage, setPickedImage] = useState<{ uri: string; base64?: string | null } | null>(null);
+
+  // Dialog states
+  const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
+  const [confirmLeaveVisible, setConfirmLeaveVisible] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<GroupMember | null>(null);
+  const [isDialogLoading, setIsDialogLoading] = useState(false);
 
   const isAdmin = useMemo(() => {
     const me = members.find((m) => m.userId === user?.uid);
@@ -56,36 +75,40 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
       const [g, m] = await Promise.all([getGroupById(groupId), getGroupMembers(groupId)]);
       setGroup(g);
       setName(g?.name ?? '');
-      setIcon(g?.imageUrl ?? g?.icon ?? '');
       setMembers(m);
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'Failed to load group settings.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, [groupId]);
-  useLayoutEffect(() => { navigation.setOptions({ title: 'Group Settings' }); }, []);
+  useEffect(() => {
+    load();
+  }, [groupId]);
 
   const onSave = async () => {
     if (!isAdmin) return;
     const updates: Partial<Group> = {};
-    if (name && name !== group?.name) updates.name = name;
+    if (name.trim() && name.trim() !== group?.name) updates.name = name.trim();
     if (pickedImage?.base64) {
       updates.imageUrl = `data:image/jpeg;base64,${pickedImage.base64}`;
-    } else if (icon && icon !== (group?.imageUrl ?? group?.icon ?? '')) {
-      updates.imageUrl = icon;
     }
-    if (Object.keys(updates).length === 0) return Alert.alert('Nothing to update');
+    if (Object.keys(updates).length === 0) {
+      Alert.alert('No Changes', 'There are no changes to save.');
+      return;
+    }
     try {
       setSaving(true);
       await updateGroup(groupId, updates);
       if (pickedImage) setPickedImage(null);
-      Alert.alert('Updated', 'Group updated successfully.');
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
+      Alert.alert('Updated', 'Group settings updated successfully.');
       await load();
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to update group');
+      Alert.alert('Error', e.message || 'Failed to update group.');
     } finally {
       setSaving(false);
     }
@@ -95,7 +118,7 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
     if (!isAdmin) return;
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission required', 'Allow media library access to select an image.');
+      Alert.alert('Permission Required', 'Allow photo library access to change the group avatar.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -111,9 +134,18 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
   };
 
   const onShareInvite = async () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    }
     const code = group?.joinCode;
     if (!code) return;
-    await Share.share({ message: `Join my group on Splitwiser! Use code: ${code}` });
+    try {
+      await Share.share({
+        message: `Join my "${group.name}" group on Splitwiser! Use code: ${code}`,
+      });
+    } catch {
+      // Ignored
+    }
   };
 
   const checkSettledBeforeAction = async (targetUserId: string): Promise<boolean> => {
@@ -132,225 +164,513 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
     }
   };
 
-  const onKick = (memberId: string, memberName: string) => {
-    if (!isAdmin || memberId === user?.uid) return;
-    Alert.alert('Remove member', `Remove ${memberName}?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: async () => {
-          const settled = await checkSettledBeforeAction(memberId);
-          if (!settled) {
-            Alert.alert('Cannot remove', 'This member has unsettled balances.');
-            return;
-          }
-          try {
-            await removeMember(groupId, memberId);
-            await load();
-          } catch (e: any) {
-            Alert.alert('Error', e.message || 'Failed to remove member');
-          }
-        },
-      },
-    ]);
+  const handleRemoveMember = async () => {
+    if (!memberToRemove) return;
+    setIsDialogLoading(true);
+    try {
+      const settled = await checkSettledBeforeAction(memberToRemove.userId);
+      if (!settled) {
+        Alert.alert('Cannot Remove', 'This member has unsettled balances. Please settle first.');
+        setMemberToRemove(null);
+        return;
+      }
+      await removeMember(groupId, memberToRemove.userId);
+      setMemberToRemove(null);
+      await load();
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to remove member.');
+    } finally {
+      setIsDialogLoading(false);
+    }
   };
 
-  const onLeave = () => {
-    Alert.alert('Leave group', 'You can leave only when balances are settled. Continue?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Leave',
-        style: 'destructive',
-        onPress: async () => {
-          const settled = await checkSettledBeforeAction(user!.uid);
-          if (!settled) {
-            Alert.alert('Cannot leave', 'Please settle your balances first.');
-            return;
-          }
-          try {
-            await leaveGroup(groupId, user!.uid);
-            navigation.popToTop();
-          } catch (e: any) {
-            Alert.alert('Error', e.message || 'Failed to leave group');
-          }
-        },
-      },
-    ]);
+  const handleLeaveGroup = async () => {
+    setIsDialogLoading(true);
+    try {
+      const settled = await checkSettledBeforeAction(user!.uid);
+      if (!settled) {
+        Alert.alert('Cannot Leave', 'Please settle your balances before leaving the group.');
+        setConfirmLeaveVisible(false);
+        return;
+      }
+      await leaveGroup(groupId, user!.uid);
+      setConfirmLeaveVisible(false);
+      navigation.popToTop();
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to leave group.');
+    } finally {
+      setIsDialogLoading(false);
+    }
   };
 
-  const onDeleteGroup = () => {
-    if (!isAdmin) return;
+  const handleDeleteGroup = async () => {
     const others = members.filter((m) => m.userId !== user?.uid);
     if (others.length > 0) {
-      Alert.alert('Cannot delete', 'Remove all other members before deleting the group.');
+      Alert.alert('Cannot Delete', 'Please remove all other members before deleting this group.');
+      setConfirmDeleteVisible(false);
       return;
     }
-    Alert.alert('Delete group', 'This will permanently delete the group.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteGroupService(groupId);
-            navigation.popToTop();
-          } catch (e: any) {
-            Alert.alert('Error', e.message || 'Failed to delete group');
-          }
-        },
-      },
-    ]);
+    setIsDialogLoading(true);
+    try {
+      await deleteGroupService(groupId);
+      setConfirmDeleteVisible(false);
+      navigation.popToTop();
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to delete group.');
+    } finally {
+      setIsDialogLoading(false);
+    }
   };
 
   if (loading) {
     return (
-      <View style={styles.loaderContainer}>
-        <ActivityIndicator />
+      <View style={[styles.loaderContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Group Info */}
-        <Card style={styles.card}>
-          <Card.Title title="Group Info" />
-          <Card.Content>
-            <TextInput
-              label="Group Name"
-              value={name}
-              onChangeText={setName}
-              editable={!!isAdmin}
-              style={{ marginBottom: 12 }}
-            />
-            <Text style={{ marginBottom: 8 }}>Icon</Text>
-            <View style={styles.iconRow}>
-              {ICON_CHOICES.map((i) => (
-                <HapticButton
-                  key={i}
-                  mode={icon === i ? 'contained' : 'outlined'}
-                  style={styles.iconBtn}
-                  onPress={() => setIcon(i)}
-                  disabled={!isAdmin}
-                >
-                  {i}
-                </HapticButton>
-              ))}
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <HapticButton
-                mode="outlined"
-                onPress={pickImage}
-                disabled={!isAdmin}
-                icon="image"
-                style={{ marginRight: 12 }}
-              >
-                {pickedImage ? 'Change Image' : 'Upload Image'}
-              </HapticButton>
-              {pickedImage?.uri ? (
-                <Image source={{ uri: pickedImage.uri }} style={styles.previewImg} />
-              ) : group?.imageUrl && /^(https?:|data:image)/.test(group.imageUrl) ? (
-                <Image source={{ uri: group.imageUrl }} style={styles.previewImg} />
-              ) : group?.imageUrl ? (
-                <Text style={{ fontSize: 32 }}>{group.imageUrl}</Text>
-              ) : null}
-            </View>
-            {isAdmin && (
-              <HapticButton
-                mode="contained"
-                style={{ marginTop: 12 }}
-                loading={saving}
-                disabled={saving}
-                onPress={onSave}
-              >
-                Save Changes
-              </HapticButton>
-            )}
-          </Card.Content>
-        </Card>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <AppHeader
+        title="Group Settings"
+        showBack
+        onBack={() => navigation.goBack()}
+      />
 
-        {/* Members */}
-        <Card style={styles.card}>
-          <Card.Title title="Members" />
-          <Card.Content>
-            {members.map((m) => (
-              <HapticListItem
-                key={m.userId}
-                title={m.userName}
-                description={m.role === 'admin' ? 'Admin' : undefined}
-                left={() =>
-                  m.imageUrl ? (
-                    <Avatar.Image size={40} source={{ uri: m.imageUrl }} />
-                  ) : (
-                    <Avatar.Text size={40} label={(m.userName || '?').charAt(0)} />
-                  )
-                }
-                right={() =>
-                  isAdmin && m.userId !== user?.uid ? (
-                    <HapticIconButton
-                      icon="account-remove"
-                      onPress={() => onKick(m.userId, m.userName)}
-                      accessibilityLabel={`Remove ${m.userName}`}
-                      accessibilityRole="button"
-                    />
-                  ) : null
-                }
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom + 24, 48) },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Group Edit Section */}
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+            shadows.sm,
+          ]}
+        >
+          <View style={styles.avatarEditRow}>
+            <View style={styles.avatarContainer}>
+              <MemberAvatar
+                name={name || group?.name || 'Group'}
+                imageUrl={pickedImage?.uri || group?.imageUrl}
+                size={72}
               />
-            ))}
-          </Card.Content>
-        </Card>
+              {isAdmin && (
+                <TouchableOpacity
+                  style={[styles.cameraBadge, { backgroundColor: colors.primary }]}
+                  onPress={pickImage}
+                  accessibilityRole="button"
+                  accessibilityLabel="Change group photo"
+                >
+                  <Camera size={14} color="#FFFFFF" strokeWidth={2.5} />
+                </TouchableOpacity>
+              )}
+            </View>
 
-        {/* Invite */}
-        <Card style={styles.card}>
-          <Card.Title title="Invite" />
-          <Card.Content>
-            <Text style={{ marginBottom: 8 }}>Join Code: {group?.joinCode}</Text>
-            <HapticButton mode="outlined" onPress={onShareInvite} icon="share-variant">
-              Share invite
-            </HapticButton>
-          </Card.Content>
-        </Card>
+            <View style={styles.nameInputContainer}>
+              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+                Group Name
+              </Text>
+              <TextInput
+                style={[
+                  styles.nameInput,
+                  {
+                    backgroundColor: colors.surfaceVariant,
+                    borderColor: colors.border,
+                    color: colors.textPrimary,
+                  },
+                ]}
+                value={name}
+                onChangeText={setName}
+                editable={isAdmin}
+                placeholder="Group Name"
+                placeholderTextColor={colors.textMuted}
+              />
+            </View>
+          </View>
+
+          {isAdmin && (
+            <TouchableOpacity
+              style={[
+                styles.saveChangesBtn,
+                { backgroundColor: colors.primary },
+              ]}
+              onPress={onSave}
+              disabled={saving}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.saveChangesBtnText}>Save Changes</Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Prominent Join Code Card (Fixes "Group code is not visible on groups") */}
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+            shadows.sm,
+          ]}
+        >
+          <View style={styles.joinCodeHeader}>
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
+              Group Join Code
+            </Text>
+            <StatusBadge variant="admin" label="Shareable" size="sm" />
+          </View>
+          <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>
+            Anyone with this 6-character code can join this group from their device.
+          </Text>
+
+          <View
+            style={[
+              styles.codeDisplayBox,
+              { backgroundColor: colors.primaryLight, borderColor: colors.primary + '40' },
+            ]}
+          >
+            <Text style={[styles.codeDisplayNumber, { color: colors.primaryDark }]}>
+              {group?.joinCode || '------'}
+            </Text>
+          </View>
+
+          <View style={styles.codeActionsRow}>
+            <TouchableOpacity
+              style={[
+                styles.shareCodeButton,
+                { backgroundColor: colors.primary },
+              ]}
+              onPress={onShareInvite}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Share invite code"
+            >
+              <Share2 size={16} color="#FFFFFF" strokeWidth={2.2} style={{ marginRight: 6 }} />
+              <Text style={styles.shareCodeButtonText}>Share Code</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Members Management */}
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+            shadows.sm,
+          ]}
+        >
+          <View style={styles.membersHeaderRow}>
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
+              Members ({members.length})
+            </Text>
+          </View>
+
+          <View style={styles.membersList}>
+            {members.map((m) => {
+              const isCurrentUser = m.userId === user?.uid;
+              const isMemberAdmin = m.role === 'admin';
+
+              return (
+                <View
+                  key={m.userId}
+                  style={[
+                    styles.memberRow,
+                    { borderBottomColor: colors.borderLight },
+                  ]}
+                >
+                  <View style={styles.memberLeft}>
+                    <MemberAvatar name={m.userName} size={40} />
+                    <View style={styles.memberMeta}>
+                      <Text
+                        style={[styles.memberName, { color: colors.textPrimary }]}
+                      >
+                        {m.userName} {isCurrentUser ? '(You)' : ''}
+                      </Text>
+                      <Text style={[styles.memberRoleText, { color: colors.textSecondary }]}>
+                        {isMemberAdmin ? '★ Group Admin' : 'Member'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.memberRight}>
+                    {isAdmin && !isCurrentUser && (
+                      <TouchableOpacity
+                        style={[styles.removeMemberBtn, { backgroundColor: colors.expenseLight }]}
+                        onPress={() => setMemberToRemove(m)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Remove ${m.userName}`}
+                      >
+                        <Trash2 size={14} color={colors.expense} strokeWidth={2.2} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </View>
 
         {/* Danger Zone */}
-        <Card style={styles.card}>
-          <Card.Title title="Danger Zone" />
-          <Card.Content>
-            <HapticButton
-              mode="outlined"
-              textColor="#d32f2f"
-              onPress={onLeave}
-              icon="logout-variant"
-            >
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+            shadows.sm,
+          ]}
+        >
+          <Text style={[styles.dangerTitle, { color: colors.expense }]}>
+            Danger Zone
+          </Text>
+
+          <TouchableOpacity
+            style={[styles.dangerButton, { borderColor: colors.expense + '40' }]}
+            onPress={() => setConfirmLeaveVisible(true)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+          >
+            <LogOut size={16} color={colors.expense} strokeWidth={2} style={{ marginRight: 8 }} />
+            <Text style={[styles.dangerButtonText, { color: colors.expense }]}>
               Leave Group
-            </HapticButton>
-            {isAdmin && (
-              <HapticButton
-                mode="contained"
-                buttonColor="#d32f2f"
-                onPress={onDeleteGroup}
-                icon="delete"
-                style={{ marginTop: 8 }}
-              >
-                Delete Group
-              </HapticButton>
-            )}
-          </Card.Content>
-        </Card>
+            </Text>
+          </TouchableOpacity>
+
+          {isAdmin && (
+            <TouchableOpacity
+              style={[
+                styles.dangerButton,
+                { borderColor: colors.expense + '40', marginTop: spacing.sm },
+              ]}
+              onPress={() => setConfirmDeleteVisible(true)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+            >
+              <Trash2 size={16} color={colors.expense} strokeWidth={2} style={{ marginRight: 8 }} />
+              <Text style={[styles.dangerButtonText, { color: colors.expense }]}>
+                Delete Group Permanently
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </ScrollView>
+
+      {/* Confirmation Dialogs */}
+      <ConfirmationDialog
+        visible={confirmLeaveVisible}
+        onDismiss={() => setConfirmLeaveVisible(false)}
+        onConfirm={handleLeaveGroup}
+        title="Leave Group?"
+        message="Are you sure you want to leave this group? All your balances must be settled first."
+        confirmLabel="Leave Group"
+        isDestructive
+        isLoading={isDialogLoading}
+        icon="logout"
+      />
+
+      <ConfirmationDialog
+        visible={confirmDeleteVisible}
+        onDismiss={() => setConfirmDeleteVisible(false)}
+        onConfirm={handleDeleteGroup}
+        title="Delete Group?"
+        message="This action cannot be undone. All expenses, balances, and history will be permanently deleted."
+        confirmLabel="Delete Permanently"
+        isDestructive
+        isLoading={isDialogLoading}
+        icon="trash"
+      />
+
+      <ConfirmationDialog
+        visible={!!memberToRemove}
+        onDismiss={() => setMemberToRemove(null)}
+        onConfirm={handleRemoveMember}
+        title="Remove Member?"
+        message={`Are you sure you want to remove ${memberToRemove?.userName} from the group?`}
+        confirmLabel="Remove"
+        isDestructive
+        isLoading={isDialogLoading}
+        icon="trash"
+      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scrollContent: { padding: 16 },
-  loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  card: { marginBottom: 16 },
-  iconRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 },
-  iconBtn: { marginRight: 8, marginBottom: 8 },
-  previewImg: { width: 48, height: 48, borderRadius: 24 },
+  container: {
+    flex: 1,
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scrollContent: {
+    padding: spacing.base,
+    paddingBottom: 48,
+  },
+  card: {
+    borderRadius: radii.xl,
+    padding: spacing.base,
+    borderWidth: 1,
+    marginBottom: spacing.base,
+  },
+  avatarEditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.base,
+  },
+  avatarContainer: {
+    position: 'relative',
+  },
+  cameraBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nameInputContainer: {
+    flex: 1,
+  },
+  fieldLabel: {
+    fontSize: typography.sizes.xs,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  nameInput: {
+    borderWidth: 1,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    fontSize: typography.sizes.base,
+    fontWeight: '600',
+  },
+  saveChangesBtn: {
+    marginTop: spacing.base,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    borderRadius: radii.md,
+  },
+  saveChangesBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: typography.sizes.sm,
+  },
+  joinCodeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  cardTitle: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.bold,
+    letterSpacing: -0.2,
+  },
+  cardDescription: {
+    fontSize: typography.sizes.xs,
+    lineHeight: typography.lineHeights.xs,
+    marginBottom: spacing.md,
+  },
+  codeDisplayBox: {
+    borderWidth: 1.5,
+    borderRadius: radii.lg,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  codeDisplayNumber: {
+    fontSize: 28,
+    fontWeight: '900',
+    fontFamily: 'Courier',
+    letterSpacing: 4,
+  },
+  codeActionsRow: {
+    flexDirection: 'row',
+  },
+  shareCodeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    borderRadius: radii.md,
+  },
+  shareCodeButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: typography.sizes.sm,
+  },
+  membersHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  membersList: {},
+  memberRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  memberLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    flex: 1,
+  },
+  memberMeta: {
+    flex: 1,
+  },
+  memberName: {
+    fontSize: typography.sizes.base,
+    fontWeight: '600',
+  },
+  memberRoleText: {
+    fontSize: typography.sizes.xs,
+    marginTop: 1,
+  },
+  memberRight: {},
+  removeMemberBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dangerTitle: {
+    fontSize: typography.sizes.sm,
+    fontWeight: '700',
+    marginBottom: spacing.md,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  dangerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+  },
+  dangerButtonText: {
+    fontWeight: '700',
+    fontSize: typography.sizes.sm,
+  },
 });
 
 export default GroupSettingsScreen;

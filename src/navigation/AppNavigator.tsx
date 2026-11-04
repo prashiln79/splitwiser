@@ -3,6 +3,7 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
+import { useAppTheme } from '../theme';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import MainNavigator from './MainNavigator';
 
@@ -10,17 +11,18 @@ const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
   const { user, isLoading } = useAuth();
+  const { navTheme, colors } = useAppTheme();
 
   if (isLoading) {
     return (
-      <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" />
+      <View style={[styles.loaderContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navTheme}>
       {user ? (
         <MainNavigator />
       ) : (

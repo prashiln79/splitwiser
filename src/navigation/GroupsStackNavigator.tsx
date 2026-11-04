@@ -11,24 +11,12 @@ const Stack = createNativeStackNavigator();
 const GroupsStackNavigator = () => {
   return (
     // @ts-ignore react-navigation v7 id prop
-    <Stack.Navigator>
-      <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+      <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="GroupDetails" component={GroupDetailsScreen} />
-      <Stack.Screen
-        name="AddExpense"
-        component={AddExpenseScreen}
-        options={{ title: 'Add Expense' }}
-      />
-      <Stack.Screen
-        name="GroupSettings"
-        component={GroupSettingsScreen}
-        options={{ title: 'Group Settings' }}
-      />
-      <Stack.Screen
-        name="JoinGroup"
-        component={JoinGroupScreen}
-        options={{ title: 'Join Group' }}
-      />
+      <Stack.Screen name="AddExpense" component={AddExpenseScreen} />
+      <Stack.Screen name="GroupSettings" component={GroupSettingsScreen} />
+      <Stack.Screen name="JoinGroup" component={JoinGroupScreen} />
     </Stack.Navigator>
   );
 };

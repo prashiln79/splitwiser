@@ -1,18 +1,20 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
-  ActivityIndicator,
-  Appbar,
-  Avatar,
-  Modal,
-  Portal,
+  Alert,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  View,
   Text,
+  Modal,
   TextInput,
-  useTheme,
-} from 'react-native-paper';
-import HapticButton from '../components/ui/HapticButton';
-import HapticCard from '../components/ui/HapticCard';
-import { HapticAppbarAction } from '../components/ui/HapticAppbar';
+  TouchableOpacity,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { Plus, Hash, X, Users, Sparkles } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import {
   createGroup,
@@ -22,12 +24,18 @@ import {
 import { getGroupExpenses } from '../services/expenses';
 import { getOptimizedSettlements } from '../utils/balanceCalculator';
 import { useAuth } from '../context/AuthContext';
-import { formatCurrency } from '../utils/currency';
-import { Group, OptimizedSettlement } from '../types';
+import { useAppTheme, typography, spacing, radii, shadows } from '../theme';
+import { AppHeader } from '../components/common/AppHeader';
+import { BalanceCard } from '../components/common/BalanceCard';
+import { GroupCard } from '../components/common/GroupCard';
+import { EmptyState } from '../components/common/EmptyState';
+import { Group } from '../types';
 
 const HomeScreen = ({ navigation }: any) => {
   const { user } = useAuth();
-  const theme = useTheme();
+  const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
+
   const [groups, setGroups] = useState<Group[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -60,7 +68,7 @@ const HomeScreen = ({ navigation }: any) => {
               .filter((s) => s.toUserId === user.uid)
               .reduce((acc, s) => acc + s.amount, 0);
             const netBalance = myOwed - myOwes;
-            results[group.id] = { netBalance, isSettled: netBalance === 0 };
+            results[group.id] = { netBalance, isSettled: Math.abs(netBalance) < 0.01 };
           } catch {
             results[group.id] = { netBalance: 0, isSettled: true };
           }
@@ -84,23 +92,28 @@ const HomeScreen = ({ navigation }: any) => {
     });
 
     return unsubscribe;
-  }, [user]);
+  }, [user, refreshSettlements]);
 
   const onRefresh = async () => {
     setIsRefreshing(true);
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
     await refreshSettlements(groups);
     setIsRefreshing(false);
   };
 
   const handleCreateGroup = async () => {
     if (!newGroupName.trim() || !user) {
-      Alert.alert('Error', 'Please enter a group name.');
+      Alert.alert('Group Name Required', 'Please enter a name for the new group.');
       return;
     }
     setIsCreatingGroup(true);
     try {
       await createGroup(newGroupName.trim(), user.uid, user.name);
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
       setModalVisible(false);
       setNewGroupName('');
     } catch (error: any) {
@@ -110,144 +123,343 @@ const HomeScreen = ({ navigation }: any) => {
     }
   };
 
-  // ── Render helpers ────────────────────────────────────────────────────────
-  const getSettlementText = (groupId: string) => {
-    const status = groupSettlements[groupId];
-    if (!status) return 'Calculating...';
-    if (status.isSettled) return '✓ You are settled up.';
-    if (status.netBalance > 0) return `You are owed ${formatCurrency(status.netBalance)}`;
-    return `You owe ${formatCurrency(Math.abs(status.netBalance))}`;
-  };
+  // Aggregated totals across all groups
+  const { totalOwed, totalOwes } = useMemo(() => {
+    let owed = 0;
+    let owes = 0;
+    Object.values(groupSettlements).forEach((s) => {
+      if (s.netBalance > 0) owed += s.netBalance;
+      else if (s.netBalance < 0) owes += Math.abs(s.netBalance);
+    });
+    return { totalOwed: owed, totalOwes: owes };
+  }, [groupSettlements]);
 
-  const getStatusColor = (groupId: string) => {
-    const status = groupSettlements[groupId];
-    if (!status || status.isSettled) return '#4CAF50';
-    return status.netBalance > 0 ? '#4CAF50' : '#F44336';
-  };
+  const renderHeader = () => (
+    <View style={styles.listHeader}>
+      <BalanceCard
+        totalOwed={totalOwed}
+        totalOwes={totalOwes}
+        onCreateGroup={() => setModalVisible(true)}
+        onJoinGroup={() => navigation.navigate('JoinGroup')}
+      />
 
-  const renderGroup = ({ item }: { item: Group }) => {
-    const isImage = item.imageUrl && /^(https?:|data:image)/.test(item.imageUrl);
-    const groupIcon = item.imageUrl || item.name?.charAt(0) || '?';
-
-    return (
-      <HapticCard
-        style={styles.card}
-        onPress={() =>
-          navigation.navigate('GroupDetails', {
-            groupId: item.id,
-            groupName: item.name,
-            groupIcon,
-          })
-        }
-        accessibilityRole="button"
-        accessibilityLabel={`Group ${item.name}. ${getSettlementText(item.id)}`}
-      >
-        <HapticCard.Title
-          title={item.name}
-          left={(props: any) =>
-            isImage ? (
-              <Avatar.Image {...props} source={{ uri: item.imageUrl! }} />
-            ) : (
-              <Avatar.Text {...props} label={item.name.charAt(0)} />
-            )
-          }
-        />
-        <HapticCard.Content>
-          <Text style={[styles.settlementStatus, { color: getStatusColor(item.id) }]}>
-            {getSettlementText(item.id)}
-          </Text>
-        </HapticCard.Content>
-      </HapticCard>
-    );
-  };
+      <View style={styles.sectionHeaderRow}>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+          Your Groups
+        </Text>
+        <Text style={[styles.groupCountBadge, { color: colors.textSecondary }]}>
+          {groups.length} {groups.length === 1 ? 'group' : 'groups'}
+        </Text>
+      </View>
+    </View>
+  );
 
   return (
-    <View style={styles.container}>
-      <Portal>
-        <Modal
-          visible={modalVisible}
-          onDismiss={() => setModalVisible(false)}
-          contentContainerStyle={styles.modalContainer}
-        >
-          <Text style={styles.modalTitle}>Create a New Group</Text>
-          <TextInput
-            label="Group Name"
-            value={newGroupName}
-            onChangeText={setNewGroupName}
-            style={styles.input}
-            accessibilityLabel="New group name"
-          />
-          <HapticButton
-            mode="contained"
-            onPress={handleCreateGroup}
-            loading={isCreatingGroup}
-            disabled={isCreatingGroup}
-            accessibilityLabel="Create Group"
-            accessibilityRole="button"
-          >
-            Create
-          </HapticButton>
-        </Modal>
-      </Portal>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Modern Top Header */}
+      <AppHeader
+        title="Splitwiser"
+        subtitle={`Hi, ${user?.name || 'Friend'} 👋`}
+        rightAction={
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('JoinGroup')}
+              style={[styles.headerIconBtn, { backgroundColor: colors.surfaceVariant }]}
+              accessibilityLabel="Join group with code"
+              accessibilityRole="button"
+            >
+              <Hash size={18} color={colors.textPrimary} strokeWidth={2.2} />
+            </TouchableOpacity>
 
-      <Appbar.Header>
-        <Appbar.Content title="Your Groups" />
-        <HapticAppbarAction
-          icon="plus"
-          onPress={() => setModalVisible(true)}
-          accessibilityLabel="Create new group"
-          accessibilityRole="button"
-        />
-        <HapticAppbarAction
-          icon="account-plus"
-          onPress={() => navigation.navigate('JoinGroup')}
-          accessibilityLabel="Join a group"
-          accessibilityRole="button"
-        />
-      </Appbar.Header>
+            <TouchableOpacity
+              onPress={() => setModalVisible(true)}
+              style={[styles.headerIconBtn, { backgroundColor: colors.primary }]}
+              accessibilityLabel="Create group"
+              accessibilityRole="button"
+            >
+              <Plus size={18} color="#FFFFFF" strokeWidth={2.5} />
+            </TouchableOpacity>
+          </View>
+        }
+      />
 
+      {/* Main Content */}
       {isLoading ? (
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" />
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+            Loading your groups...
+          </Text>
         </View>
       ) : (
         <FlatList
           data={groups}
-          renderItem={renderGroup}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
+          ListHeaderComponent={renderHeader}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: Math.max(insets.bottom + 80, 100) },
+          ]}
+          renderItem={({ item }) => {
+            const status = groupSettlements[item.id];
+            return (
+              <GroupCard
+                group={item}
+                netBalance={status?.netBalance ?? 0}
+                isSettled={status?.isSettled ?? true}
+                onPress={() =>
+                  navigation.navigate('GroupDetails', {
+                    groupId: item.id,
+                    groupName: item.name,
+                  })
+                }
+              />
+            );
+          }}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No groups yet. Create or join one!</Text>
+            <EmptyState
+              icon={Users}
+              title="No groups yet"
+              description="Create a group or join one using a code to start splitting expenses with friends."
+              actionLabel="Create a Group"
+              onAction={() => setModalVisible(true)}
+            />
           }
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={onRefresh}
-              colors={[theme.colors.primary]}
-              tintColor={theme.colors.primary}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
             />
           }
         />
       )}
+
+      {/* Modern Create Group Modal */}
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={[styles.modalBackdrop, { backgroundColor: colors.backdrop }]}
+        >
+          <View
+            style={[
+              styles.modalDialog,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+              shadows.lg,
+            ]}
+          >
+            <View style={styles.modalHeaderRow}>
+              <View>
+                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
+                  Create a New Group
+                </Text>
+                <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+                  A shareable join code will be generated automatically.
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                style={[styles.modalCloseBtn, { backgroundColor: colors.surfaceVariant }]}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
+                <X size={18} color={colors.textSecondary} strokeWidth={2.2} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                Group Name
+              </Text>
+              <TextInput
+                style={[
+                  styles.modalInput,
+                  {
+                    backgroundColor: colors.surfaceVariant,
+                    borderColor: colors.border,
+                    color: colors.textPrimary,
+                  },
+                ]}
+                placeholder="e.g. Goa Trip, Flat 402, Weekend Dinner"
+                placeholderTextColor={colors.textMuted}
+                value={newGroupName}
+                onChangeText={setNewGroupName}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={handleCreateGroup}
+                accessibilityLabel="New group name input"
+              />
+            </View>
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity
+                style={[
+                  styles.modalCancelBtn,
+                  { backgroundColor: colors.surfaceVariant, borderColor: colors.border },
+                ]}
+                onPress={() => setModalVisible(false)}
+                disabled={isCreatingGroup}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.modalCancelText, { color: colors.textPrimary }]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalSubmitBtn, { backgroundColor: colors.primary }]}
+                onPress={handleCreateGroup}
+                disabled={isCreatingGroup || !newGroupName.trim()}
+                accessibilityRole="button"
+              >
+                {isCreatingGroup ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSubmitText}>Create Group</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  list: { padding: 16 },
-  card: { marginBottom: 16 },
-  settlementStatus: { fontWeight: '500', marginTop: 4 },
-  emptyText: { textAlign: 'center', marginTop: 20 },
-  modalContainer: {
-    backgroundColor: 'white',
-    padding: 20,
-    margin: 20,
-    borderRadius: 8,
+  container: {
+    flex: 1,
   },
-  modalTitle: { fontSize: 20, marginBottom: 20, textAlign: 'center' },
-  input: { marginBottom: 20 },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  headerIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  loadingText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: '500',
+  },
+  listContent: {
+    paddingBottom: spacing.xxl,
+  },
+  listHeader: {
+    paddingTop: spacing.base,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.base,
+    marginBottom: spacing.md,
+    marginTop: spacing.xs,
+  },
+  sectionTitle: {
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.bold,
+    letterSpacing: -0.3,
+  },
+  groupCountBadge: {
+    fontSize: typography.sizes.xs,
+    fontWeight: '600',
+  },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.base,
+  },
+  modalDialog: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+  },
+  modalTitle: {
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.bold,
+    letterSpacing: -0.3,
+  },
+  modalSubtitle: {
+    fontSize: typography.sizes.xs,
+    marginTop: 2,
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBody: {
+    marginVertical: spacing.sm,
+  },
+  inputLabel: {
+    fontSize: typography.sizes.xs,
+    fontWeight: '600',
+    marginBottom: spacing.xs,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: typography.sizes.base,
+  },
+  modalActionsRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.base,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+  },
+  modalCancelText: {
+    fontWeight: '600',
+    fontSize: typography.sizes.sm,
+  },
+  modalSubmitBtn: {
+    flex: 1.4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    borderRadius: radii.md,
+  },
+  modalSubmitText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: typography.sizes.sm,
+  },
 });
 
 export default HomeScreen;
