@@ -21,6 +21,7 @@
     "owner": "prashiln79",
     "android": {
       "package": "com.prashiln79.splitwiser",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"

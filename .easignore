@@ -1,0 +1,16 @@
+# EAS Build Ignore File
+# Overrides .gitignore during EAS builds so local configs are included
+
+node_modules/
+.expo/
+dist/
+web-build/
+.git/
+.vscode/
+.idea/
+*.log
+.DS_Store
+backend/
+venv/
+.venv/
+
