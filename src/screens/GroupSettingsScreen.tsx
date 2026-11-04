@@ -116,10 +116,12 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
 
   const pickImage = async () => {
     if (!isAdmin) return;
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Required', 'Allow photo library access to change the group avatar.');
-      return;
+    if (Platform.OS === 'ios') {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Allow photo library access to change the group avatar.');
+        return;
+      }
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,

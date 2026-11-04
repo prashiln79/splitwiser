@@ -504,16 +504,16 @@
         <strong>Sensitive Financial Data Excluded:</strong> Splitwiser does <strong>NOT</strong> collect or store credit card numbers, debit card PINs, bank account credentials, UPI PINs, or national identity numbers (such as Aadhaar or PAN). All financial calculations in Splitwiser are purely collaborative ledger records.
       </div>
 
-      <h2>3. Device Permissions & Scoped Access</h2>
+      <h2>3. Device Permissions & Privacy-Preserving Photo Picker</h2>
       <p>
-        In accordance with Android best practices and Google Play Developer policies, Splitwiser requests only the permissions essential for user-invoked tasks:
+        In accordance with Android best practices and Google Play's Photo and Video Permissions policy, Splitwiser does <strong>NOT</strong> request broad storage or media library permissions (such as <code>READ_MEDIA_IMAGES</code>, <code>READ_EXTERNAL_STORAGE</code>, or <code>WRITE_EXTERNAL_STORAGE</code>).
       </p>
       <ul>
         <li>
-          <strong>Photo & Media Access (<code>READ_MEDIA_IMAGES</code>):</strong> Used solely when you voluntarily tap to attach a receipt photo to an expense or set a custom group cover photo. Splitwiser uses Android&rsquo;s system photo picker to read only the specific image file selected by you. The App never scans your broader photo gallery or unselected files.
+          <strong>System Photo Picker (Zero Permissions Required):</strong> When you choose to attach an avatar or group photo, Splitwiser invokes Android&rsquo;s privacy-preserving system Photo Picker (<code>PickVisualMedia</code>). The operating system isolates the picker UI, and only the single file you voluntarily select is shared with the App. Splitwiser never has access to your full photo gallery.
         </li>
         <li>
-          <strong>Internet & Network Access (<code>INTERNET</code>, <code>ACCESS_NETWORK_STATE</code>):</strong> Required to synchronize your expense ledgers with Google Cloud Firestore in real time and authenticate through Google Play services.
+          <strong>Internet & Network Access (<code>INTERNET</code>, <code>ACCESS_NETWORK_STATE</code>):</strong> Required to synchronize expense ledgers with Google Cloud Firestore in real time and authenticate via Google Sign-In.
         </li>
       </ul>
 
