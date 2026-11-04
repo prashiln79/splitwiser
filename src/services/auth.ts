@@ -3,14 +3,33 @@ import {
   signInAnonymously,
   onAuthStateChanged,
   User as FirebaseUser,
+  GoogleAuthProvider,
+  linkWithCredential,
+  signInWithCredential,
+  signOut,
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import {
+  doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+  collection,
+  query,
+  where,
+  arrayUnion,
+  arrayRemove,
+  serverTimestamp,
+  writeBatch,
+} from 'firebase/firestore';
 import { AppUser } from '../types';
 
 // ─── Root path ────────────────────────────────────────────────────────────────
 // All Splitwiser data is nested under /splitwiser/data/...
 // Users are stored at /splitwiser/data/users/{uid}
 const usersPath = (uid: string) => doc(db, 'splitwiser', 'data', 'users', uid);
+const groupsCol = () => collection(db, 'splitwiser', 'data', 'groups');
 
 /**
  * Sign in anonymously and create a Firestore user profile.
@@ -18,18 +37,22 @@ const usersPath = (uid: string) => doc(db, 'splitwiser', 'data', 'users', uid);
 export async function signInAndCreateProfile(name: string): Promise<AppUser> {
   const credential = await signInAnonymously(auth);
   const { uid } = credential.user;
+  const now = new Date();
 
   const profile: AppUser = {
     uid,
     name: name.trim(),
-    createdAt: new Date(),
+    createdAt: now,
     isAnonymous: true,
+    authProvider: 'anonymous',
   };
 
   await setDoc(usersPath(uid), {
+    uid,
     name: profile.name,
     createdAt: serverTimestamp(),
     isAnonymous: true,
+    authProvider: 'anonymous',
   });
 
   return profile;
@@ -45,10 +68,15 @@ export async function loadUserProfile(uid: string): Promise<AppUser | null> {
   const data = snap.data();
   return {
     uid,
-    name: data.name ?? 'Anonymous',
-    createdAt: data.createdAt?.toDate() ?? new Date(),
+    name: data.name ?? 'Anonymous User',
+    createdAt: data.createdAt?.toDate?.() ?? new Date(),
     isAnonymous: data.isAnonymous ?? true,
-    imageUrl: data.imageUrl,
+    imageUrl: data.imageUrl || data.photoURL,
+    email: data.email,
+    photoURL: data.photoURL,
+    authProvider: data.authProvider,
+    updatedAt: data.updatedAt?.toDate?.(),
+    accountLinkedAt: data.accountLinkedAt?.toDate?.(),
   };
 }
 
@@ -59,7 +87,223 @@ export async function updateUserProfile(
   uid: string,
   updates: Partial<Pick<AppUser, 'name' | 'imageUrl'>>
 ): Promise<void> {
-  await setDoc(usersPath(uid), updates, { merge: true });
+  await setDoc(
+    usersPath(uid),
+    {
+      ...updates,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+/**
+ * Link an existing anonymous account with a Google credential.
+ * CRITICAL: The existing Firebase UID remains exactly the same!
+ */
+export async function linkGoogleCredential(
+  idToken: string,
+  accessToken?: string
+): Promise<{ user: AppUser; isSameUid: boolean }> {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error('No active user session to link.');
+  }
+
+  const prevUid = currentUser.uid;
+  const credential = GoogleAuthProvider.credential(idToken, accessToken);
+
+  // Link credential directly to currentUser
+  const userCredential = await linkWithCredential(currentUser, credential);
+  const linkedFirebaseUser = userCredential.user;
+
+  // Strict verification: Firebase UID must remain unchanged
+  const isSameUid = linkedFirebaseUser.uid === prevUid;
+  if (!isSameUid) {
+    console.warn(
+      `[Auth Linking] Warning: UID changed from ${prevUid} to ${linkedFirebaseUser.uid}`
+    );
+  }
+
+  // Update Firestore user document with Google profile information
+  const now = serverTimestamp();
+  const updates: Record<string, any> = {
+    uid: linkedFirebaseUser.uid,
+    isAnonymous: false,
+    authProvider: 'google',
+    accountLinkedAt: now,
+    updatedAt: now,
+  };
+
+  if (linkedFirebaseUser.email) {
+    updates.email = linkedFirebaseUser.email;
+  }
+  if (linkedFirebaseUser.photoURL) {
+    updates.photoURL = linkedFirebaseUser.photoURL;
+    updates.imageUrl = linkedFirebaseUser.photoURL;
+  }
+  if (linkedFirebaseUser.displayName) {
+    updates.name = linkedFirebaseUser.displayName;
+  }
+
+  await setDoc(usersPath(linkedFirebaseUser.uid), updates, { merge: true });
+
+  const refreshedProfile = await loadUserProfile(linkedFirebaseUser.uid);
+  return {
+    user: refreshedProfile!,
+    isSameUid,
+  };
+}
+
+/**
+ * Sign in using an existing Google account (for login on a second device or returning users).
+ */
+export async function signInWithGoogleCredential(
+  idToken: string,
+  accessToken?: string
+): Promise<AppUser> {
+  const credential = GoogleAuthProvider.credential(idToken, accessToken);
+  const userCredential = await signInWithCredential(auth, credential);
+  const googleUser = userCredential.user;
+
+  // Check if profile exists
+  let profile = await loadUserProfile(googleUser.uid);
+  if (!profile) {
+    // Brand new Google user: create profile
+    const now = serverTimestamp();
+    const newProfile = {
+      uid: googleUser.uid,
+      name: googleUser.displayName || 'Splitwiser User',
+      email: googleUser.email || null,
+      photoURL: googleUser.photoURL || null,
+      imageUrl: googleUser.photoURL || null,
+      isAnonymous: false,
+      authProvider: 'google',
+      createdAt: now,
+      updatedAt: now,
+    };
+    await setDoc(usersPath(googleUser.uid), newProfile);
+    profile = await loadUserProfile(googleUser.uid);
+  }
+
+  return profile!;
+}
+
+/**
+ * Handle account conflict migration:
+ * When an anonymous user links a Google account that already belongs to another Firebase user,
+ * securely migrate groups, expenses, and memberships from the anonymous UID to the Google UID.
+ */
+export async function migrateAnonymousDataToExistingGoogleAccount(
+  anonymousUid: string,
+  idToken: string,
+  accessToken?: string
+): Promise<AppUser> {
+  // 1. First, find all groups belonging to the anonymous user before switching accounts
+  const q = query(groupsCol(), where('memberIds', 'array-contains', anonymousUid));
+  const groupSnaps = await getDocs(q);
+
+  // 2. Sign in to the existing Google account
+  const credential = GoogleAuthProvider.credential(idToken, accessToken);
+  const userCredential = await signInWithCredential(auth, credential);
+  const googleUid = userCredential.user.uid;
+  const googleUserName = userCredential.user.displayName || 'Splitwiser User';
+
+  // 3. Migrate group memberships, expenses, and settlements to the Google UID
+  for (const groupDocSnap of groupSnaps.docs) {
+    const groupId = groupDocSnap.id;
+    const groupRef = doc(db, 'splitwiser', 'data', 'groups', groupId);
+
+    // Update memberIds array in group doc
+    await updateDoc(groupRef, {
+      memberIds: arrayUnion(googleUid),
+    });
+    await updateDoc(groupRef, {
+      memberIds: arrayRemove(anonymousUid),
+    });
+
+    // Transfer group member subcollection doc
+    const anonMemberRef = doc(db, 'splitwiser', 'data', 'groups', groupId, 'members', anonymousUid);
+    const anonMemberSnap = await getDoc(anonMemberRef);
+
+    if (anonMemberSnap.exists()) {
+      const memberData = anonMemberSnap.data();
+      const googleMemberRef = doc(db, 'splitwiser', 'data', 'groups', groupId, 'members', googleUid);
+      await setDoc(googleMemberRef, {
+        userId: googleUid,
+        userName: googleUserName,
+        role: memberData.role || 'member',
+        joinedAt: memberData.joinedAt || serverTimestamp(),
+      });
+      await deleteDoc(anonMemberRef);
+    }
+
+    // Migrate expenses in group
+    const expensesColRef = collection(db, 'splitwiser', 'data', 'groups', groupId, 'expenses');
+    const expensesSnap = await getDocs(expensesColRef);
+
+    for (const expDoc of expensesSnap.docs) {
+      const expData = expDoc.data();
+      let needsUpdate = false;
+      const updates: Record<string, any> = {};
+
+      if (expData.paidBy === anonymousUid) {
+        updates.paidBy = googleUid;
+        needsUpdate = true;
+      }
+      if (expData.createdBy === anonymousUid) {
+        updates.createdBy = googleUid;
+        needsUpdate = true;
+      }
+      if (Array.isArray(expData.splits)) {
+        const updatedSplits = expData.splits.map((s: any) =>
+          s.userId === anonymousUid ? { ...s, userId: googleUid } : s
+        );
+        updates.splits = updatedSplits;
+        needsUpdate = true;
+      }
+
+      if (needsUpdate) {
+        await updateDoc(doc(db, 'splitwiser', 'data', 'groups', groupId, 'expenses', expDoc.id), updates);
+      }
+    }
+
+    // Migrate settlements in group
+    const settlementsColRef = collection(db, 'splitwiser', 'data', 'groups', groupId, 'settlements');
+    const settlementsSnap = await getDocs(settlementsColRef);
+
+    for (const setDocSnap of settlementsSnap.docs) {
+      const setData = setDocSnap.data();
+      let needsUpdate = false;
+      const updates: Record<string, any> = {};
+
+      if (setData.fromUserId === anonymousUid) {
+        updates.fromUserId = googleUid;
+        updates.fromUserName = googleUserName;
+        needsUpdate = true;
+      }
+      if (setData.toUserId === anonymousUid) {
+        updates.toUserId = googleUid;
+        updates.toUserName = googleUserName;
+        needsUpdate = true;
+      }
+
+      if (needsUpdate) {
+        await updateDoc(doc(db, 'splitwiser', 'data', 'groups', groupId, 'settlements', setDocSnap.id), updates);
+      }
+    }
+  }
+
+  // Load and return the Google user profile
+  const profile = await loadUserProfile(googleUid);
+  return profile!;
+}
+
+/**
+ * Sign out current user.
+ */
+export async function signOutUser(): Promise<void> {
+  await signOut(auth);
 }
 
 /**

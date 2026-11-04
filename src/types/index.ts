@@ -5,6 +5,11 @@ export interface AppUser {
   createdAt: Date;
   isAnonymous: boolean;
   imageUrl?: string;
+  email?: string;
+  photoURL?: string;
+  authProvider?: string;
+  updatedAt?: Date;
+  accountLinkedAt?: Date;
 }
 
 // ─── Group ───────────────────────────────────────────────────────────────────

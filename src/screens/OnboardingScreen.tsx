@@ -16,13 +16,14 @@ import {
   ArrowRight,
   Users,
   Sparkles,
-  CheckCircle2,
   ShieldCheck,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme, typography, spacing, radii, shadows } from '../theme';
+import { GoogleIcon } from '../components/common/GoogleIcon';
+import { useGoogleAuth, GoogleAuthTokens } from '../services/useGoogleAuth';
 
 const FEATURES = [
   {
@@ -38,17 +39,18 @@ const FEATURES = [
   {
     icon: ShieldCheck,
     title: 'Instant Guest Access',
-    desc: 'Get started immediately without friction.',
+    desc: 'Start immediately or link Google anytime.',
   },
 ];
 
 const OnboardingScreen = () => {
-  const { completeOnboarding } = useAuth();
+  const { completeOnboarding, signInWithGoogle } = useAuth();
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
 
   const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const handleContinue = async () => {
     const trimmed = name.trim();
@@ -66,11 +68,50 @@ const OnboardingScreen = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       }
       await completeOnboarding(trimmed);
-    } catch (err) {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Something went wrong. Please try again.');
       console.error('[Onboarding] Error:', err);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (tokens: GoogleAuthTokens) => {
+    setIsGoogleLoading(true);
+    try {
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
+      await signInWithGoogle(tokens.idToken, tokens.accessToken);
+    } catch (err: any) {
+      console.error('[Onboarding Google Login] Error:', err);
+      Alert.alert('Google Sign-In Failed', err.message || 'Could not sign in with Google.');
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  const { promptAsync } = useGoogleAuth(
+    handleGoogleSuccess,
+    (err) => {
+      setIsGoogleLoading(false);
+      Alert.alert('Authentication Error', err.message || 'Failed to authenticate with Google.');
+    }
+  );
+
+  const handleGoogleSignIn = async () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    setIsGoogleLoading(true);
+    try {
+      const result = await promptAsync();
+      if (result.type !== 'success') {
+        setIsGoogleLoading(false);
+      }
+    } catch (e: any) {
+      setIsGoogleLoading(false);
+      Alert.alert('Error', e.message || 'Failed to initiate Google sign-in.');
     }
   };
 
@@ -156,7 +197,7 @@ const OnboardingScreen = () => {
             ]}
           >
             <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>
-              What should we call you?
+              Start as Guest (Instant Access)
             </Text>
             <TextInput
               style={[
@@ -167,7 +208,7 @@ const OnboardingScreen = () => {
                   color: colors.textPrimary,
                 },
               ]}
-              placeholder="e.g. Alex Sharma"
+              placeholder="Enter your name (e.g. Alex Sharma)"
               placeholderTextColor={colors.textMuted}
               value={name}
               onChangeText={setName}
@@ -186,7 +227,7 @@ const OnboardingScreen = () => {
                 },
               ]}
               onPress={handleContinue}
-              disabled={isSubmitting || name.trim().length < 2}
+              disabled={isSubmitting || isGoogleLoading || name.trim().length < 2}
               activeOpacity={0.85}
               accessibilityRole="button"
               accessibilityLabel="Continue to Splitwiser"
@@ -204,7 +245,7 @@ const OnboardingScreen = () => {
                       },
                     ]}
                   >
-                    Get Started
+                    Start as Guest
                   </Text>
                   <ArrowRight
                     size={18}
@@ -215,6 +256,44 @@ const OnboardingScreen = () => {
                 </>
               )}
             </TouchableOpacity>
+
+            {/* Divider */}
+            <View style={styles.dividerRow}>
+              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+              <Text style={[styles.dividerText, { color: colors.textMuted }]}>
+                OR RESTORE ACCOUNT
+              </Text>
+              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            </View>
+
+            {/* Google Login on Another Device */}
+            <TouchableOpacity
+              style={[
+                styles.googleButton,
+                { backgroundColor: '#FFFFFF', borderColor: colors.border },
+                shadows.sm,
+              ]}
+              onPress={handleGoogleSignIn}
+              disabled={isSubmitting || isGoogleLoading}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Sign in with Google"
+            >
+              {isGoogleLoading ? (
+                <ActivityIndicator color={colors.primary} size="small" />
+              ) : (
+                <>
+                  <GoogleIcon size={18} />
+                  <Text style={styles.googleButtonText}>
+                    Continue with Google
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <Text style={[styles.restoreHint, { color: colors.textSecondary }]}>
+              Signing in with Google restores your existing groups, expenses, and UID across devices.
+            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -228,8 +307,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: spacing.base,
-    paddingTop: Platform.OS === 'ios' ? 72 : 48,
-    paddingBottom: 48,
   },
   brandContainer: {
     alignItems: 'center',
@@ -315,6 +392,41 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: typography.sizes.base,
     fontWeight: '700',
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.lg,
+    gap: spacing.sm,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: spacing.md,
+    borderRadius: radii.xl,
+    borderWidth: 1.5,
+  },
+  googleButtonText: {
+    color: '#0F172A',
+    fontSize: typography.sizes.sm,
+    fontWeight: '700',
+  },
+  restoreHint: {
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    lineHeight: 15,
   },
 });
 

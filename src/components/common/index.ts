@@ -9,4 +9,6 @@ export * from './ExpenseListItem';
 export * from './SettleUpModal';
 export * from './ConfirmationDialog';
 export * from './AmountInput';
+export * from './GoogleIcon';
+export * from './ConnectGoogleModal';
 
