@@ -17,6 +17,9 @@ venv/
 firebase-service-account.json
 google-services.json
 
+# Firebase app config - keep credentials local, never commit
+src/config/firebase.ts
+
 # dependencies
 node_modules/
 
