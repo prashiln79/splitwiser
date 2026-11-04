@@ -1,6 +1,7 @@
 import React from 'react';
 import { Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { PlatformPressable } from '@react-navigation/elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Users, UserCheck, User } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -26,6 +27,14 @@ const MainNavigator = () => {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
+        tabBarButton: (props) => (
+          <PlatformPressable
+            {...props}
+            pressColor="transparent"
+            android_ripple={{ color: 'transparent' }}
+            pressOpacity={1}
+          />
+        ),
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,

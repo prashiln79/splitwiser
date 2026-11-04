@@ -301,6 +301,8 @@ const HomeScreen = ({ navigation }: any) => {
               description="Create a group or join one using a code to start splitting expenses with friends."
               actionLabel="Create a Group"
               onAction={() => setModalVisible(true)}
+              secondaryActionLabel="Join a Group"
+              onSecondaryAction={() => setIsJoinModalVisible(true)}
             />
           }
           refreshControl={

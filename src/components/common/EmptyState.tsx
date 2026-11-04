@@ -10,6 +10,8 @@ interface EmptyStateProps {
   description: string;
   actionLabel?: string;
   onAction?: () => void;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
@@ -18,12 +20,19 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   description,
   actionLabel,
   onAction,
+  secondaryActionLabel,
+  onSecondaryAction,
 }) => {
   const { colors } = useAppTheme();
 
   const handleAction = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     if (onAction) onAction();
+  };
+
+  const handleSecondaryAction = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (onSecondaryAction) onSecondaryAction();
   };
 
   return (
@@ -42,17 +51,36 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         {description}
       </Text>
 
-      {actionLabel && onAction ? (
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: colors.primary }]}
-          onPress={handleAction}
-          activeOpacity={0.8}
-          accessibilityRole="button"
-          accessibilityLabel={actionLabel}
-        >
-          <Text style={styles.actionText}>{actionLabel}</Text>
-        </TouchableOpacity>
-      ) : null}
+      <View style={styles.actionsContainer}>
+        {actionLabel && onAction ? (
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: colors.primary }]}
+            onPress={handleAction}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={actionLabel}
+          >
+            <Text style={styles.actionText}>{actionLabel}</Text>
+          </TouchableOpacity>
+        ) : null}
+
+        {secondaryActionLabel && onSecondaryAction ? (
+          <TouchableOpacity
+            style={[
+              styles.secondaryButton,
+              { backgroundColor: colors.surfaceVariant, borderColor: colors.border },
+            ]}
+            onPress={handleSecondaryAction}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={secondaryActionLabel}
+          >
+            <Text style={[styles.secondaryActionText, { color: colors.textPrimary }]}>
+              {secondaryActionLabel}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
     </View>
   );
 };
@@ -86,15 +114,31 @@ const styles = StyleSheet.create({
     maxWidth: 280,
     marginBottom: spacing.lg,
   },
+  actionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
   actionButton: {
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.lg,
     borderRadius: radii.full,
+  },
+  secondaryButton: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radii.full,
+    borderWidth: 1,
   },
   actionText: {
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: typography.sizes.sm,
   },
+  secondaryActionText: {
+    fontWeight: '600',
+    fontSize: typography.sizes.sm,
+  },
 });
-
