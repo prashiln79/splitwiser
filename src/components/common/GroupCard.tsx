@@ -49,10 +49,10 @@ export const GroupCard: React.FC<GroupCardProps> = ({
   if (!isSettled && Math.abs(netBalance) >= 0.01) {
     if (netBalance > 0) {
       balanceVariant = 'lent';
-      balanceLabel = `Owed ${formatCurrency(netBalance)}`;
+      balanceLabel = `Owe you ${formatCurrency(netBalance)}`;
     } else {
       balanceVariant = 'borrowed';
-      balanceLabel = `Owe ${formatCurrency(Math.abs(netBalance))}`;
+      balanceLabel = `You owe ${formatCurrency(Math.abs(netBalance))}`;
     }
   }
 

@@ -13,7 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Plus, Hash, X, Users, Sparkles } from 'lucide-react-native';
+import { Plus, Search, Hash, X, Users, Sparkles } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import {
@@ -46,6 +46,15 @@ const HomeScreen = ({ navigation }: any) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const displayedGroups = useMemo(() => {
+    if (!searchQuery.trim()) return groups;
+    return groups.filter((g) =>
+      g.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
+    );
+  }, [groups, searchQuery]);
 
   // ── Settlement status per group ───────────────────────────────────────────
   const refreshSettlements = useCallback(
@@ -139,8 +148,6 @@ const HomeScreen = ({ navigation }: any) => {
       <BalanceCard
         totalOwed={totalOwed}
         totalOwes={totalOwes}
-        onCreateGroup={() => setModalVisible(true)}
-        onJoinGroup={() => navigation.navigate('JoinGroup')}
       />
 
       <View style={styles.sectionHeaderRow}>
@@ -148,7 +155,7 @@ const HomeScreen = ({ navigation }: any) => {
           Your Groups
         </Text>
         <Text style={[styles.groupCountBadge, { color: colors.textSecondary }]}>
-          {groups.length} {groups.length === 1 ? 'group' : 'groups'}
+          {displayedGroups.length} {displayedGroups.length === 1 ? 'group' : 'groups'}
         </Text>
       </View>
     </View>
@@ -159,16 +166,21 @@ const HomeScreen = ({ navigation }: any) => {
       {/* Modern Top Header */}
       <AppHeader
         title="Splitwiser"
-        subtitle={`Hi, ${user?.name || 'Friend'} 👋`}
+        subtitle="Track and split expenses, together"
         rightAction={
           <View style={styles.headerActions}>
             <TouchableOpacity
-              onPress={() => navigation.navigate('JoinGroup')}
+              onPress={() => {
+                if (Platform.OS !== 'web') {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                }
+                setIsSearchActive((prev) => !prev);
+              }}
               style={[styles.headerIconBtn, { backgroundColor: colors.surfaceVariant }]}
-              accessibilityLabel="Join group with code"
+              accessibilityLabel="Search groups"
               accessibilityRole="button"
             >
-              <Hash size={18} color={colors.textPrimary} strokeWidth={2.2} />
+              <Search size={18} color={colors.textPrimary} strokeWidth={2.2} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -183,6 +195,37 @@ const HomeScreen = ({ navigation }: any) => {
         }
       />
 
+      {/* Optional Search Bar */}
+      {isSearchActive && (
+        <View
+          style={[
+            styles.searchBarContainer,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <Search size={16} color={colors.textSecondary} style={{ marginRight: 8 }} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.textPrimary }]}
+            placeholder="Search groups..."
+            placeholderTextColor={colors.textMuted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoFocus
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <X size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
       {/* Main Content */}
       {isLoading ? (
         <View style={styles.loaderContainer}>
@@ -193,7 +236,7 @@ const HomeScreen = ({ navigation }: any) => {
         </View>
       ) : (
         <FlatList
-          data={groups}
+          data={displayedGroups}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={renderHeader}
           contentContainerStyle={[
@@ -347,6 +390,22 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  searchBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: spacing.base,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+    paddingHorizontal: spacing.md,
+    height: 42,
+    borderRadius: radii.md,
+    borderWidth: 1,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: typography.sizes.sm,
+    paddingVertical: 0,
   },
   loaderContainer: {
     flex: 1,

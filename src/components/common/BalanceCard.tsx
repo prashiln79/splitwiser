@@ -1,13 +1,15 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { ArrowUpRight, ArrowDownLeft, Plus, Hash, CheckCircle2 } from 'lucide-react-native';
+import { ChevronRight } from 'lucide-react-native';
+import Svg, { Path, Text as SvgText, G } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
-import { useAppTheme, typography, spacing, radii, shadows } from '../../theme';
+import { useAppTheme, spacing } from '../../theme';
 import { formatCurrency } from '../../utils/currency';
 
 interface BalanceCardProps {
   totalOwed: number; // Others owe me
   totalOwes: number; // I owe others
+  onPress?: () => void;
   onCreateGroup?: () => void;
   onJoinGroup?: () => void;
 }
@@ -15,273 +17,167 @@ interface BalanceCardProps {
 export const BalanceCard: React.FC<BalanceCardProps> = ({
   totalOwed,
   totalOwes,
-  onCreateGroup,
-  onJoinGroup,
+  onPress,
 }) => {
   const { colors, isDark } = useAppTheme();
   const netBalance = totalOwed - totalOwes;
   const isSettled = Math.abs(netBalance) < 0.01;
 
-  const handleCreate = () => {
+  const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    if (onCreateGroup) onCreateGroup();
+    if (onPress) onPress();
   };
 
-  const handleJoin = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    if (onJoinGroup) onJoinGroup();
-  };
+  // Determine balance text and color
+  let statusText = 'All settled up';
+  let statusColor = '#0D8A58'; // Rich emerald green
+
+  if (!isSettled) {
+    if (netBalance > 0) {
+      statusText = `You are owed ${formatCurrency(netBalance)}`;
+      statusColor = '#0D8A58';
+    } else {
+      statusText = `You owe ${formatCurrency(Math.abs(netBalance))}`;
+      statusColor = '#DC2626';
+    }
+  }
 
   return (
-    <View
+    <TouchableOpacity
       style={[
         styles.card,
         {
-          backgroundColor: colors.surface,
-          borderColor: colors.border,
+          backgroundColor: isDark ? '#14291F' : '#E6F7F0',
+          borderColor: isDark ? '#1E4030' : '#D1F0E2',
         },
-        shadows.sm,
       ]}
+      onPress={handlePress}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={`Your balance: ${statusText}`}
     >
-      {/* Header Label */}
-      <View style={styles.topRow}>
-        <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>
-          NET BALANCE
-        </Text>
-        {isSettled ? (
-          <View style={[styles.settledPill, { backgroundColor: colors.incomeLight }]}>
-            <CheckCircle2 size={12} color={colors.income} strokeWidth={2.5} />
-            <Text style={[styles.settledPillText, { color: colors.incomeDark }]}>
-              All Settled
-            </Text>
-          </View>
-        ) : null}
-      </View>
-
-      {/* Main Net Amount */}
-      <View style={styles.amountContainer}>
-        <Text
-          style={[
-            styles.netAmount,
-            {
-              color: isSettled
-                ? colors.textPrimary
-                : netBalance > 0
-                ? colors.income
-                : colors.expense,
-            },
-          ]}
-        >
-          {isSettled
-            ? formatCurrency(0)
-            : `${netBalance > 0 ? '+' : '-'}${formatCurrency(Math.abs(netBalance))}`}
-        </Text>
-        <Text style={[styles.statusSubtitle, { color: colors.textSecondary }]}>
-          {isSettled
-            ? 'You do not owe or have outstanding balances.'
-            : netBalance > 0
-            ? 'Overall, you are owed across all groups.'
-            : 'Overall, you owe across all groups.'}
-        </Text>
-      </View>
-
-      {/* Metric Tiles */}
-      <View style={styles.metricsRow}>
-        <View
-          style={[
-            styles.metricTile,
-            { backgroundColor: colors.incomeLight, borderColor: colors.income + '25' },
-          ]}
-        >
-          <View style={styles.metricHeader}>
-            <View
-              style={[
-                styles.metricIconCircle,
-                { backgroundColor: colors.income + '20' },
-              ]}
-            >
-              <ArrowUpRight size={14} color={colors.income} strokeWidth={2.5} />
-            </View>
-            <Text style={[styles.metricLabel, { color: colors.incomeDark }]}>
-              You are owed
-            </Text>
-          </View>
-          <Text style={[styles.metricValue, { color: colors.incomeDark }]}>
-            {formatCurrency(totalOwed)}
-          </Text>
-        </View>
-
-        <View
-          style={[
-            styles.metricTile,
-            { backgroundColor: colors.expenseLight, borderColor: colors.expense + '25' },
-          ]}
-        >
-          <View style={styles.metricHeader}>
-            <View
-              style={[
-                styles.metricIconCircle,
-                { backgroundColor: colors.expense + '20' },
-              ]}
-            >
-              <ArrowDownLeft size={14} color={colors.expense} strokeWidth={2.5} />
-            </View>
-            <Text style={[styles.metricLabel, { color: colors.expenseDark }]}>
-              You owe
-            </Text>
-          </View>
-          <Text style={[styles.metricValue, { color: colors.expenseDark }]}>
-            {formatCurrency(totalOwes)}
-          </Text>
-        </View>
-      </View>
-
-      {/* Action Buttons */}
-      <View style={[styles.actionsRow, { borderTopColor: colors.borderLight }]}>
-        <TouchableOpacity
-          style={[styles.primaryAction, { backgroundColor: colors.primary }]}
-          onPress={handleCreate}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel="Create a new group"
-        >
-          <Plus size={16} color="#FFFFFF" strokeWidth={2.5} style={{ marginRight: 6 }} />
-          <Text style={styles.primaryActionText}>New Group</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.secondaryAction,
-            { backgroundColor: colors.surfaceVariant, borderColor: colors.border },
-          ]}
-          onPress={handleJoin}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel="Join group with code"
-        >
-          <Hash
-            size={16}
-            color={colors.textPrimary}
-            strokeWidth={2}
-            style={{ marginRight: 6 }}
+      {/* Decorative Wave & Receipt Graphic on the right */}
+      <View style={styles.illustrationContainer} pointerEvents="none">
+        <Svg width={100} height={78} viewBox="0 0 100 78">
+          {/* Subtle curved background blob flowing to the right edge */}
+          <Path
+            d="M 12 78 C 30 52, 45 40, 100 32 L 100 78 Z"
+            fill={isDark ? '#1B3D2C' : '#D2F2E2'}
           />
-          <Text style={[styles.secondaryActionText, { color: colors.textPrimary }]}>
-            Join with Code
-          </Text>
-        </TouchableOpacity>
+
+          {/* Slightly tilted Receipt */}
+          <G transform="translate(54, 11) rotate(8)">
+            {/* Receipt body with dog-eared top-right and sawtooth serrated bottom */}
+            <Path
+              d="
+                M 5 0
+                L 23 0
+                L 31 8
+                L 31 46
+                L 27 42.5
+                L 23 46
+                L 19 42.5
+                L 15 46
+                L 11 42.5
+                L 7 46
+                L 3 42.5
+                L 0 45.5
+                L 0 5
+                Q 0 0 5 0
+                Z
+              "
+              fill={isDark ? '#234E39' : '#FFFFFF'}
+              stroke={isDark ? '#3D7D5E' : '#7DCE9F'}
+              strokeWidth="1.75"
+              strokeLinejoin="round"
+            />
+            {/* Folded top-right corner */}
+            <Path
+              d="M 23 0 L 23 8 L 31 8 Z"
+              fill={isDark ? '#2B5E45' : '#E2F7ED'}
+              stroke={isDark ? '#3D7D5E' : '#7DCE9F'}
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+            {/* Center Rupee Symbol */}
+            <SvgText
+              x="15.5"
+              y="28"
+              fill={isDark ? '#7EE0AE' : '#57BA87'}
+              fontSize="18"
+              fontWeight="bold"
+              textAnchor="middle"
+              alignmentBaseline="central"
+            >
+              ₹
+            </SvgText>
+          </G>
+        </Svg>
       </View>
-    </View>
+
+      {/* Left Content */}
+      <View style={styles.textContainer}>
+        <Text style={[styles.label, { color: isDark ? '#98BFA9' : '#556E61' }]}>
+          Your balance
+        </Text>
+        <View style={styles.amountRow}>
+          <Text style={[styles.amountText, { color: statusColor }]}>
+            {statusText}
+          </Text>
+          <ChevronRight
+            size={18}
+            color={statusColor}
+            strokeWidth={2.4}
+            style={styles.chevron}
+          />
+        </View>
+      </View>
+    </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: radii.lg,
-    padding: spacing.base,
-    borderWidth: 1,
     marginHorizontal: spacing.base,
     marginBottom: spacing.base,
-  },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  eyebrow: {
-    fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.bold,
-    letterSpacing: 0.8,
-  },
-  settledPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: radii.full,
-    gap: 4,
-  },
-  settledPillText: {
-    fontSize: typography.sizes.xs - 1,
-    fontWeight: '700',
-  },
-  amountContainer: {
-    marginVertical: spacing.xs,
-  },
-  netAmount: {
-    fontSize: 32,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  statusSubtitle: {
-    fontSize: typography.sizes.xs,
-    marginTop: 2,
-  },
-  metricsRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.md,
-  },
-  metricTile: {
-    flex: 1,
-    padding: spacing.md,
-    borderRadius: radii.md,
+    borderRadius: 16,
     borderWidth: 1,
-  },
-  metricHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-    gap: 6,
-  },
-  metricIconCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    position: 'relative',
+    overflow: 'hidden',
+    minHeight: 82,
     justifyContent: 'center',
   },
-  metricLabel: {
-    fontSize: typography.sizes.xs,
-    fontWeight: '600',
+  illustrationContainer: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    top: 0,
+    width: 100,
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
   },
-  metricValue: {
-    fontSize: typography.sizes.md,
+  textContainer: {
+    zIndex: 1,
+    paddingRight: 75, // Ensures text never collides with the receipt illustration
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 6,
+    letterSpacing: -0.1,
+  },
+  amountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  amountText: {
+    fontSize: 17,
     fontWeight: '700',
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.base,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-  },
-  primaryAction: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md - 2,
-    borderRadius: radii.md,
-  },
-  primaryActionText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: typography.sizes.sm,
-  },
-  secondaryAction: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md - 2,
-    borderRadius: radii.md,
-    borderWidth: 1,
-  },
-  secondaryActionText: {
-    fontWeight: '600',
-    fontSize: typography.sizes.sm,
+  chevron: {
+    marginLeft: 6,
   },
 });
-
