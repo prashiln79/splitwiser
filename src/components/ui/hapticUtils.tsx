@@ -1,9 +1,17 @@
 import React, { forwardRef, useCallback, ComponentType, Ref } from 'react';
+import { Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
 type WithHapticOptions = {
   pressProp?: string;
   onlyWhenHandler?: boolean;
+};
+
+// Only trigger haptics on native platforms — expo-haptics is unavailable on web
+const triggerHaptic = () => {
+  if (Platform.OS !== 'web') {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  }
 };
 
 export function withHapticFeedback<P extends object>(
@@ -18,7 +26,7 @@ export function withHapticFeedback<P extends object>(
     const handlePress = useCallback(
       (...args: any[]) => {
         if (!onlyWhenHandler || originalHandler) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          triggerHaptic();
         }
         if (originalHandler) {
           originalHandler(...args);
@@ -47,5 +55,7 @@ export function withHapticFeedback<P extends object>(
 }
 
 export async function triggerPullRefreshHaptic(): Promise<void> {
-  await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  if (Platform.OS !== 'web') {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  }
 }
