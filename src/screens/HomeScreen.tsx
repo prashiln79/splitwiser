@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import {
   createGroup,
+  joinGroup,
   subscribeToGroups,
   getGroupMembers,
 } from '../services/groups';
@@ -46,6 +47,9 @@ const HomeScreen = ({ navigation }: any) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [isJoinModalVisible, setIsJoinModalVisible] = useState(false);
+  const [joinCode, setJoinCode] = useState('');
+  const [isJoiningGroup, setIsJoiningGroup] = useState(false);
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -132,6 +136,37 @@ const HomeScreen = ({ navigation }: any) => {
     }
   };
 
+  const handleJoinGroup = async () => {
+    const code = joinCode.trim().toUpperCase();
+    if (!code) {
+      Alert.alert('Code Required', 'Please enter a 6-character group join code.');
+      return;
+    }
+    if (!user) return;
+
+    setIsJoiningGroup(true);
+    try {
+      const group = await joinGroup(code, user.uid, user.name);
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
+      setIsJoinModalVisible(false);
+      setJoinCode('');
+      Alert.alert('Welcome!', `You have successfully joined "${group.name}".`);
+      navigation.navigate('GroupDetails', {
+        groupId: group.id,
+        groupName: group.name,
+      });
+    } catch (error: any) {
+      Alert.alert(
+        'Unable to Join',
+        error.message || 'No group found with that code. Please verify and try again.'
+      );
+    } finally {
+      setIsJoiningGroup(false);
+    }
+  };
+
   // Aggregated totals across all groups
   const { totalOwed, totalOwes } = useMemo(() => {
     let owed = 0;
@@ -174,10 +209,10 @@ const HomeScreen = ({ navigation }: any) => {
                 if (Platform.OS !== 'web') {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                 }
-                setIsSearchActive((prev) => !prev);
+                setIsJoinModalVisible(true);
               }}
               style={[styles.headerIconBtn, { backgroundColor: colors.surfaceVariant }]}
-              accessibilityLabel="Search groups"
+              accessibilityLabel="Join group with code"
               accessibilityRole="button"
             >
               <Search size={18} color={colors.textPrimary} strokeWidth={2.2} />
@@ -365,6 +400,123 @@ const HomeScreen = ({ navigation }: any) => {
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
                   <Text style={styles.modalSubmitText}>Create Group</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Modern Join Group Modal */}
+      <Modal
+        visible={isJoinModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setIsJoinModalVisible(false);
+          setJoinCode('');
+        }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={[styles.modalBackdrop, { backgroundColor: colors.backdrop }]}
+        >
+          <View
+            style={[
+              styles.modalDialog,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+              shadows.lg,
+            ]}
+          >
+            <View style={styles.modalHeaderRow}>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
+                  Join a Group
+                </Text>
+                <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+                  Enter the 6-character code shared by the group creator.
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  setIsJoinModalVisible(false);
+                  setJoinCode('');
+                }}
+                style={[styles.modalCloseBtn, { backgroundColor: colors.surfaceVariant }]}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
+                <X size={18} color={colors.textSecondary} strokeWidth={2.2} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                Group Join Code
+              </Text>
+              <TextInput
+                style={[
+                  styles.modalInput,
+                  {
+                    backgroundColor: colors.surfaceVariant,
+                    borderColor: joinCode.trim().length >= 6 ? colors.primary : colors.border,
+                    color: colors.textPrimary,
+                    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+                    letterSpacing: 2,
+                    fontSize: 18,
+                    fontWeight: '700',
+                    textAlign: 'center',
+                  },
+                ]}
+                placeholder="e.g. 7X8K2M"
+                placeholderTextColor={colors.textMuted}
+                value={joinCode}
+                onChangeText={(text) => setJoinCode(text.toUpperCase())}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                maxLength={8}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={handleJoinGroup}
+                accessibilityLabel="Group join code input"
+              />
+            </View>
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity
+                style={[
+                  styles.modalCancelBtn,
+                  { backgroundColor: colors.surfaceVariant, borderColor: colors.border },
+                ]}
+                onPress={() => {
+                  setIsJoinModalVisible(false);
+                  setJoinCode('');
+                }}
+                disabled={isJoiningGroup}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.modalCancelText, { color: colors.textPrimary }]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modalSubmitBtn,
+                  {
+                    backgroundColor:
+                      joinCode.trim().length >= 4 ? colors.primary : colors.border,
+                  },
+                ]}
+                onPress={handleJoinGroup}
+                disabled={isJoiningGroup || joinCode.trim().length < 4}
+                accessibilityRole="button"
+                accessibilityLabel="Join group button"
+              >
+                {isJoiningGroup ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSubmitText}>Join Group</Text>
                 )}
               </TouchableOpacity>
             </View>
