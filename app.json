@@ -18,7 +18,9 @@
         "NSPhotoLibraryUsageDescription": "Allow Splitwiser to select a group icon from your photo library."
       }
     },
+    "owner": "prashiln79",
     "android": {
+      "package": "com.prashiln79.splitwiser",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -30,14 +32,13 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "extra": {
-      "eas": {
-        "projectId": "afe97159-52c4-425a-9ce3-c56d4f2cb568"
-      }
-    },
-    "owner": "devasy23",
     "plugins": [
       "expo-web-browser"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ca396e99-7d40-4ecd-80d6-eff64c574c22"
+      }
+    }
   }
 }
