@@ -89,6 +89,22 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
           is_deleted INTEGER NOT NULL DEFAULT 0
         );
 
+        -- Friendships Table
+        CREATE TABLE IF NOT EXISTS local_friendships (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          friend_id TEXT NOT NULL,
+          friend_name TEXT NOT NULL,
+          friend_email TEXT,
+          friend_photo_url TEXT,
+          status TEXT NOT NULL DEFAULT 'accepted',
+          initiated_by TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          sync_status TEXT NOT NULL DEFAULT 'synced',
+          is_deleted INTEGER NOT NULL DEFAULT 0
+        );
+
         -- Durable Synchronization Queue
         CREATE TABLE IF NOT EXISTS sync_queue (
           id TEXT PRIMARY KEY,
@@ -122,6 +138,9 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
 
         CREATE INDEX IF NOT EXISTS idx_members_group 
           ON local_group_members (group_id);
+
+        CREATE INDEX IF NOT EXISTS idx_friendships_user 
+          ON local_friendships (user_id, is_deleted);
 
         CREATE INDEX IF NOT EXISTS idx_queue_status_created 
           ON sync_queue (status, created_at ASC);

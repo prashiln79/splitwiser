@@ -106,10 +106,224 @@ export function getOptimizedSettlements(
   return optimizeSettlements(balances, members);
 }
 
-// ─── Friends Balance (cross-group) ───────────────────────────────────────────
+// ─── Friends Balance (cross-group & direct) ───────────────────────────────────
 
 /**
- * Compute aggregated friend balances across multiple groups.
+ * Computes bilateral balance between current user and a specific friend,
+ * including direct expenses, direct settlements, and all shared groups.
+ */
+export function computeDetailedFriendBalance(
+  currentUserId: string,
+  friendId: string,
+  friendName: string,
+  groups: Array<{
+    groupId: string;
+    groupName: string;
+    expenses: Expense[];
+    members: GroupMember[];
+    settlements?: Settlement[];
+  }>,
+  directExpenses: Expense[] = [],
+  directSettlements: Settlement[] = []
+): {
+  netBalance: number;
+  directBalance: number;
+  groups: Array<{ groupId: string; groupName: string; balance: number }>;
+  transactions: Array<{
+    id: string;
+    type: 'expense' | 'settlement';
+    description: string;
+    amount: number;
+    paidBy: string;
+    payerName: string;
+    date: Date;
+    groupId: string | null;
+    groupName?: string;
+    balanceImpact: number;
+  }>;
+} {
+  let netBalance = 0;
+  let directBalance = 0;
+  const groupBalances: Array<{ groupId: string; groupName: string; balance: number }> = [];
+  const transactions: Array<{
+    id: string;
+    type: 'expense' | 'settlement';
+    description: string;
+    amount: number;
+    paidBy: string;
+    payerName: string;
+    date: Date;
+    groupId: string | null;
+    groupName?: string;
+    balanceImpact: number;
+  }> = [];
+
+  // 1. Process Direct Expenses
+  directExpenses.forEach((exp) => {
+    if (exp.isDeleted) return;
+    const payerId = exp.paidBy || exp.createdBy;
+    const payerIsMe = payerId === currentUserId;
+    const payerIsFriend = payerId === friendId;
+
+    if (!payerIsMe && !payerIsFriend) return;
+
+    let myShare = 0;
+    let friendShare = 0;
+
+    exp.splits.forEach((s) => {
+      if (s.userId === currentUserId) myShare = s.amount;
+      if (s.userId === friendId) friendShare = s.amount;
+    });
+
+    let impact = 0;
+    if (payerIsMe) {
+      // I paid, friend owes me their share
+      impact = friendShare;
+    } else {
+      // Friend paid, I owe friend my share
+      impact = -myShare;
+    }
+
+    directBalance += impact;
+    netBalance += impact;
+
+    transactions.push({
+      id: exp.id,
+      type: 'expense',
+      description: exp.description,
+      amount: exp.amount,
+      paidBy: payerId,
+      payerName: payerIsMe ? 'You' : friendName,
+      date: exp.createdAt instanceof Date ? exp.createdAt : new Date(exp.createdAt),
+      groupId: null,
+      balanceImpact: impact,
+    });
+  });
+
+  // 2. Process Direct Settlements
+  directSettlements.forEach((s) => {
+    if (s.isDeleted) return;
+    const isFromMe = s.fromUserId === currentUserId && s.toUserId === friendId;
+    const isFromFriend = s.fromUserId === friendId && s.toUserId === currentUserId;
+
+    if (!isFromMe && !isFromFriend) return;
+
+    // If I paid friend, my debt to friend decreases (positive delta)
+    // If friend paid me, friend's debt to me decreases (negative delta)
+    const impact = isFromMe ? s.amount : -s.amount;
+
+    directBalance += impact;
+    netBalance += impact;
+
+    transactions.push({
+      id: s.id,
+      type: 'settlement',
+      description: isFromMe ? `You paid ${friendName}` : `${friendName} paid you`,
+      amount: s.amount,
+      paidBy: s.fromUserId,
+      payerName: isFromMe ? 'You' : friendName,
+      date: s.createdAt instanceof Date ? s.createdAt : new Date(s.createdAt),
+      groupId: null,
+      balanceImpact: impact,
+    });
+  });
+
+  // 3. Process Shared Groups
+  groups.forEach(({ groupId, groupName, expenses, members, settlements }) => {
+    const isMemberFriend = members.some((m) => m.userId === friendId);
+    if (!isMemberFriend) return;
+
+    let groupBilateralBalance = 0;
+
+    // Group Expenses
+    expenses.forEach((exp) => {
+      if (exp.isDeleted) return;
+      const payerId = exp.paidBy || exp.createdBy;
+      const payerIsMe = payerId === currentUserId;
+      const payerIsFriend = payerId === friendId;
+
+      if (!payerIsMe && !payerIsFriend) return;
+
+      let myShare = 0;
+      let friendShare = 0;
+
+      exp.splits.forEach((s) => {
+        if (s.userId === currentUserId) myShare = s.amount;
+        if (s.userId === friendId) friendShare = s.amount;
+      });
+
+      let impact = 0;
+      if (payerIsMe && friendShare > 0) {
+        impact = friendShare;
+      } else if (payerIsFriend && myShare > 0) {
+        impact = -myShare;
+      } else {
+        return;
+      }
+
+      groupBilateralBalance += impact;
+      netBalance += impact;
+
+      transactions.push({
+        id: exp.id,
+        type: 'expense',
+        description: exp.description,
+        amount: exp.amount,
+        paidBy: payerId,
+        payerName: payerIsMe ? 'You' : friendName,
+        date: exp.createdAt instanceof Date ? exp.createdAt : new Date(exp.createdAt),
+        groupId,
+        groupName,
+        balanceImpact: impact,
+      });
+    });
+
+    // Group Settlements between these two users
+    settlements?.forEach((s) => {
+      if (s.isDeleted) return;
+      const isFromMe = s.fromUserId === currentUserId && s.toUserId === friendId;
+      const isFromFriend = s.fromUserId === friendId && s.toUserId === currentUserId;
+
+      if (!isFromMe && !isFromFriend) return;
+
+      const impact = isFromMe ? s.amount : -s.amount;
+      groupBilateralBalance += impact;
+      netBalance += impact;
+
+      transactions.push({
+        id: s.id,
+        type: 'settlement',
+        description: isFromMe ? `You paid ${friendName}` : `${friendName} paid you`,
+        amount: s.amount,
+        paidBy: s.fromUserId,
+        payerName: isFromMe ? 'You' : friendName,
+        date: s.createdAt instanceof Date ? s.createdAt : new Date(s.createdAt),
+        groupId,
+        groupName,
+        balanceImpact: impact,
+      });
+    });
+
+    groupBalances.push({
+      groupId,
+      groupName,
+      balance: Math.round(groupBilateralBalance * 100) / 100,
+    });
+  });
+
+  // Sort transactions in descending chronological order
+  transactions.sort((a, b) => b.date.getTime() - a.date.getTime());
+
+  return {
+    netBalance: Math.round(netBalance * 100) / 100,
+    directBalance: Math.round(directBalance * 100) / 100,
+    groups: groupBalances,
+    transactions,
+  };
+}
+
+/**
+ * Compute aggregated friend balances across multiple groups, direct expenses, and explicit friendships.
  */
 export function computeFriendBalances(
   groups: Array<{
@@ -119,14 +333,101 @@ export function computeFriendBalances(
     members: GroupMember[];
     settlements?: Settlement[];
   }>,
-  currentUserId: string
+  currentUserId: string,
+  explicitFriendships: Array<{
+    friendId: string;
+    friendName: string;
+    friendEmail?: string;
+    friendPhotoUrl?: string;
+    friendshipId?: string;
+  }> = [],
+  allDirectExpenses: Expense[] = [],
+  allDirectSettlements: Settlement[] = []
 ): FriendBalance[] {
-  // friend uid → { userName, groups: { groupId → balance } }
+  // friend uid → { userName, netBalance, groups: Map, directBalance, userEmail, userPhotoUrl, friendshipId }
   const friendMap = new Map<
     string,
-    { userName: string; netBalance: number; groups: Map<string, { name: string; balance: number }> }
+    {
+      userName: string;
+      userEmail?: string;
+      userPhotoUrl?: string;
+      friendshipId?: string;
+      netBalance: number;
+      directBalance: number;
+      groups: Map<string, { name: string; balance: number }>;
+    }
   >();
 
+  // 1. Initialize explicit friends first
+  explicitFriendships.forEach((f) => {
+    if (f.friendId === currentUserId) return;
+    friendMap.set(f.friendId, {
+      userName: f.friendName,
+      userEmail: f.friendEmail,
+      userPhotoUrl: f.friendPhotoUrl,
+      friendshipId: f.friendshipId,
+      netBalance: 0,
+      directBalance: 0,
+      groups: new Map(),
+    });
+  });
+
+  // 2. Add Direct Expenses
+  allDirectExpenses.forEach((exp) => {
+    if (exp.isDeleted) return;
+    const payerId = exp.paidBy || exp.createdBy;
+    const payerIsMe = payerId === currentUserId;
+
+    exp.splits.forEach((split) => {
+      const otherId = payerIsMe ? split.userId : payerId;
+      if (otherId === currentUserId) return;
+
+      const myShare = exp.splits.find((s) => s.userId === currentUserId)?.amount ?? 0;
+      const otherShare = split.amount;
+
+      const contribution = payerIsMe ? otherShare : -myShare;
+
+      if (!friendMap.has(otherId)) {
+        friendMap.set(otherId, {
+          userName: 'Friend',
+          netBalance: 0,
+          directBalance: 0,
+          groups: new Map(),
+        });
+      }
+
+      const f = friendMap.get(otherId)!;
+      f.netBalance += contribution;
+      f.directBalance += contribution;
+    });
+  });
+
+  // 3. Add Direct Settlements
+  allDirectSettlements.forEach((s) => {
+    if (s.isDeleted) return;
+    const isFromMe = s.fromUserId === currentUserId;
+    const isToMe = s.toUserId === currentUserId;
+    if (!isFromMe && !isToMe) return;
+
+    const otherId = isFromMe ? s.toUserId : s.fromUserId;
+    const otherName = isFromMe ? s.toUserName : s.fromUserName;
+    const delta = isFromMe ? s.amount : -s.amount;
+
+    if (!friendMap.has(otherId)) {
+      friendMap.set(otherId, {
+        userName: otherName || 'Friend',
+        netBalance: 0,
+        directBalance: 0,
+        groups: new Map(),
+      });
+    }
+
+    const f = friendMap.get(otherId)!;
+    f.netBalance += delta;
+    f.directBalance += delta;
+  });
+
+  // 4. Add Group Expenses & Settlements
   groups.forEach(({ groupId, groupName, expenses, members, settlements }) => {
     const memberMap = new Map(members.map((m) => [m.userId, m.userName]));
 
@@ -146,13 +447,11 @@ export function computeFriendBalances(
         let contribution: number;
 
         if (payerIsMe && !memberIsMe) {
-          // I paid, friend owes me
           friendId = split.userId;
-          contribution = amount; // positive = friend owes me
+          contribution = amount;
         } else if (!payerIsMe && memberIsMe) {
-          // Friend paid, I owe friend
           friendId = payerId;
-          contribution = -amount; // negative = I owe friend
+          contribution = -amount;
         } else {
           return;
         }
@@ -161,6 +460,7 @@ export function computeFriendBalances(
           friendMap.set(friendId, {
             userName: memberMap.get(friendId) ?? 'Unknown',
             netBalance: 0,
+            directBalance: 0,
             groups: new Map(),
           });
         }
@@ -175,7 +475,7 @@ export function computeFriendBalances(
       });
     });
 
-    // Apply settlements
+    // Group Settlements
     settlements?.forEach((settlement) => {
       if (settlement.isDeleted) return;
       const isFromMe = settlement.fromUserId === currentUserId;
@@ -190,6 +490,7 @@ export function computeFriendBalances(
         friendMap.set(friendId, {
           userName: friendName || memberMap.get(friendId) || 'Unknown',
           netBalance: 0,
+          directBalance: 0,
           groups: new Map(),
         });
       }
@@ -207,7 +508,11 @@ export function computeFriendBalances(
   return Array.from(friendMap.entries()).map(([userId, data]) => ({
     userId,
     userName: data.userName,
+    userEmail: data.userEmail,
+    userPhotoUrl: data.userPhotoUrl,
+    friendshipId: data.friendshipId,
     netBalance: Math.round(data.netBalance * 100) / 100,
+    directBalance: Math.round(data.directBalance * 100) / 100,
     groups: Array.from(data.groups.entries()).map(([groupId, g]) => ({
       groupId,
       groupName: g.name,

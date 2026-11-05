@@ -105,6 +105,22 @@ export interface OptimizedSettlement {
 }
 
 // ─── Friends / Balance ────────────────────────────────────────────────────────
+export type FriendshipStatus = 'pending' | 'accepted' | 'declined' | 'removed';
+
+export interface Friendship {
+  id: string;
+  userId: string;
+  friendId: string;
+  friendName: string;
+  friendEmail?: string;
+  friendPhotoUrl?: string;
+  status: FriendshipStatus;
+  initiatedBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+  syncStatus?: SyncStatus;
+}
+
 export interface GroupBalance {
   groupId: string;
   groupName: string;
@@ -114,6 +130,24 @@ export interface GroupBalance {
 export interface FriendBalance {
   userId: string;
   userName: string;
+  userEmail?: string;
+  userPhotoUrl?: string;
   netBalance: number;
   groups: GroupBalance[];
+  directBalance?: number;
+  friendshipId?: string;
+  status?: FriendshipStatus;
+}
+
+export interface FriendTransactionItem {
+  id: string;
+  type: 'expense' | 'settlement';
+  description: string;
+  amount: number;
+  paidBy: string;
+  payerName: string;
+  date: Date;
+  groupId: string | null;
+  groupName?: string;
+  balanceImpact: number; // positive = increased what friend owes me, negative = decreased
 }

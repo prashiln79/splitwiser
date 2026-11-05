@@ -21,6 +21,7 @@ import * as Haptics from 'expo-haptics';
 import { getGroupMembers, getGroupById } from '../services/groups';
 import { getLocalGroupById, getLocalGroupMembers } from '../repositories/groupRepository';
 import { createExpenseLocal } from '../repositories/expenseRepository';
+import { getDirectGroupId } from '../repositories/friendRepository';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme } from '../theme';
 import { AppHeader } from '../components/common/AppHeader';
@@ -36,10 +37,13 @@ import { formatCurrency } from '../utils/currency';
 
 
 const AddExpenseScreen = ({ route, navigation }: any) => {
-  const { groupId } = route.params;
+  const { groupId: passedGroupId, friendId, friendName } = route.params || {};
   const { user } = useAuth();
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
+
+  const isDirectFriendExpense = Boolean(friendId && !passedGroupId);
+  const groupId = passedGroupId || (friendId && user ? getDirectGroupId(user.uid, friendId) : '');
 
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
@@ -58,10 +62,7 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
   const [selectedMembers, setSelectedMembers] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    // 1. Instant load from local SQLite
-    getLocalGroupById(groupId).then((g) => {
-      if (g) setGroup(g);
-    });
+    if (!user) return;
 
     const initMemberList = (memberList: GroupMember[]) => {
       setMembers(memberList);
@@ -95,27 +96,54 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
       setPayerId(myMembership ? user!.uid : memberList[0]?.userId ?? null);
     };
 
-    getLocalGroupMembers(groupId).then((localMembers) => {
-      if (localMembers && localMembers.length > 0) {
-        initMemberList(localMembers);
-        setIsLoading(false);
-      }
-    });
+    if (isDirectFriendExpense) {
+      // Direct two-person expense between current user and friend
+      const directMembers: GroupMember[] = [
+        {
+          userId: user.uid,
+          userName: user.name || 'You',
+          role: 'member',
+          joinedAt: new Date(),
+        },
+        {
+          userId: friendId,
+          userName: friendName || 'Friend',
+          role: 'member',
+          joinedAt: new Date(),
+        },
+      ];
+      initMemberList(directMembers);
+      setIsLoading(false);
+      return;
+    }
 
-    // 2. Fetch fresh from remote if needed
-    getGroupById(groupId).then((g) => {
-      if (g) setGroup(g);
-    }).catch(() => {});
+    // Regular group expense
+    if (groupId) {
+      getLocalGroupById(groupId).then((g) => {
+        if (g) setGroup(g);
+      });
 
-    getGroupMembers(groupId)
-      .then((memberList) => {
-        initMemberList(memberList);
-      })
-      .catch((e) => {
-        console.warn('[AddExpenseScreen] Remote members fetch skipped:', e.message);
-      })
-      .finally(() => setIsLoading(false));
-  }, [groupId, user]);
+      getLocalGroupMembers(groupId).then((localMembers) => {
+        if (localMembers && localMembers.length > 0) {
+          initMemberList(localMembers);
+          setIsLoading(false);
+        }
+      });
+
+      getGroupById(groupId).then((g) => {
+        if (g) setGroup(g);
+      }).catch(() => {});
+
+      getGroupMembers(groupId)
+        .then((memberList) => {
+          initMemberList(memberList);
+        })
+        .catch((e) => {
+          console.warn('[AddExpenseScreen] Remote members fetch skipped:', e.message);
+        })
+        .finally(() => setIsLoading(false));
+    }
+  }, [groupId, user, isDirectFriendExpense, friendId, friendName]);
 
 
   const numericAmount = parseFloat(amount) || 0;
@@ -292,7 +320,7 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
             <View style={styles.groupContextChip}>
               <Users size={14} color="#059669" style={{ marginRight: 6 }} />
               <Text style={styles.groupContextChipText}>
-                {group?.name || 'Group'}
+                {isDirectFriendExpense ? (friendName || 'Friend') : (group?.name || 'Group')}
               </Text>
             </View>
           </View>

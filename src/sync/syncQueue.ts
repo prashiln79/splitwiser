@@ -9,7 +9,9 @@ export type QueueOperation =
   | 'UPDATE_EXPENSE'
   | 'DELETE_EXPENSE'
   | 'RECORD_SETTLEMENT'
-  | 'CREATE_GROUP';
+  | 'CREATE_GROUP'
+  | 'CREATE_FRIENDSHIP'
+  | 'DELETE_FRIENDSHIP';
 
 export interface QueueItem {
   id: string;
@@ -63,7 +65,7 @@ class SyncQueue {
    * Enqueues an operation into the durable SQLite queue.
    */
   public async enqueue(
-    entityType: 'expense' | 'settlement' | 'group',
+    entityType: 'expense' | 'settlement' | 'group' | 'friendship',
     entityId: string,
     operation: QueueOperation,
     payload: Record<string, any>
@@ -243,6 +245,33 @@ class SyncQueue {
         break;
       }
 
+      case 'CREATE_FRIENDSHIP': {
+        const { id, userId, friendId, friendName, friendEmail, friendPhotoUrl, status } = payload;
+        const ref = doc(db, 'splitwiser', 'data', 'friendships', id);
+        await setDoc(ref, {
+          id,
+          memberUids: [userId, friendId],
+          status: status || 'accepted',
+          names: { [friendId]: friendName },
+          emails: friendEmail ? { [friendId]: friendEmail } : {},
+          photos: friendPhotoUrl ? { [friendId]: friendPhotoUrl } : {},
+          initiatedBy: userId,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+        break;
+      }
+
+      case 'DELETE_FRIENDSHIP': {
+        const { id } = payload;
+        const ref = doc(db, 'splitwiser', 'data', 'friendships', id);
+        await setDoc(ref, {
+          status: 'removed',
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+        break;
+      }
+
       default:
         throw new Error(`Unknown queue operation: ${item.operation}`);
     }
@@ -265,6 +294,11 @@ class SyncQueue {
         `UPDATE local_groups SET sync_status = 'synced' WHERE id = ?`,
         [entityId]
       );
+    } else if (entityType === 'friendship') {
+      await database.runAsync(
+        `UPDATE local_friendships SET sync_status = 'synced' WHERE id = ?`,
+        [entityId]
+      );
     }
   }
 
@@ -278,6 +312,11 @@ class SyncQueue {
     } else if (entityType === 'settlement') {
       await database.runAsync(
         `UPDATE local_settlements SET sync_status = 'failed' WHERE id = ?`,
+        [entityId]
+      );
+    } else if (entityType === 'friendship') {
+      await database.runAsync(
+        `UPDATE local_friendships SET sync_status = 'failed' WHERE id = ?`,
         [entityId]
       );
     }

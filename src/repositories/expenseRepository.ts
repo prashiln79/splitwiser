@@ -292,3 +292,30 @@ export async function upsertRemoteExpenses(groupId: string, remoteExpenses: Expe
   }
 }
 
+/**
+ * Returns all active expenses across all groups the user participates in.
+ */
+export async function getAllUserExpensesLocal(
+  uid: string
+): Promise<(Expense & { groupName?: string })[]> {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<LocalExpenseRow & { group_name?: string }>(
+    `SELECT e.*, g.name AS group_name 
+     FROM local_expenses e
+     LEFT JOIN local_groups g ON e.group_id = g.id
+     WHERE e.is_deleted = 0 
+     ORDER BY e.created_at DESC`
+  );
+
+  return rows
+    .map((r) => ({
+      ...rowToExpense(r),
+      groupName: r.group_name || 'Group',
+    }))
+    .filter((e) => {
+      // User is either creator, payer, or in the splits
+      if (e.createdBy === uid || e.paidBy === uid) return true;
+      return e.splits.some((s) => s.userId === uid);
+    });
+}
+
