@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Share, Alert } from 'react-native';
-import { Users, ChevronRight, Copy, Share2 } from 'lucide-react-native';
+import { View, Text, StyleSheet, Pressable, Share } from 'react-native';
+import { Users, ChevronRight, Share2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAppTheme, typography, spacing, radii, shadows } from '../../theme';
 import { MemberAvatar } from './MemberAvatar';
@@ -57,17 +57,17 @@ export const GroupCard: React.FC<GroupCardProps> = ({
   }
 
   return (
-    <TouchableOpacity
-      style={[
+    <Pressable
+      style={({ pressed }) => [
         styles.card,
         {
           backgroundColor: colors.surface,
           borderColor: colors.border,
+          opacity: pressed ? 0.85 : 1,
         },
         shadows.sm,
       ]}
       onPress={handlePress}
-      activeOpacity={0.7}
       accessibilityRole="button"
       accessibilityLabel={`Group ${group.name}. ${balanceLabel}. Join code ${group.joinCode}`}
     >
@@ -98,11 +98,12 @@ export const GroupCard: React.FC<GroupCardProps> = ({
             </View>
 
             {group.joinCode ? (
-              <TouchableOpacity
+              <Pressable
                 onPress={handleShareCode}
-                style={[
+                style={({ pressed }) => [
                   styles.codeChip,
                   { backgroundColor: colors.primaryLight, borderColor: colors.primary + '40' },
+                  pressed && { opacity: 0.7 },
                 ]}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 accessibilityRole="button"
@@ -112,7 +113,7 @@ export const GroupCard: React.FC<GroupCardProps> = ({
                   {group.joinCode}
                 </Text>
                 <Share2 size={10} color={colors.primaryDark} strokeWidth={2.2} />
-              </TouchableOpacity>
+              </Pressable>
             ) : null}
           </View>
         </View>
@@ -123,7 +124,7 @@ export const GroupCard: React.FC<GroupCardProps> = ({
           <ChevronRight size={16} color={colors.textMuted} style={styles.chevron} />
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
