@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useRef } from 'react';
+import { Platform } from 'react-native';
 import {
   GoogleSignin,
   statusCodes,
@@ -23,7 +24,7 @@ let isConfigured = false;
  * Configure Google Sign-In with Web Client ID for Google Play Services token exchange.
  */
 export function configureGoogleSignIn(): void {
-  if (isConfigured) return;
+  if (isConfigured || Platform.OS === 'web') return;
   try {
     GoogleSignin.configure({
       webClientId: googleAuthConfig.webClientId,
@@ -37,12 +38,15 @@ export function configureGoogleSignIn(): void {
 }
 
 // Pre-configure on module load
-configureGoogleSignIn();
+if (Platform.OS !== 'web') {
+  configureGoogleSignIn();
+}
 
 /**
  * Sign out from native Google Sign-In to ensure the account chooser is presented next time.
  */
 export async function signOutNativeGoogle(): Promise<void> {
+  if (Platform.OS === 'web') return;
   try {
     configureGoogleSignIn();
     await GoogleSignin.signOut();
@@ -57,6 +61,12 @@ export async function signOutNativeGoogle(): Promise<void> {
  * Never opens Chrome, Custom Tabs, or a browser window.
  */
 export async function signInWithNativeGoogle(): Promise<GoogleSignInResult> {
+  if (Platform.OS === 'web') {
+    return {
+      type: 'error',
+      error: new Error('Google Sign-In is only available on native Android/iOS.'),
+    };
+  }
   try {
     configureGoogleSignIn();
 

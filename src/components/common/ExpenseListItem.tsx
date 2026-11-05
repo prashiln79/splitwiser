@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Clock, AlertCircle } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { CategoryIcon } from './CategoryIcon';
 import { Expense } from '../../types';
@@ -67,9 +68,21 @@ export const ExpenseListItem: React.FC<ExpenseListItemProps> = ({
 
       {/* Description & payer */}
       <View style={styles.infoCol}>
-        <Text style={styles.description} numberOfLines={1}>
-          {expense.description}
-        </Text>
+        <View style={styles.descRow}>
+          <Text style={styles.description} numberOfLines={1}>
+            {expense.description}
+          </Text>
+          {expense.syncStatus === 'pending' && (
+            <View style={styles.syncBadge} testID="sync-pending-badge">
+              <Clock size={12} color="#9E9E9E" />
+            </View>
+          )}
+          {expense.syncStatus === 'failed' && (
+            <View style={styles.syncBadge} testID="sync-failed-badge">
+              <AlertCircle size={12} color="#E74C3C" />
+            </View>
+          )}
+        </View>
         <Text style={styles.payer} numberOfLines={1}>
           {isPayerMe ? 'You' : payerName} paid {formatCurrency(expense.amount)}
         </Text>
@@ -136,6 +149,13 @@ const styles = StyleSheet.create({
   infoCol: {
     flex: 1,
     marginRight: 10,
+  },
+  descRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  syncBadge: {
+    marginLeft: 6,
   },
   description: {
     fontSize: 15,

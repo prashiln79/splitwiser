@@ -11,7 +11,7 @@
       "android",
       "web"
     ],
-    "version": "2.0.6",
+    "version": "2.0.7",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -27,7 +27,7 @@
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#026b4c"
+        "backgroundColor": "#015c43"
       },
       "permissions": [
         "INTERNET",
@@ -46,6 +46,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "expo-sqlite",
       "@react-native-google-signin/google-signin",
       [
         "expo-image-picker",

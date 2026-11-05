@@ -23,8 +23,13 @@ import {
 import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { getLocalGroups, getLocalGroupMembers } from '../repositories/groupRepository';
+import { getGroupExpensesLocal } from '../repositories/expenseRepository';
+import { getGroupSettlementsLocal } from '../repositories/settlementRepository';
 import { getGroups, getGroupMembers } from '../services/groups';
 import { getGroupExpenses } from '../services/expenses';
+import { networkMonitor } from '../sync/networkMonitor';
+import { syncQueue } from '../sync/syncQueue';
 import { computeFriendBalances } from '../utils/balanceCalculator';
 import { useAuth } from '../context/AuthContext';
 import { AppHeader } from '../components/common/AppHeader';
@@ -46,32 +51,86 @@ const FriendsScreen = ({ navigation }: any) => {
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const fetchData = async (showLoading = true) => {
+  // 1. Fast, instant load from local SQLite
+  const loadLocalFriends = async () => {
     if (!user) return;
-    if (showLoading) setIsLoading(true);
     try {
-      const groups = await getGroups(user.uid);
+      const groups = await getLocalGroups(user.uid);
+      if (groups.length === 0) return;
+
       const groupsWithData = await Promise.all(
         groups.map(async (group) => {
-          const [members, expenses] = await Promise.all([
-            getGroupMembers(group.id),
-            getGroupExpenses(group.id),
+          const [members, expenses, settlements] = await Promise.all([
+            getLocalGroupMembers(group.id),
+            getGroupExpensesLocal(group.id),
+            getGroupSettlementsLocal(group.id),
           ]);
-          return { groupId: group.id, groupName: group.name, expenses, members };
+          return { groupId: group.id, groupName: group.name, expenses, members, settlements };
         })
       );
 
-      setFriends(computeFriendBalances(groupsWithData, user.uid));
-    } catch (error) {
-      console.error('[FriendsScreen] fetch error:', error);
-      Alert.alert('Error', 'Failed to load friends balance data.');
-    } finally {
-      if (showLoading) setIsLoading(false);
+      const computed = computeFriendBalances(groupsWithData, user.uid);
+      setFriends(computed);
+      setIsLoading(false);
+    } catch (e) {
+      console.warn('[FriendsScreen] local load error:', e);
     }
   };
 
+  // 2. Background sync (without wiping the screen or showing a blocking skeleton)
+  const refreshRemoteData = async (showLoading = false) => {
+    if (!user) return;
+    if (showLoading) setIsLoading(true);
+    try {
+      await loadLocalFriends();
+
+      if (networkMonitor.isCurrentlyOnline()) {
+        const groups = await getGroups(user.uid);
+        const groupsWithData = await Promise.all(
+          groups.map(async (group) => {
+            const [members, expenses, localSettlements] = await Promise.all([
+              getGroupMembers(group.id),
+              getGroupExpenses(group.id),
+              getGroupSettlementsLocal(group.id),
+            ]);
+            return {
+              groupId: group.id,
+              groupName: group.name,
+              expenses,
+              members,
+              settlements: localSettlements,
+            };
+          })
+        );
+
+        setFriends(computeFriendBalances(groupsWithData, user.uid));
+      }
+    } catch (error) {
+      console.error('[FriendsScreen] fetch error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Instant local load on mount & subscribe to queue updates
   useEffect(() => {
-    if (isFocused && user) fetchData();
+    if (!user) return;
+
+    loadLocalFriends();
+
+    // Listen to queue changes (when an expense is created/settled anywhere in the app)
+    const unsubQueue = syncQueue.subscribe(() => {
+      loadLocalFriends();
+    });
+
+    return unsubQueue;
+  }, [user]);
+
+  // When switching to the tab, perform silent background sync (never blocks the screen)
+  useEffect(() => {
+    if (isFocused && user) {
+      refreshRemoteData(false);
+    }
   }, [isFocused, user]);
 
   const onRefresh = async () => {
@@ -79,7 +138,7 @@ const FriendsScreen = ({ navigation }: any) => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
-    await fetchData(false);
+    await refreshRemoteData(false);
     setIsRefreshing(false);
   };
 
@@ -182,7 +241,7 @@ const FriendsScreen = ({ navigation }: any) => {
         </View>
       )}
 
-      {isLoading ? (
+      {isLoading && friends.length === 0 ? (
         <View style={styles.skeletonContainer}>
           {[1, 2, 3, 4, 5].map((i) => (
             <View key={i} style={styles.skeletonRow}>

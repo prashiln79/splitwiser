@@ -1,3 +1,6 @@
+// ─── Sync Status ─────────────────────────────────────────────────────────────
+export type SyncStatus = 'pending' | 'syncing' | 'synced' | 'failed';
+
 // ─── User ────────────────────────────────────────────────────────────────────
 export interface AppUser {
   uid: string;
@@ -34,6 +37,9 @@ export interface Group {
   bannerUrl?: string;
   icon?: string;
   memberIds: string[];
+  updatedAt?: Date;
+  syncStatus?: SyncStatus;
+  isDeleted?: boolean;
 }
 
 // ─── Expense ─────────────────────────────────────────────────────────────────
@@ -58,6 +64,8 @@ export interface Expense {
   tags: string[];
   createdAt: Date;
   updatedAt: Date;
+  syncStatus?: SyncStatus;
+  isDeleted?: boolean;
 }
 
 export interface ExpenseCreateInput {
@@ -83,6 +91,8 @@ export interface Settlement {
   status: SettlementStatus;
   createdAt: Date;
   note?: string;
+  syncStatus?: SyncStatus;
+  isDeleted?: boolean;
 }
 
 // Optimized settlement (computed client-side, not stored)

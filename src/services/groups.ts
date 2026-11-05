@@ -19,6 +19,8 @@ import {
 import { db } from '../config/firebase';
 import { Group, GroupMember, MemberRole } from '../types';
 
+import { updateGroupLocal, upsertRemoteGroups } from '../repositories/groupRepository';
+
 // ─── Path helpers ─────────────────────────────────────────────────────────────
 // All data lives under /splitwiser/data/groups/...
 const groupsCol = () => collection(db, 'splitwiser', 'data', 'groups');
@@ -66,7 +68,9 @@ export async function createGroup(
   name: string,
   creatorUid: string,
   creatorName: string,
-  currency = 'INR'
+  currency = 'INR',
+  imageUrl?: string,
+  icon?: string
 ): Promise<Group> {
   const joinCode = generateJoinCode();
 
@@ -77,6 +81,8 @@ export async function createGroup(
     createdBy: creatorUid,
     createdAt: serverTimestamp(),
     memberIds: [creatorUid],
+    imageUrl: imageUrl || null,
+    icon: icon || null,
   });
 
   await setDoc(memberDoc(groupRef.id, creatorUid), {
@@ -87,7 +93,10 @@ export async function createGroup(
   });
 
   const snap = await getDoc(groupRef);
-  return mapGroup(groupRef.id, snap.data()!);
+  const created = mapGroup(groupRef.id, snap.data()!);
+  // Cache in SQLite immediately
+  await upsertRemoteGroups([created]);
+  return created;
 }
 
 export async function getGroups(uid: string): Promise<Group[]> {
@@ -106,6 +115,7 @@ export async function updateGroup(
   groupId: string,
   updates: Partial<Pick<Group, 'name' | 'imageUrl' | 'bannerUrl' | 'icon'>>
 ): Promise<void> {
+  await updateGroupLocal(groupId, updates);
   await updateDoc(groupDoc(groupId), updates);
 }
 

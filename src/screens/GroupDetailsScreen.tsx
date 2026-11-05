@@ -26,7 +26,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { getGroupById, getGroupMembers } from '../services/groups';
-import { subscribeToExpenses, deleteExpense } from '../services/expenses';
+import { getLocalGroupById, getLocalGroupMembers } from '../repositories/groupRepository';
+import { getGroupExpensesLocal, deleteExpenseLocal } from '../repositories/expenseRepository';
+import { getGroupSettlementsLocal } from '../repositories/settlementRepository';
+import { syncService } from '../sync/syncService';
+import { syncQueue } from '../sync/syncQueue';
 import { getOptimizedSettlements } from '../utils/balanceCalculator';
 import { useAuth } from '../context/AuthContext';
 import { AppHeader } from '../components/common/AppHeader';
@@ -36,7 +40,7 @@ import { CategoryIcon } from '../components/common/CategoryIcon';
 import { SettleUpModal } from '../components/common/SettleUpModal';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 import { EmptyState } from '../components/common/EmptyState';
-import { Expense, Group, GroupMember, OptimizedSettlement } from '../types';
+import { Expense, Group, GroupMember, OptimizedSettlement, Settlement } from '../types';
 import { formatCurrency } from '../utils/currency';
 
 const GroupDetailsScreen = ({ route, navigation }: any) => {
@@ -47,6 +51,7 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [recordedSettlements, setRecordedSettlements] = useState<Settlement[]>([]);
   const [settlements, setSettlements] = useState<OptimizedSettlement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -58,39 +63,66 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
   const [isDeletingExpense, setIsDeletingExpense] = useState(false);
   const [confirmDeleteExpenseVisible, setConfirmDeleteExpenseVisible] = useState(false);
 
-  // Load group details & members
+  // Load from local SQLite immediately
+  const loadLocalData = async () => {
+    try {
+      const [localG, localM, localExp, localSet] = await Promise.all([
+        getLocalGroupById(groupId),
+        getLocalGroupMembers(groupId),
+        getGroupExpensesLocal(groupId),
+        getGroupSettlementsLocal(groupId),
+      ]);
+      if (localG) setGroup(localG);
+      if (localM && localM.length > 0) setMembers(localM);
+      if (localExp) setExpenses(localExp);
+      if (localSet) setRecordedSettlements(localSet);
+      setIsLoading(false);
+    } catch (e) {
+      console.warn('[GroupDetails] local load failed:', e);
+    }
+  };
+
+  // Load group details & members from remote in background
   const fetchGroupData = async () => {
     try {
       const [g, m] = await Promise.all([
         getGroupById(groupId),
         getGroupMembers(groupId),
       ]);
-      setGroup(g);
-      setMembers(m);
+      if (g) setGroup(g);
+      if (m && m.length > 0) setMembers(m);
     } catch (e) {
       console.error('[GroupDetails] error loading group:', e);
     }
   };
 
   useEffect(() => {
+    // 1. Initial fast local read
+    loadLocalData();
     fetchGroupData();
-  }, [groupId]);
 
-  // Real-time expense subscription
-  useEffect(() => {
-    const unsubscribe = subscribeToExpenses(groupId, (updatedExpenses) => {
-      setExpenses(updatedExpenses);
-      setIsLoading(false);
+    // 2. Subscribe to remote sync for this active group
+    const unsubSync = syncService.subscribeToActiveGroup(groupId, () => {
+      loadLocalData();
     });
-    return unsubscribe;
+
+    // 3. Subscribe to sync queue status changes (e.g. pending -> synced)
+    const unsubQueue = syncQueue.subscribe(() => {
+      loadLocalData();
+    });
+
+    return () => {
+      unsubSync();
+      unsubQueue();
+    };
   }, [groupId]);
 
-  // Recompute settlements whenever expenses or members change
+  // Recompute settlements whenever expenses, members, or recorded settlements change
   useEffect(() => {
     if (members.length > 0) {
-      setSettlements(getOptimizedSettlements(expenses, members));
+      setSettlements(getOptimizedSettlements(expenses, members, recordedSettlements));
     }
-  }, [expenses, members]);
+  }, [expenses, members, recordedSettlements]);
 
   const onRefresh = async () => {
     setIsRefreshing(true);
@@ -119,7 +151,8 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
     if (!selectedExpense) return;
     setIsDeletingExpense(true);
     try {
-      await deleteExpense(groupId, selectedExpense.id);
+      await deleteExpenseLocal(groupId, selectedExpense.id);
+      await loadLocalData();
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       }
@@ -311,14 +344,37 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
             styles.listContent,
             { paddingBottom: Math.max(insets.bottom + 80, 100) },
           ]}
-          renderItem={({ item }) => (
-            <ExpenseListItem
-              expense={item}
-              currentUserId={user?.uid || ''}
-              payerName={getMemberName(item.paidBy || item.createdBy)}
-              onPress={() => setSelectedExpense(item)}
-            />
-          )}
+          renderItem={({ item, index }) => {
+            const dateObj = new Date(item.createdAt);
+            const currentMonthYear = dateObj.toLocaleDateString('en-US', {
+              month: 'long',
+              year: 'numeric',
+            });
+            const prevMonthYear =
+              index > 0
+                ? new Date(expenses[index - 1].createdAt).toLocaleDateString('en-US', {
+                    month: 'long',
+                    year: 'numeric',
+                  })
+                : null;
+            const showMonthHeader = currentMonthYear !== prevMonthYear;
+
+            return (
+              <View>
+                {showMonthHeader && (
+                  <View style={styles.monthHeaderContainer}>
+                    <Text style={styles.monthHeaderText}>{currentMonthYear}</Text>
+                  </View>
+                )}
+                <ExpenseListItem
+                  expense={item}
+                  currentUserId={user?.uid || ''}
+                  payerName={getMemberName(item.paidBy || item.createdBy)}
+                  onPress={() => setSelectedExpense(item)}
+                />
+              </View>
+            );
+          }}
           ListEmptyComponent={
             <EmptyState
               icon={Receipt}
@@ -597,6 +653,18 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  monthHeaderContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 6,
+    backgroundColor: '#F5F5F5',
+  },
+  monthHeaderText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#6B6B6B',
+    letterSpacing: 0.2,
   },
   tabBar: {
     flexDirection: 'row',

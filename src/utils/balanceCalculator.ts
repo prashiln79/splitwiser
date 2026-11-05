@@ -1,4 +1,4 @@
-import { Expense, GroupMember, OptimizedSettlement, FriendBalance } from '../types';
+import { Expense, GroupMember, OptimizedSettlement, FriendBalance, Settlement } from '../types';
 
 // ─── Debt Minimization (preserved from balanceCalculator.js) ──────────────────
 
@@ -8,7 +8,8 @@ import { Expense, GroupMember, OptimizedSettlement, FriendBalance } from '../typ
  */
 export function computeNetBalances(
   expenses: Expense[],
-  members: GroupMember[]
+  members: GroupMember[],
+  settlements: Settlement[] = []
 ): Map<string, number> {
   const balances = new Map<string, number>();
 
@@ -16,6 +17,7 @@ export function computeNetBalances(
   members.forEach((m) => balances.set(m.userId, 0));
 
   expenses.forEach((expense) => {
+    if (expense.isDeleted) return;
     const payerId = expense.paidBy || expense.createdBy;
     if (!payerId) return;
 
@@ -28,6 +30,17 @@ export function computeNetBalances(
       // Split member owes this amount
       balances.set(split.userId, (balances.get(split.userId) ?? 0) - amount);
     });
+  });
+
+  // Apply settlements: fromUser paid toUser, so fromUser's debt decreases (+amount) and toUser's credit decreases (-amount)
+  settlements.forEach((settlement) => {
+    if (settlement.isDeleted) return;
+    const fromId = settlement.fromUserId;
+    const toId = settlement.toUserId;
+    const amount = settlement.amount;
+
+    balances.set(fromId, (balances.get(fromId) ?? 0) + amount);
+    balances.set(toId, (balances.get(toId) ?? 0) - amount);
   });
 
   return balances;
@@ -82,13 +95,14 @@ export function optimizeSettlements(
 }
 
 /**
- * Compute optimized settlements for a group from expenses + members.
+ * Compute optimized settlements for a group from expenses + members + settlements.
  */
 export function getOptimizedSettlements(
   expenses: Expense[],
-  members: GroupMember[]
+  members: GroupMember[],
+  settlements: Settlement[] = []
 ): OptimizedSettlement[] {
-  const balances = computeNetBalances(expenses, members);
+  const balances = computeNetBalances(expenses, members, settlements);
   return optimizeSettlements(balances, members);
 }
 
@@ -103,6 +117,7 @@ export function computeFriendBalances(
     groupName: string;
     expenses: Expense[];
     members: GroupMember[];
+    settlements?: Settlement[];
   }>,
   currentUserId: string
 ): FriendBalance[] {
@@ -112,10 +127,11 @@ export function computeFriendBalances(
     { userName: string; netBalance: number; groups: Map<string, { name: string; balance: number }> }
   >();
 
-  groups.forEach(({ groupId, groupName, expenses, members }) => {
+  groups.forEach(({ groupId, groupName, expenses, members, settlements }) => {
     const memberMap = new Map(members.map((m) => [m.userId, m.userName]));
 
     expenses.forEach((expense) => {
+      if (expense.isDeleted) return;
       const payerId = expense.paidBy || expense.createdBy;
       if (!payerId) return;
 
@@ -157,6 +173,34 @@ export function computeFriendBalances(
         }
         friend.groups.get(groupId)!.balance += contribution;
       });
+    });
+
+    // Apply settlements
+    settlements?.forEach((settlement) => {
+      if (settlement.isDeleted) return;
+      const isFromMe = settlement.fromUserId === currentUserId;
+      const isToMe = settlement.toUserId === currentUserId;
+      if (!isFromMe && !isToMe) return;
+
+      const friendId = isFromMe ? settlement.toUserId : settlement.fromUserId;
+      const friendName = isFromMe ? settlement.toUserName : settlement.fromUserName;
+      const delta = isFromMe ? settlement.amount : -settlement.amount;
+
+      if (!friendMap.has(friendId)) {
+        friendMap.set(friendId, {
+          userName: friendName || memberMap.get(friendId) || 'Unknown',
+          netBalance: 0,
+          groups: new Map(),
+        });
+      }
+
+      const friend = friendMap.get(friendId)!;
+      friend.netBalance += delta;
+
+      if (!friend.groups.has(groupId)) {
+        friend.groups.set(groupId, { name: groupName, balance: 0 });
+      }
+      friend.groups.get(groupId)!.balance += delta;
     });
   });
 

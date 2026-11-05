@@ -1,0 +1,288 @@
+import { doc, setDoc, deleteDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import * as Crypto from 'expo-crypto';
+import { db } from '../config/firebase';
+import { getDatabase } from '../db/sqlite';
+import { networkMonitor } from './networkMonitor';
+
+export type QueueOperation = 
+  | 'CREATE_EXPENSE'
+  | 'UPDATE_EXPENSE'
+  | 'DELETE_EXPENSE'
+  | 'RECORD_SETTLEMENT'
+  | 'CREATE_GROUP';
+
+export interface QueueItem {
+  id: string;
+  entity_type: string;
+  entity_id: string;
+  operation: QueueOperation;
+  payload_json: string;
+  created_at: number;
+  attempts: number;
+  last_attempt_at?: number | null;
+  error_message?: string | null;
+  status: 'pending' | 'processing' | 'failed';
+}
+
+type QueueListener = (pendingCount: number) => void;
+
+class SyncQueue {
+  private isProcessing = false;
+  private listeners: Set<QueueListener> = new Set();
+  private scheduledTimer: any = null;
+
+  constructor() {
+    // Listen for network changes to auto-flush queue when back online
+    networkMonitor.subscribe((online) => {
+      if (online) {
+        this.processQueue();
+      }
+    });
+  }
+
+  public subscribe(listener: QueueListener): () => void {
+    this.listeners.add(listener);
+    this.notifyListeners();
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private async notifyListeners() {
+    try {
+      const count = await this.getPendingCount();
+      for (const listener of this.listeners) {
+        listener(count);
+      }
+    } catch {
+      // Ignore count error
+    }
+  }
+
+  /**
+   * Enqueues an operation into the durable SQLite queue.
+   */
+  public async enqueue(
+    entityType: 'expense' | 'settlement' | 'group',
+    entityId: string,
+    operation: QueueOperation,
+    payload: Record<string, any>
+  ): Promise<string> {
+    const database = await getDatabase();
+    const id = Crypto.randomUUID();
+    const now = Date.now();
+
+    await database.runAsync(
+      `INSERT INTO sync_queue (
+        id, entity_type, entity_id, operation, payload_json, created_at, attempts, status
+      ) VALUES (?, ?, ?, ?, ?, ?, 0, 'pending')`,
+      [id, entityType, entityId, operation, JSON.stringify(payload), now]
+    );
+
+    this.notifyListeners();
+
+    // Trigger processing if online
+    if (networkMonitor.isCurrentlyOnline()) {
+      this.processQueue();
+    }
+
+    return id;
+  }
+
+  public async getPendingCount(): Promise<number> {
+    const database = await getDatabase();
+    const row = await database.getFirstAsync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM sync_queue WHERE status = 'pending' OR status = 'failed'`
+    );
+    return row?.count ?? 0;
+  }
+
+  /**
+   * Processes all pending operations in chronological order.
+   */
+  public async processQueue(): Promise<void> {
+    if (this.isProcessing) return;
+    if (!networkMonitor.isCurrentlyOnline()) return;
+
+    this.isProcessing = true;
+    const database = await getDatabase();
+
+    try {
+      // Fetch pending items
+      const items = await database.getAllAsync<QueueItem>(
+        `SELECT * FROM sync_queue 
+         WHERE status IN ('pending', 'failed') 
+         ORDER BY created_at ASC 
+         LIMIT 20`
+      );
+
+      const now = Date.now();
+
+      for (const item of items) {
+        // Exponential backoff check: base 1.5s, max 60s
+        const backoffMs = Math.min(1500 * Math.pow(2, item.attempts), 60000);
+        if (item.last_attempt_at && now - item.last_attempt_at < backoffMs) {
+          continue; // Wait until backoff duration has passed
+        }
+
+        // Mark as processing
+        await database.runAsync(
+          `UPDATE sync_queue SET status = 'processing', attempts = attempts + 1, last_attempt_at = ? WHERE id = ?`,
+          [now, item.id]
+        );
+
+        try {
+          await this.executeItem(item);
+
+          // Success: remove from sync_queue
+          await database.runAsync(`DELETE FROM sync_queue WHERE id = ?`, [item.id]);
+
+          // Mark local item as synced
+          await this.markEntitySynced(item.entity_type, item.entity_id);
+        } catch (err: any) {
+          console.warn(`[SyncQueue] Failed item ${item.id} (${item.operation}):`, err?.message || err);
+
+          const newAttempts = item.attempts + 1;
+          const newStatus = newAttempts >= 8 ? 'failed' : 'pending';
+
+          await database.runAsync(
+            `UPDATE sync_queue SET status = ?, error_message = ? WHERE id = ?`,
+            [newStatus, String(err?.message || err), item.id]
+          );
+
+          if (newStatus === 'failed') {
+            await this.markEntityFailed(item.entity_type, item.entity_id);
+          }
+        }
+      }
+    } finally {
+      this.isProcessing = false;
+      this.notifyListeners();
+    }
+  }
+
+  private async executeItem(item: QueueItem): Promise<void> {
+    const payload = JSON.parse(item.payload_json);
+
+    switch (item.operation) {
+      case 'CREATE_EXPENSE': {
+        const { id, groupId, createdBy, paidBy, description, amount, splits, splitType, currency, tags, createdAt, updatedAt } = payload;
+        const ref = doc(db, 'splitwiser', 'data', 'groups', groupId, 'expenses', id);
+        await setDoc(ref, {
+          groupId,
+          createdBy,
+          paidBy,
+          description,
+          amount,
+          splits,
+          splitType,
+          currency: currency || 'INR',
+          tags: tags || [],
+          createdAt: createdAt ? Timestamp.fromMillis(createdAt) : serverTimestamp(),
+          updatedAt: updatedAt ? Timestamp.fromMillis(updatedAt) : serverTimestamp(),
+        });
+        break;
+      }
+
+      case 'UPDATE_EXPENSE': {
+        const { id, groupId, ...updates } = payload;
+        const ref = doc(db, 'splitwiser', 'data', 'groups', groupId, 'expenses', id);
+        await setDoc(ref, {
+          ...updates,
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+        break;
+      }
+
+      case 'DELETE_EXPENSE': {
+        const { id, groupId } = payload;
+        const ref = doc(db, 'splitwiser', 'data', 'groups', groupId, 'expenses', id);
+        await deleteDoc(ref);
+        break;
+      }
+
+      case 'RECORD_SETTLEMENT': {
+        const { id, groupId, fromUserId, toUserId, fromUserName, toUserName, amount, status, note, createdAt } = payload;
+        const ref = doc(db, 'splitwiser', 'data', 'groups', groupId, 'settlements', id);
+        await setDoc(ref, {
+          groupId,
+          fromUserId,
+          toUserId,
+          fromUserName,
+          toUserName,
+          amount,
+          status: status || 'completed',
+          note: note || null,
+          createdAt: createdAt ? Timestamp.fromMillis(createdAt) : serverTimestamp(),
+        });
+        break;
+      }
+
+      case 'CREATE_GROUP': {
+        const { id, name, currency, joinCode, createdBy, createdAt, memberIds, creatorName, imageUrl, icon } = payload;
+        const groupRef = doc(db, 'splitwiser', 'data', 'groups', id);
+        const memberRef = doc(db, 'splitwiser', 'data', 'groups', id, 'members', createdBy);
+
+        await setDoc(groupRef, {
+          name,
+          currency: currency || 'INR',
+          joinCode,
+          createdBy,
+          createdAt: createdAt ? Timestamp.fromMillis(createdAt) : serverTimestamp(),
+          memberIds: memberIds || [createdBy],
+          imageUrl: imageUrl || null,
+          icon: icon || null,
+        });
+
+        await setDoc(memberRef, {
+          userId: createdBy,
+          userName: creatorName || 'User',
+          role: 'admin',
+          joinedAt: serverTimestamp(),
+        });
+        break;
+      }
+
+      default:
+        throw new Error(`Unknown queue operation: ${item.operation}`);
+    }
+  }
+
+  private async markEntitySynced(entityType: string, entityId: string): Promise<void> {
+    const database = await getDatabase();
+    if (entityType === 'expense') {
+      await database.runAsync(
+        `UPDATE local_expenses SET sync_status = 'synced' WHERE id = ?`,
+        [entityId]
+      );
+    } else if (entityType === 'settlement') {
+      await database.runAsync(
+        `UPDATE local_settlements SET sync_status = 'synced' WHERE id = ?`,
+        [entityId]
+      );
+    } else if (entityType === 'group') {
+      await database.runAsync(
+        `UPDATE local_groups SET sync_status = 'synced' WHERE id = ?`,
+        [entityId]
+      );
+    }
+  }
+
+  private async markEntityFailed(entityType: string, entityId: string): Promise<void> {
+    const database = await getDatabase();
+    if (entityType === 'expense') {
+      await database.runAsync(
+        `UPDATE local_expenses SET sync_status = 'failed' WHERE id = ?`,
+        [entityId]
+      );
+    } else if (entityType === 'settlement') {
+      await database.runAsync(
+        `UPDATE local_settlements SET sync_status = 'failed' WHERE id = ?`,
+        [entityId]
+      );
+    }
+  }
+}
+
+export const syncQueue = new SyncQueue();
+

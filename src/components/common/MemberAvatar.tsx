@@ -36,7 +36,21 @@ export const MemberAvatar: React.FC<MemberAvatarProps> = ({
   showAdminBadge = false,
 }) => {
   const { colors } = useAppTheme();
-  const isImageValid = imageUrl && /^(https?:|data:image)/.test(imageUrl);
+  const [imageError, setImageError] = React.useState(false);
+
+  let imageUri: string | null = null;
+  if (imageUrl) {
+    const raw = imageUrl.trim();
+    if (/^(https?:|data:image|file:|content:)/i.test(raw)) {
+      imageUri = raw;
+    } else if (raw.startsWith('/') || raw.startsWith('file:')) {
+      imageUri = raw.startsWith('file:') ? raw : `file://${raw}`;
+    } else if (raw.length > 50 && !raw.includes(' ')) {
+      imageUri = `data:image/jpeg;base64,${raw}`;
+    }
+  }
+
+  const isImageValid = Boolean(imageUri && !imageError);
   const bgColor = getAvatarColor(name || 'User');
   const initial = (name || '?').trim().charAt(0).toUpperCase();
 
@@ -44,7 +58,8 @@ export const MemberAvatar: React.FC<MemberAvatarProps> = ({
     <View style={{ width: size, height: size, position: 'relative' }}>
       {isImageValid ? (
         <Image
-          source={{ uri: imageUrl! }}
+          source={{ uri: imageUri! }}
+          onError={() => setImageError(true)}
           style={[
             styles.image,
             {

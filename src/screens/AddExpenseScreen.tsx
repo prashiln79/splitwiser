@@ -14,11 +14,13 @@ import {
 import {
   Check,
   AlertCircle,
+  Users,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { getGroupMembers } from '../services/groups';
-import { createExpense } from '../services/expenses';
+import { getGroupMembers, getGroupById } from '../services/groups';
+import { getLocalGroupById, getLocalGroupMembers } from '../repositories/groupRepository';
+import { createExpenseLocal } from '../repositories/expenseRepository';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme } from '../theme';
 import { AppHeader } from '../components/common/AppHeader';
@@ -29,7 +31,7 @@ import {
   detectCategory,
   CategoryIcon,
 } from '../components/common/CategoryIcon';
-import { GroupMember, ExpenseSplit, SplitType } from '../types';
+import { GroupMember, ExpenseSplit, SplitType, Group } from '../types';
 import { formatCurrency } from '../utils/currency';
 
 
@@ -41,6 +43,7 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
 
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
+  const [group, setGroup] = useState<Group | null>(null);
   const detectedCategory = useMemo(() => detectCategory(description), [description]);
   const categoryConfig = CATEGORIES_CONFIG[detectedCategory] || CATEGORIES_CONFIG.General;
   const [members, setMembers] = useState<GroupMember[]>([]);
@@ -55,39 +58,61 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
   const [selectedMembers, setSelectedMembers] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
+    // 1. Instant load from local SQLite
+    getLocalGroupById(groupId).then((g) => {
+      if (g) setGroup(g);
+    });
+
+    const initMemberList = (memberList: GroupMember[]) => {
+      setMembers(memberList);
+
+      const numMembers = memberList.length;
+      if (numMembers === 0) return;
+
+      const basePercentage = Math.floor(100 / numMembers);
+      const remainder = 100 - basePercentage * numMembers;
+
+      const initShares: Record<string, string> = {};
+      const initPercentages: Record<string, string> = {};
+      const initExactAmounts: Record<string, string> = {};
+      const initSelected: Record<string, boolean> = {};
+
+      memberList.forEach((m, index) => {
+        initShares[m.userId] = '1';
+        initPercentages[m.userId] = (
+          basePercentage + (index < remainder ? 1 : 0)
+        ).toString();
+        initExactAmounts[m.userId] = '0.00';
+        initSelected[m.userId] = true;
+      });
+
+      setShares(initShares);
+      setPercentages(initPercentages);
+      setExactAmounts(initExactAmounts);
+      setSelectedMembers(initSelected);
+
+      const myMembership = memberList.find((m) => m.userId === user?.uid);
+      setPayerId(myMembership ? user!.uid : memberList[0]?.userId ?? null);
+    };
+
+    getLocalGroupMembers(groupId).then((localMembers) => {
+      if (localMembers && localMembers.length > 0) {
+        initMemberList(localMembers);
+        setIsLoading(false);
+      }
+    });
+
+    // 2. Fetch fresh from remote if needed
+    getGroupById(groupId).then((g) => {
+      if (g) setGroup(g);
+    }).catch(() => {});
+
     getGroupMembers(groupId)
       .then((memberList) => {
-        setMembers(memberList);
-
-        const numMembers = memberList.length;
-        const basePercentage = Math.floor(100 / numMembers);
-        const remainder = 100 - basePercentage * numMembers;
-
-        const initShares: Record<string, string> = {};
-        const initPercentages: Record<string, string> = {};
-        const initExactAmounts: Record<string, string> = {};
-        const initSelected: Record<string, boolean> = {};
-
-        memberList.forEach((m, index) => {
-          initShares[m.userId] = '1';
-          initPercentages[m.userId] = (
-            basePercentage + (index < remainder ? 1 : 0)
-          ).toString();
-          initExactAmounts[m.userId] = '0.00';
-          initSelected[m.userId] = true;
-        });
-
-        setShares(initShares);
-        setPercentages(initPercentages);
-        setExactAmounts(initExactAmounts);
-        setSelectedMembers(initSelected);
-
-        const myMembership = memberList.find((m) => m.userId === user?.uid);
-        setPayerId(myMembership ? user!.uid : memberList[0]?.userId ?? null);
+        initMemberList(memberList);
       })
       .catch((e) => {
-        Alert.alert('Error', 'Failed to load group members.');
-        console.error(e);
+        console.warn('[AddExpenseScreen] Remote members fetch skipped:', e.message);
       })
       .finally(() => setIsLoading(false));
   }, [groupId, user]);
@@ -182,7 +207,7 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
           }));
       }
 
-      await createExpense(groupId, user!.uid, {
+      await createExpenseLocal(groupId, user!.uid, {
         description: description.trim(),
         amount: numericAmount,
         paidBy: payerId,
@@ -259,6 +284,19 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {/* With you and: [Group name] context row (Splitwise Style) */}
+          <View style={styles.groupContextRow}>
+            <Text style={styles.withYouAndText}>
+              With <Text style={{ fontWeight: '700', color: '#1A1A1A' }}>you</Text> and:{' '}
+            </Text>
+            <View style={styles.groupContextChip}>
+              <Users size={14} color="#059669" style={{ marginRight: 6 }} />
+              <Text style={styles.groupContextChipText}>
+                {group?.name || 'Group'}
+              </Text>
+            </View>
+          </View>
+
           {/* Description + Category Icon */}
           <View style={styles.descriptionRow}>
             <View style={styles.categoryIconBox}>
@@ -528,6 +566,34 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 48,
+  },
+  // Group context row
+  groupContextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
+  },
+  withYouAndText: {
+    fontSize: 15,
+    color: '#6B6B6B',
+  },
+  groupContextChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FAF6',
+    borderWidth: 1,
+    borderColor: '#D1FAE5',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  groupContextChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#059669',
   },
   // Description row
   descriptionRow: {

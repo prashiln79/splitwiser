@@ -6,6 +6,7 @@ import React, {
   ReactNode,
 } from 'react';
 import { AppUser } from '../types';
+import { syncService } from '../sync/syncService';
 import {
   subscribeToAuthState,
   loadUserProfile,
@@ -60,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const profile = await loadUserProfile(firebaseUser.uid);
           setUser(profile);
+          syncService.initialize(firebaseUser.uid);
         } catch (err) {
           console.error('[AuthContext] Failed to load user profile:', err);
           setUser(null);
