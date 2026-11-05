@@ -10,32 +10,81 @@ import {
   ActivityIndicator,
   Share,
   Platform,
+  Image,
 } from 'react-native';
+import Svg, { Path, Circle, Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
+import * as ImagePicker from 'expo-image-picker';
 import {
-  Settings,
   Plus,
-  Share2,
-  CheckCircle2,
-  ArrowRight,
   Receipt,
   Users,
-  CreditCard,
-  HandCoins,
+  Handshake,
+  UserPlus,
+  EllipsisVertical,
+  Pencil,
+  Image as ImageIcon,
+  ChartColumnIncreasing,
+  ArrowRight,
+  CheckCircle2,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { getGroupById, getGroupMembers } from '../services/groups';
+import { getGroupById, getGroupMembers, updateGroup } from '../services/groups';
 import { subscribeToExpenses } from '../services/expenses';
 import { getOptimizedSettlements } from '../utils/balanceCalculator';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme, typography, spacing, radii, shadows } from '../theme';
 import { AppHeader } from '../components/common/AppHeader';
-import { MemberAvatar } from '../components/common/MemberAvatar';
 import { ExpenseListItem } from '../components/common/ExpenseListItem';
 import { SettleUpModal } from '../components/common/SettleUpModal';
 import { EmptyState } from '../components/common/EmptyState';
 import { Expense, Group, GroupMember, OptimizedSettlement } from '../types';
 import { formatCurrency } from '../utils/currency';
+
+/**
+ * Beautiful default rolling hills & sun illustration banner matching the design.
+ */
+const GroupDefaultBanner = () => (
+  <Svg width="100%" height="100%" viewBox="0 0 400 130" preserveAspectRatio="xMidYMid slice">
+    <Defs>
+      <LinearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+        <Stop offset="0%" stopColor="#D1FAE5" />
+        <Stop offset="100%" stopColor="#A7F3D0" />
+      </LinearGradient>
+      <LinearGradient id="sunGrad" x1="0" y1="0" x2="0" y2="1">
+        <Stop offset="0%" stopColor="#FEF9C3" />
+        <Stop offset="100%" stopColor="#FEF08A" />
+      </LinearGradient>
+    </Defs>
+
+    {/* Sky */}
+    <Rect x="0" y="0" width="400" height="130" fill="url(#skyGrad)" />
+
+    {/* Sun */}
+    <Circle cx="308" cy="65" r="28" fill="url(#sunGrad)" opacity="0.95" />
+
+    {/* Distant Hills */}
+    <Path
+      d="M0,88 Q100,50 200,72 T400,66 L400,130 L0,130 Z"
+      fill="#6EE7B7"
+      opacity="0.75"
+    />
+
+    {/* Mid Hills */}
+    <Path
+      d="M0,80 Q130,105 250,76 T400,90 L400,130 L0,130 Z"
+      fill="#34D399"
+      opacity="0.85"
+    />
+
+    {/* Foreground Hills */}
+    <Path
+      d="M0,96 Q140,64 280,100 T400,86 L400,130 L0,130 Z"
+      fill="#10B981"
+      opacity="0.9"
+    />
+  </Svg>
+);
 
 const GroupDetailsScreen = ({ route, navigation }: any) => {
   const { groupId, groupName: initialGroupName } = route.params;
@@ -109,6 +158,56 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
     }
   };
 
+  const handlePickBanner = async () => {
+    if (Platform.OS !== 'web') {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Allow photo library access to change the group cover photo.');
+        return;
+      }
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.length > 0) {
+      const uri = result.assets[0].uri;
+      try {
+        await updateGroup(groupId, { bannerUrl: uri });
+        setGroup((prev) => (prev ? { ...prev, bannerUrl: uri } : prev));
+      } catch (e) {
+        console.warn('Failed to update group banner:', e);
+      }
+    }
+  };
+
+  const handlePickAvatar = async () => {
+    if (Platform.OS !== 'web') {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Allow photo library access to change the group avatar.');
+        return;
+      }
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.length > 0) {
+      const uri = result.assets[0].uri;
+      try {
+        await updateGroup(groupId, { imageUrl: uri });
+        setGroup((prev) => (prev ? { ...prev, imageUrl: uri } : prev));
+      } catch (e) {
+        console.warn('Failed to update group avatar:', e);
+      }
+    }
+  };
+
   // Member map for quick name resolution
   const memberMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -119,15 +218,15 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
   const getMemberName = (uid: string) => memberMap.get(uid) || 'Member';
 
   // Current user's net balance in this group
-  const { netBalance, myOwes, myOwed } = useMemo(() => {
-    if (!user) return { netBalance: 0, myOwes: 0, myOwed: 0 };
+  const { netBalance } = useMemo(() => {
+    if (!user) return { netBalance: 0 };
     const owes = settlements
       .filter((s) => s.fromUserId === user.uid)
       .reduce((sum, s) => sum + s.amount, 0);
     const owed = settlements
       .filter((s) => s.toUserId === user.uid)
       .reduce((sum, s) => sum + s.amount, 0);
-    return { netBalance: owed - owes, myOwes: owes, myOwed: owed };
+    return { netBalance: owed - owes };
   }, [settlements, user]);
 
   const isSettled = Math.abs(netBalance) < 0.01;
@@ -135,146 +234,143 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
   // Render header summary card
   const renderGroupHeader = () => (
     <View style={styles.headerContainer}>
-      {/* Hero Card */}
-      <View
-        style={[
-          styles.heroCard,
-          {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
-          },
-          shadows.sm,
-        ]}
-      >
-        {/* Top: Avatar, Name & Code Chip */}
-        <View style={styles.groupMetaRow}>
-          <MemberAvatar
-            name={group?.name || initialGroupName}
-            imageUrl={group?.imageUrl}
-            size={52}
-          />
-          <View style={styles.groupTextInfo}>
-            <Text
-              style={[styles.groupTitle, { color: colors.textPrimary }]}
-              numberOfLines={1}
+      {/* Group Card with Banner & Overlapping Avatar */}
+      <View style={[styles.heroCard, shadows.sm]}>
+        {/* Banner Area */}
+        <View style={styles.bannerArea}>
+          {group?.bannerUrl ? (
+            <Image
+              source={{ uri: group.bannerUrl }}
+              style={StyleSheet.absoluteFill}
+              resizeMode="cover"
+            />
+          ) : (
+            <GroupDefaultBanner />
+          )}
+
+          {/* Change Banner Photo Button */}
+          <TouchableOpacity
+            style={styles.bannerImageBtn}
+            onPress={handlePickBanner}
+            activeOpacity={0.8}
+            accessibilityLabel="Change group cover photo"
+            accessibilityRole="button"
+          >
+            <ImageIcon size={18} color="#334155" strokeWidth={2.2} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Bottom Details Row with Overlapping Avatar */}
+        <View style={styles.groupInfoRow}>
+          {/* Overlapping Avatar */}
+          <View style={styles.avatarWrapper}>
+            <TouchableOpacity
+              onPress={handlePickAvatar}
+              activeOpacity={0.85}
+              style={styles.avatarPressable}
+              accessibilityLabel="Change group avatar"
+              accessibilityRole="button"
             >
+              <View style={styles.avatarCircle}>
+                {group?.imageUrl ? (
+                  <Image
+                    source={{ uri: group.imageUrl }}
+                    style={styles.avatarImg}
+                  />
+                ) : (
+                  <Text style={styles.avatarInitial}>
+                    {(group?.name || initialGroupName || 'T')[0].toUpperCase()}
+                  </Text>
+                )}
+              </View>
+
+              {/* Edit Pencil Badge */}
+              <View style={styles.pencilBadge}>
+                <Pencil size={11} color="#334155" strokeWidth={2.4} />
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Group Name & Members */}
+          <View style={styles.groupMetaCol}>
+            <Text style={styles.groupTitle} numberOfLines={1}>
               {group?.name || initialGroupName}
             </Text>
             <View style={styles.membersCountRow}>
-              <Users size={12} color={colors.textSecondary} strokeWidth={2} />
-              <Text style={[styles.membersCountText, { color: colors.textSecondary }]}>
+              <Users size={14} color="#64748B" strokeWidth={2} />
+              <Text style={styles.membersCountText}>
                 {members.length} {members.length === 1 ? 'member' : 'members'}
               </Text>
             </View>
           </View>
         </View>
+      </View>
 
-        {/* Join Code Banner (Fixes "Group code is not visible on groups") */}
-        {group?.joinCode && (
-          <TouchableOpacity
+      {/* Balance & Actions Row */}
+      <View style={styles.balanceActionsRow}>
+        {/* Your balance badge */}
+        <View
+          style={[
+            styles.balancePill,
+            {
+              backgroundColor: isSettled
+                ? '#F1F5F9'
+                : netBalance > 0
+                ? '#ECFDF5'
+                : '#FFF1F2',
+            },
+          ]}
+        >
+          <Text style={styles.balancePillLabel}>Your balance</Text>
+          <Text
             style={[
-              styles.codeBanner,
-              { backgroundColor: colors.primaryLight, borderColor: colors.primary + '35' },
+              styles.balancePillAmount,
+              {
+                color: isSettled
+                  ? '#0F172A'
+                  : netBalance > 0
+                  ? '#059669'
+                  : '#E11D48',
+              },
             ]}
-            onPress={handleShareCode}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel={`Group Join Code is ${group.joinCode}. Tap to share or copy.`}
           >
-            <View style={styles.codeBannerLeft}>
-              <Text style={[styles.codeBannerLabel, { color: colors.primaryDark }]}>
-                GROUP CODE:
-              </Text>
-              <Text style={[styles.codeBannerCode, { color: colors.primaryDark }]}>
-                {group.joinCode}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.codeSharePill,
-                { backgroundColor: colors.surface, borderColor: colors.primary + '40' },
-              ]}
-            >
-              <Share2 size={12} color={colors.primary} strokeWidth={2.5} style={{ marginRight: 4 }} />
-              <Text style={[styles.codeShareText, { color: colors.primary }]}>
-                Invite Friends
-              </Text>
-            </View>
-          </TouchableOpacity>
-        )}
-
-        {/* Balance Status */}
-        <View style={[styles.balanceSection, { borderTopColor: colors.borderLight }]}>
-          <View>
-            <Text style={[styles.balanceLabel, { color: colors.textSecondary }]}>
-              YOUR BALANCE
-            </Text>
-            <Text
-              style={[
-                styles.balanceAmount,
-                {
-                  color: isSettled
-                    ? colors.textPrimary
-                    : netBalance > 0
-                    ? colors.income
-                    : colors.expense,
-                },
-              ]}
-            >
-              {isSettled
-                ? 'All Settled'
-                : `${netBalance > 0 ? '+' : '-'}${formatCurrency(Math.abs(netBalance))}`}
-            </Text>
-          </View>
-
-          {/* Quick Action Buttons */}
-          <View style={styles.headerButtonRow}>
-            {settlements.length > 0 && (
-              <TouchableOpacity
-                style={[
-                  styles.settleBtn,
-                  { backgroundColor: colors.surfaceVariant, borderColor: colors.border },
-                ]}
-                onPress={() => setSettleModalVisible(true)}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel="Settle up balances"
-              >
-                <HandCoins size={14} color={colors.textPrimary} strokeWidth={2} style={{ marginRight: 4 }} />
-                <Text style={[styles.settleBtnText, { color: colors.textPrimary }]}>
-                  Settle Up
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              style={[styles.addExpenseBtn, { backgroundColor: colors.primary }]}
-              onPress={() => navigation.navigate('AddExpense', { groupId })}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel="Add an expense"
-            >
-              <Plus size={15} color="#FFFFFF" strokeWidth={2.5} style={{ marginRight: 4 }} />
-              <Text style={styles.addExpenseBtnText}>Add Expense</Text>
-            </TouchableOpacity>
-          </View>
+            {isSettled
+              ? '₹0.00'
+              : `${netBalance > 0 ? '+' : '-'}${formatCurrency(Math.abs(netBalance))}`}
+          </Text>
         </View>
+
+        {/* Settle Up Button */}
+        <TouchableOpacity
+          style={styles.settleUpBtn}
+          onPress={() => setSettleModalVisible(true)}
+          activeOpacity={0.8}
+          accessibilityLabel="Settle Up"
+          accessibilityRole="button"
+        >
+          <Handshake size={18} color="#0F172A" strokeWidth={2} style={{ marginRight: 6 }} />
+          <Text style={styles.settleUpBtnText}>Settle Up</Text>
+        </TouchableOpacity>
+
+        {/* Add Expense Button */}
+        <TouchableOpacity
+          style={styles.addExpenseBtn}
+          onPress={() => navigation.navigate('AddExpense', { groupId })}
+          activeOpacity={0.85}
+          accessibilityLabel="Add Expense"
+          accessibilityRole="button"
+        >
+          <Plus size={16} color="#FFFFFF" strokeWidth={2.8} style={{ marginRight: 4 }} />
+          <Text style={styles.addExpenseBtnText}>Add Expense</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Segmented Filter Tabs: Expenses vs Balances */}
-      <View
-        style={[
-          styles.tabContainer,
-          { backgroundColor: colors.surfaceVariant, borderColor: colors.border },
-        ]}
-      >
+      <View style={styles.tabContainer}>
         <TouchableOpacity
           style={[
             styles.tabButton,
-            activeTab === 'expenses' && [
-              styles.tabActive,
-              { backgroundColor: colors.surface },
-            ],
+            activeTab === 'expenses' && styles.tabButtonActive,
           ]}
           onPress={() => {
             if (Platform.OS !== 'web') {
@@ -285,18 +381,15 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
           activeOpacity={0.8}
         >
           <Receipt
-            size={15}
-            color={activeTab === 'expenses' ? colors.primary : colors.textSecondary}
-            strokeWidth={2}
+            size={16}
+            color={activeTab === 'expenses' ? '#059669' : '#64748B'}
+            strokeWidth={activeTab === 'expenses' ? 2.4 : 2}
             style={{ marginRight: 6 }}
           />
           <Text
             style={[
               styles.tabText,
-              {
-                color: activeTab === 'expenses' ? colors.textPrimary : colors.textSecondary,
-                fontWeight: activeTab === 'expenses' ? '700' : '500',
-              },
+              activeTab === 'expenses' ? styles.tabTextActive : styles.tabTextInactive,
             ]}
           >
             Expenses ({expenses.length})
@@ -306,10 +399,7 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
         <TouchableOpacity
           style={[
             styles.tabButton,
-            activeTab === 'balances' && [
-              styles.tabActive,
-              { backgroundColor: colors.surface },
-            ],
+            activeTab === 'balances' && styles.tabButtonActive,
           ]}
           onPress={() => {
             if (Platform.OS !== 'web') {
@@ -319,19 +409,16 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
           }}
           activeOpacity={0.8}
         >
-          <CreditCard
-            size={15}
-            color={activeTab === 'balances' ? colors.primary : colors.textSecondary}
-            strokeWidth={2}
+          <ChartColumnIncreasing
+            size={16}
+            color={activeTab === 'balances' ? '#059669' : '#64748B'}
+            strokeWidth={activeTab === 'balances' ? 2.4 : 2}
             style={{ marginRight: 6 }}
           />
           <Text
             style={[
               styles.tabText,
-              {
-                color: activeTab === 'balances' ? colors.textPrimary : colors.textSecondary,
-                fontWeight: activeTab === 'balances' ? '700' : '500',
-              },
+              activeTab === 'balances' ? styles.tabTextActive : styles.tabTextInactive,
             ]}
           >
             Balances ({settlements.length})
@@ -346,32 +433,27 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
       {/* Top App Header */}
       <AppHeader
         title={group?.name || initialGroupName}
-        subtitle={`${members.length} members`}
+        subtitle={`${members.length} ${members.length === 1 ? 'member' : 'members'}`}
         showBack
         onBack={() => navigation.goBack()}
         rightAction={
           <View style={styles.topRightActions}>
-            {group?.joinCode ? (
-              <TouchableOpacity
-                onPress={handleShareCode}
-                style={[styles.headerCodeChip, { backgroundColor: colors.primaryLight }]}
-                accessibilityLabel={`Group code ${group.joinCode}. Share code.`}
-                accessibilityRole="button"
-              >
-                <Text style={[styles.headerCodeText, { color: colors.primaryDark }]}>
-                  {group.joinCode}
-                </Text>
-                <Share2 size={12} color={colors.primaryDark} strokeWidth={2.2} />
-              </TouchableOpacity>
-            ) : null}
+            <TouchableOpacity
+              onPress={handleShareCode}
+              style={styles.headerCircleBtn}
+              accessibilityLabel="Invite members"
+              accessibilityRole="button"
+            >
+              <UserPlus size={18} color="#0F172A" strokeWidth={2.2} />
+            </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => navigation.navigate('GroupSettings', { groupId })}
-              style={[styles.headerIconBtn, { backgroundColor: colors.surfaceVariant }]}
-              accessibilityLabel="Group settings"
+              style={styles.headerMoreBtn}
+              accessibilityLabel="More options"
               accessibilityRole="button"
             >
-              <Settings size={18} color={colors.textPrimary} strokeWidth={2.2} />
+              <EllipsisVertical size={20} color="#0F172A" strokeWidth={2.2} />
             </TouchableOpacity>
           </View>
         }
@@ -380,7 +462,7 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
       {/* Main List */}
       {isLoading ? (
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color="#059669" />
           <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
             Loading expenses...
           </Text>
@@ -414,8 +496,8 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={onRefresh}
-              colors={[colors.primary]}
-              tintColor={colors.primary}
+              colors={['#059669']}
+              tintColor="#059669"
             />
           }
         />
@@ -438,7 +520,7 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
                   styles.settlementItemCard,
                   {
                     backgroundColor: colors.surface,
-                    borderColor: colors.border,
+                    borderColor: colors.borderLight,
                   },
                   shadows.sm,
                 ]}
@@ -498,8 +580,8 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={onRefresh}
-              colors={[colors.primary]}
-              tintColor={colors.primary}
+              colors={['#059669']}
+              tintColor="#059669"
             />
           }
         />
@@ -510,7 +592,6 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
         style={[
           styles.fab,
           {
-            backgroundColor: colors.primary,
             bottom: Math.max(insets.bottom + 16, 24),
           },
           shadows.md,
@@ -520,7 +601,7 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
         accessibilityRole="button"
         accessibilityLabel="Add an expense"
       >
-        <Plus size={24} color="#FFFFFF" strokeWidth={2.5} />
+        <Plus size={26} color="#FFFFFF" strokeWidth={2.6} />
       </TouchableOpacity>
 
       {/* Settlement Workflow Modal */}
@@ -545,26 +626,20 @@ const styles = StyleSheet.create({
   topRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 8,
   },
-  headerCodeChip: {
-    flexDirection: 'row',
+  headerCircleBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: radii.full,
+    justifyContent: 'center',
   },
-  headerCodeText: {
-    fontSize: typography.sizes.xs,
-    fontFamily: 'Courier',
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  headerIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  headerMoreBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -582,147 +657,209 @@ const styles = StyleSheet.create({
     paddingBottom: 96,
   },
   headerContainer: {
-    padding: spacing.base,
-    paddingBottom: spacing.sm,
+    paddingTop: 8,
+    paddingBottom: 4,
   },
   heroCard: {
-    borderRadius: radii.xl,
-    padding: spacing.base,
+    marginHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    marginBottom: spacing.base,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
   },
-  groupMetaRow: {
+  bannerArea: {
+    height: 125,
+    backgroundColor: '#D1FAE5',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  bannerImageBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  groupInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    backgroundColor: '#FFFFFF',
   },
-  groupTextInfo: {
+  avatarWrapper: {
+    marginTop: -28,
+  },
+  avatarPressable: {
+    position: 'relative',
+  },
+  avatarCircle: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: '#059669',
+    borderWidth: 3.5,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 26,
+  },
+  avatarInitial: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  pencilBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 1.5,
+    elevation: 2,
+  },
+  groupMetaCol: {
+    marginLeft: 14,
     flex: 1,
-    marginLeft: spacing.md,
+    justifyContent: 'center',
+    paddingTop: 4,
   },
   groupTitle: {
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0F172A',
     letterSpacing: -0.3,
   },
   membersCountRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 2,
+    marginTop: 3,
   },
   membersCountText: {
-    fontSize: typography.sizes.xs,
+    fontSize: 13,
+    color: '#64748B',
     fontWeight: '500',
   },
-  codeBanner: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    marginBottom: spacing.md,
-  },
-  codeBannerLeft: {
+  balanceActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    marginHorizontal: 16,
+    marginTop: 14,
+    gap: 8,
   },
-  codeBannerLabel: {
-    fontSize: typography.sizes.xs - 1,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+  balancePill: {
+    paddingVertical: 8,
+    paddingHorizontal: 13,
+    borderRadius: 14,
   },
-  codeBannerCode: {
-    fontSize: typography.sizes.sm,
-    fontFamily: 'Courier',
-    fontWeight: '900',
-    letterSpacing: 1,
+  balancePillLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#64748B',
   },
-  codeSharePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: radii.full,
-    borderWidth: 1,
-  },
-  codeShareText: {
-    fontSize: typography.sizes.xs - 1,
-    fontWeight: '700',
-  },
-  balanceSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-  },
-  balanceLabel: {
-    fontSize: typography.sizes.xs - 1,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-  },
-  balanceAmount: {
-    fontSize: 22,
+  balancePillAmount: {
+    fontSize: 19,
     fontWeight: '800',
-    letterSpacing: -0.3,
-    marginTop: 2,
+    letterSpacing: -0.4,
+    marginTop: 1,
   },
-  headerButtonRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    alignItems: 'center',
-  },
-  settleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.md,
+  settleUpBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
+    borderColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  settleBtnText: {
-    fontSize: typography.sizes.xs,
+  settleUpBtnText: {
+    fontSize: 14,
     fontWeight: '700',
+    color: '#0F172A',
   },
   addExpenseBtn: {
+    flex: 1.15,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#059669',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.md,
+    justifyContent: 'center',
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
   },
   addExpenseBtnText: {
     color: '#FFFFFF',
-    fontSize: typography.sizes.xs,
+    fontSize: 14,
     fontWeight: '700',
   },
   tabContainer: {
     flexDirection: 'row',
-    borderRadius: radii.lg,
-    padding: 3,
-    borderWidth: 1,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 16,
+    padding: 4,
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 10,
   },
   tabButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.sm + 1,
-    borderRadius: radii.md,
+    paddingVertical: 10,
+    borderRadius: 12,
   },
-  tabActive: {
+  tabButtonActive: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.05,
     shadowRadius: 2,
-    elevation: 2,
+    elevation: 1,
   },
   tabText: {
-    fontSize: typography.sizes.xs,
+    fontSize: 14,
+  },
+  tabTextActive: {
+    color: '#059669',
+    fontWeight: '700',
+  },
+  tabTextInactive: {
+    color: '#64748B',
+    fontWeight: '600',
   },
   settlementItemCard: {
     flexDirection: 'row',
@@ -730,7 +867,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.base,
     paddingHorizontal: spacing.base,
-    borderRadius: radii.lg,
+    borderRadius: radii.xl,
     borderWidth: 1,
     marginHorizontal: spacing.base,
     marginBottom: spacing.sm,
@@ -778,11 +915,11 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    right: spacing.base,
-    bottom: spacing.base,
+    right: 16,
     width: 56,
     height: 56,
     borderRadius: 28,
+    backgroundColor: '#059669',
     alignItems: 'center',
     justifyContent: 'center',
   },

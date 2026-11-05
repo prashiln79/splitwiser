@@ -90,16 +90,16 @@ export const ExpenseListItem: React.FC<ExpenseListItemProps> = ({
         {isPayerMe ? (
           lentAmount > 0 ? (
             <Text style={[styles.shareText, { color: colors.income }]}>
-              you lent {formatCurrency(lentAmount)}
+              You lent {formatCurrency(lentAmount)}
             </Text>
           ) : (
             <Text style={[styles.shareText, { color: colors.textMuted }]}>
-              no one owes
+              not involved
             </Text>
           )
         ) : borrowedAmount > 0 ? (
           <Text style={[styles.shareText, { color: colors.expense }]}>
-            you borrowed {formatCurrency(borrowedAmount)}
+            You borrowed {formatCurrency(borrowedAmount)}
           </Text>
         ) : (
           <Text style={[styles.shareText, { color: colors.textMuted }]}>
@@ -117,7 +117,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.base,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginHorizontal: spacing.base,
+    marginBottom: spacing.sm + 2,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
   centerSection: {
     flex: 1,

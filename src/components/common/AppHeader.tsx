@@ -12,6 +12,7 @@ interface AppHeaderProps {
   onBack?: () => void;
   rightAction?: React.ReactNode;
   transparent?: boolean;
+  avatar?: React.ReactNode;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -21,6 +22,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onBack,
   rightAction,
   transparent = false,
+  avatar,
 }) => {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
@@ -50,7 +52,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           {showBack && (
             <TouchableOpacity
               onPress={handleBack}
-              style={[styles.backButton, { backgroundColor: colors.surfaceVariant }]}
+              style={[
+                styles.backButton,
+                { backgroundColor: colors.surfaceVariant },
+                avatar ? { marginRight: spacing.sm } : null,
+              ]}
               accessibilityRole="button"
               accessibilityLabel="Go back"
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -58,6 +64,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               <ArrowLeft size={20} color={colors.textPrimary} strokeWidth={2.2} />
             </TouchableOpacity>
           )}
+          {avatar ? (
+            <View style={styles.avatarContainer}>{avatar}</View>
+          ) : null}
           <View style={styles.titleContainer}>
             <Text
               style={[styles.title, { color: colors.textPrimary }]}
@@ -107,6 +116,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
+  },
+  avatarContainer: {
+    marginRight: spacing.sm + 2,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   titleContainer: {
     flex: 1,

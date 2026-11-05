@@ -31,6 +31,7 @@ export interface Group {
   createdBy: string;
   createdAt: Date;
   imageUrl?: string;
+  bannerUrl?: string;
   icon?: string;
   memberIds: string[];
 }

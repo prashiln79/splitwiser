@@ -157,12 +157,34 @@ export async function linkGoogleCredential(
 }
 
 /**
- * Sign in using an existing Google account (for login on a second device or returning users).
+ * Sign in using an existing Google account (or link if currently anonymous).
+ * Preserves anonymous UID and data if the user is currently anonymous.
  */
 export async function signInWithGoogleCredential(
   idToken: string,
   accessToken?: string
 ): Promise<AppUser> {
+  const currentUser = auth.currentUser;
+
+  // If there is an active anonymous session, link the Google credentials directly to preserve the UID!
+  if (currentUser && currentUser.isAnonymous) {
+    try {
+      const { user } = await linkGoogleCredential(idToken, accessToken);
+      return user;
+    } catch (linkError: any) {
+      if (linkError?.code === 'auth/credential-already-in-use') {
+        // The Google account is already registered as a separate Firebase user.
+        // Migrate all groups, expenses, and splits from the anonymous account to the Google account.
+        return await migrateAnonymousDataToExistingGoogleAccount(
+          currentUser.uid,
+          idToken,
+          accessToken
+        );
+      }
+      throw linkError;
+    }
+  }
+
   const credential = GoogleAuthProvider.credential(idToken, accessToken);
   const userCredential = await signInWithCredential(auth, credential);
   const googleUser = userCredential.user;
@@ -187,7 +209,18 @@ export async function signInWithGoogleCredential(
     profile = await loadUserProfile(googleUser.uid);
   }
 
-  return profile!;
+  return (
+    profile || {
+      uid: googleUser.uid,
+      name: googleUser.displayName || 'Splitwiser User',
+      email: googleUser.email || undefined,
+      photoURL: googleUser.photoURL || undefined,
+      imageUrl: googleUser.photoURL || undefined,
+      isAnonymous: false,
+      authProvider: 'google',
+      createdAt: new Date(),
+    }
+  );
 }
 
 /**
@@ -214,11 +247,16 @@ export async function migrateAnonymousDataToExistingGoogleAccount(
   for (const groupDocSnap of groupSnaps.docs) {
     const groupId = groupDocSnap.id;
     const groupRef = doc(db, 'splitwiser', 'data', 'groups', groupId);
+    const groupData = groupDocSnap.data();
 
-    // Update memberIds array in group doc
-    await updateDoc(groupRef, {
+    // Update memberIds array & createdBy in group doc
+    const groupUpdates: Record<string, any> = {
       memberIds: arrayUnion(googleUid),
-    });
+    };
+    if (groupData.createdBy === anonymousUid) {
+      groupUpdates.createdBy = googleUid;
+    }
+    await updateDoc(groupRef, groupUpdates);
     await updateDoc(groupRef, {
       memberIds: arrayRemove(anonymousUid),
     });
@@ -296,7 +334,23 @@ export async function migrateAnonymousDataToExistingGoogleAccount(
   }
 
   // Load and return the Google user profile
-  const profile = await loadUserProfile(googleUid);
+  let profile = await loadUserProfile(googleUid);
+  if (!profile) {
+    const now = serverTimestamp();
+    const newProfile = {
+      uid: googleUid,
+      name: googleUserName,
+      email: userCredential.user.email || null,
+      photoURL: userCredential.user.photoURL || null,
+      imageUrl: userCredential.user.photoURL || null,
+      isAnonymous: false,
+      authProvider: 'google',
+      createdAt: now,
+      updatedAt: now,
+    };
+    await setDoc(usersPath(googleUid), newProfile);
+    profile = await loadUserProfile(googleUid);
+  }
   return profile!;
 }
 

@@ -44,6 +44,7 @@ function mapGroup(id: string, data: Record<string, any>): Group {
     createdBy: data.createdBy,
     createdAt: data.createdAt?.toDate() ?? new Date(),
     imageUrl: data.imageUrl,
+    bannerUrl: data.bannerUrl,
     icon: data.icon,
     memberIds: data.memberIds ?? [],
   };
@@ -103,7 +104,7 @@ export async function getGroupById(groupId: string): Promise<Group | null> {
 
 export async function updateGroup(
   groupId: string,
-  updates: Partial<Pick<Group, 'name' | 'imageUrl' | 'icon'>>
+  updates: Partial<Pick<Group, 'name' | 'imageUrl' | 'bannerUrl' | 'icon'>>
 ): Promise<void> {
   await updateDoc(groupDoc(groupId), updates);
 }
