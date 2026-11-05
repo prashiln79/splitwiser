@@ -1,4 +1,5 @@
 import { auth, db } from '../config/firebase';
+import { signOutNativeGoogle } from './useGoogleAuth';
 import {
   signInAnonymously,
   onAuthStateChanged,
@@ -303,6 +304,11 @@ export async function migrateAnonymousDataToExistingGoogleAccount(
  * Sign out current user.
  */
 export async function signOutUser(): Promise<void> {
+  try {
+    await signOutNativeGoogle();
+  } catch (err) {
+    console.warn('[signOutUser] Failed to sign out from native Google:', err);
+  }
   await signOut(auth);
 }
 

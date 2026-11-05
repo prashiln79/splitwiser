@@ -61,7 +61,22 @@ function ensureGoogleSigninConfigured() {
       });
       isConfigured = true;
     } catch (e) {
-      console.warn('[GoogleSignin] configure warning:', e);
+      console.warn('[useGoogleAuth] GoogleSignin configure warning:', e);
+    }
+  }
+}
+
+/**
+ * Safely sign out from native Google Sign-In so that subsequent sign-ins
+ * always present the account chooser dialog.
+ */
+export async function signOutNativeGoogle(): Promise<void> {
+  const mod = getNativeGoogleSigninModule();
+  if (mod?.GoogleSignin) {
+    try {
+      await mod.GoogleSignin.signOut();
+    } catch {
+      // Ignored if already signed out or unavailable
     }
   }
 }
@@ -86,16 +101,18 @@ export function useGoogleAuth(
     }
   }, [nativeAvailable]);
 
-  // Pre-warm the browser on Android for fallback auth-session
+  // Pre-warm the browser ONLY for fallback environments (Expo Go / Web)
   useEffect(() => {
+    if (!isExpoGo && Platform.OS !== 'web') return;
     WebBrowser.warmUpAsync().catch(() => {});
     return () => {
       WebBrowser.coolDownAsync().catch(() => {});
     };
-  }, []);
+  }, [isExpoGo]);
 
-  // Listen for deep link redirects so WebBrowser automatically closes
+  // Listen for deep link redirects ONLY for fallback environments
   useEffect(() => {
+    if (!isExpoGo && Platform.OS !== 'web') return;
     const subscription = Linking.addEventListener('url', (event) => {
       if (
         event.url.includes('oauthredirect') ||
@@ -109,7 +126,7 @@ export function useGoogleAuth(
     return () => {
       subscription.remove();
     };
-  }, []);
+  }, [isExpoGo]);
 
   // In Expo Go, we must use the Web Client ID and the Expo Auth Proxy URL
   const activeClientId = isExpoGo
@@ -140,7 +157,7 @@ export function useGoogleAuth(
     onErrorRef.current = onError;
   }, [onSuccess, onError]);
 
-  // Handle expo-auth-session response fallback
+  // Handle expo-auth-session response fallback (only active for Expo Go / Web)
   useEffect(() => {
     if (response?.type === 'success') {
       WebBrowser.dismissBrowser().catch(() => {});
@@ -160,22 +177,39 @@ export function useGoogleAuth(
     }
   }, [response]);
 
-  // Native Android & iOS prompt using Google Play Services bottom sheet
+  // Main Google Sign-In prompt
   const promptAsync = useCallback(async (): Promise<{ type: 'success' | 'cancel' | 'error' | 'dismiss'; error?: any }> => {
     const mod = getNativeGoogleSigninModule();
 
-    // 1. If native GoogleSignin is available (standalone APK / dev client)
-    if (mod && Platform.OS !== 'web') {
+    // 1. Native Android & iOS flow using Google Play Services bottom sheet
+    if (mod && !isExpoGo && Platform.OS !== 'web') {
       try {
         ensureGoogleSigninConfigured();
         await mod.GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+        // Clear previous native sign-in session to always show the Google account picker
+        await mod.GoogleSignin.signOut().catch(() => {});
+
         const res = await mod.GoogleSignin.signIn();
 
         if (mod.isSuccessResponse(res)) {
-          const idToken = res.data.idToken;
+          let idToken = res.data?.idToken;
+          let accessToken: string | undefined = undefined;
+
+          // If idToken is not in the top-level response, retrieve via getTokens()
+          if (!idToken && typeof mod.GoogleSignin.getTokens === 'function') {
+            try {
+              const tokens = await mod.GoogleSignin.getTokens();
+              idToken = tokens.idToken;
+              accessToken = tokens.accessToken;
+            } catch (tokenErr) {
+              console.warn('[useGoogleAuth] getTokens() error:', tokenErr);
+            }
+          }
+
           if (idToken) {
             if (onSuccessRef.current) {
-              onSuccessRef.current({ idToken, accessToken: undefined });
+              onSuccessRef.current({ idToken, accessToken });
             }
             return { type: 'success' };
           } else {
@@ -189,25 +223,63 @@ export function useGoogleAuth(
           return { type: 'cancel' };
         }
       } catch (nativeError: any) {
-        console.warn('Native Google Sign-In caught error:', nativeError);
+        console.warn('[useGoogleAuth] Native Google Sign-In error:', nativeError);
         const { statusCodes } = mod;
-        if (
+
+        // User cancelled account selection
+        const isCancelled =
           nativeError.code === statusCodes?.SIGN_IN_CANCELLED ||
-          nativeError.message?.includes('cancelled') ||
-          nativeError.code === '13'
+          nativeError.code === '12501' ||
+          nativeError.code === 'SIGN_IN_CANCELLED' ||
+          String(nativeError.code) === '12501' ||
+          nativeError.message?.toLowerCase().includes('cancel');
+
+        if (isCancelled) {
+          return { type: 'cancel' };
+        }
+
+        // Sign-in already in progress
+        if (
+          nativeError.code === statusCodes?.IN_PROGRESS ||
+          nativeError.code === 'ASYNC_OP_IN_PROGRESS'
         ) {
           return { type: 'cancel' };
         }
-        if (nativeError.code === statusCodes?.IN_PROGRESS) {
-          return { type: 'cancel' };
+
+        // Format friendly actionable message for known status codes
+        let friendlyMessage = nativeError.message || 'Google Sign-In failed.';
+        const errorCode = String(nativeError.code || '');
+
+        if (
+          errorCode === '10' ||
+          errorCode === 'DEVELOPER_ERROR' ||
+          nativeError.message?.includes('DEVELOPER_ERROR') ||
+          nativeError.message?.includes(': 10')
+        ) {
+          friendlyMessage =
+            'Google Sign-In configuration error (DEVELOPER_ERROR 10). The app signing certificate (SHA-1) is not registered in Firebase Console. If running a production Play Store build, add the Google Play App Signing key SHA-1 to Firebase.';
+        } else if (
+          nativeError.code === statusCodes?.PLAY_SERVICES_NOT_AVAILABLE ||
+          errorCode === 'PLAY_SERVICES_NOT_AVAILABLE'
+        ) {
+          friendlyMessage = 'Google Play Services is not available or needs to be updated on this device.';
+        } else if (errorCode === '7' || errorCode === 'NETWORK_ERROR') {
+          friendlyMessage = 'Network error connecting to Google. Please check your connection and try again.';
         }
 
-        // If something failed on native, fall through to authSessionPromptAsync
-        console.log('Falling back to expo-auth-session prompt...');
+        const error = new Error(friendlyMessage);
+        (error as any).code = nativeError.code;
+        (error as any).originalError = nativeError;
+
+        if (onErrorRef.current) {
+          onErrorRef.current(error);
+        }
+        // CRITICAL: In native builds, never fall through to Chrome / authSessionPromptAsync!
+        return { type: 'error', error };
       }
     }
 
-    // 2. Fallback to expo-auth-session (Expo Go, web, or when native module is missing)
+    // 2. Fallback to expo-auth-session ONLY for Expo Go or Web
     try {
       const res = await authSessionPromptAsync();
       return res as any;
@@ -215,7 +287,7 @@ export function useGoogleAuth(
       if (onErrorRef.current) onErrorRef.current(e);
       return { type: 'error', error: e };
     }
-  }, [authSessionPromptAsync]);
+  }, [authSessionPromptAsync, isExpoGo]);
 
   return {
     request,
