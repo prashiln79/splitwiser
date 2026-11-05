@@ -12,16 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import {
-  Utensils,
-  Car,
-  ShoppingCart,
-  Film,
-  ShoppingBag,
-  Zap,
-  Receipt,
-  Coffee,
   Check,
-  Users,
   AlertCircle,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -37,20 +28,11 @@ import {
   CATEGORIES_CONFIG,
   detectCategory,
   ExpenseCategory,
+  CategoryIcon,
 } from '../components/common/CategoryIcon';
 import { GroupMember, ExpenseSplit, SplitType } from '../types';
 import { formatCurrency } from '../utils/currency';
 
-const QUICK_SUGGESTIONS = [
-  'Dinner 🍕',
-  'Uber / Cab 🚗',
-  'Groceries 🛒',
-  'Coffee ☕',
-  'Drinks 🍻',
-  'Hotel / Stay 🏨',
-  'Movie Tickets 🎬',
-  'WiFi / Bill ⚡',
-];
 
 const AddExpenseScreen = ({ route, navigation }: any) => {
   const { groupId } = route.params;
@@ -60,7 +42,8 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
 
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<ExpenseCategory>('General');
+  const detectedCategory = useMemo(() => detectCategory(description), [description]);
+  const categoryConfig = CATEGORIES_CONFIG[detectedCategory] || CATEGORIES_CONFIG.General;
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -110,14 +93,6 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
       .finally(() => setIsLoading(false));
   }, [groupId, user]);
 
-  // Automatically update category when user types description
-  const handleDescriptionChange = (text: string) => {
-    setDescription(text);
-    const detected = detectCategory(text);
-    if (detected !== 'General') {
-      setSelectedCategory(detected);
-    }
-  };
 
   const numericAmount = parseFloat(amount) || 0;
 
@@ -214,7 +189,7 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
         paidBy: payerId,
         splitType: finalSplitType,
         splits,
-        tags: [selectedCategory],
+        tags: [detectedCategory],
       });
 
       if (Platform.OS !== 'web') {
@@ -269,111 +244,64 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
             />
           </View>
 
-          {/* Description Input */}
+          {/* Description Input with Auto-Selected Category Icon */}
           <View style={styles.sectionContainer}>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-              Description
-            </Text>
-            <TextInput
+            <View style={styles.descriptionHeaderRow}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+                Description
+              </Text>
+              {description.trim().length > 0 && (
+                <View
+                  style={[
+                    styles.detectedBadge,
+                    {
+                      backgroundColor: categoryConfig.bgColor,
+                      borderColor: categoryConfig.color + '40',
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.detectedBadgeText,
+                      { color: categoryConfig.color },
+                    ]}
+                  >
+                    {categoryConfig.label}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <View
               style={[
-                styles.descriptionInput,
+                styles.descriptionInputWrapper,
                 {
                   backgroundColor: colors.surface,
                   borderColor: colors.border,
-                  color: colors.textPrimary,
                 },
               ]}
-              placeholder="What was this for?"
-              placeholderTextColor={colors.textMuted}
-              value={description}
-              onChangeText={handleDescriptionChange}
-              accessibilityLabel="Expense description"
-            />
-
-            {/* Quick Suggestions Chips */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.suggestionsScroll}
-              contentContainerStyle={styles.suggestionsRow}
             >
-              {QUICK_SUGGESTIONS.map((item) => (
-                <TouchableOpacity
-                  key={item}
-                  style={[
-                    styles.suggestionChip,
-                    {
-                      backgroundColor: colors.surfaceVariant,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                  onPress={() => {
-                    const cleanDesc = item.split(' ')[0];
-                    handleDescriptionChange(cleanDesc);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.suggestionText, { color: colors.textSecondary }]}>
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+              <View style={styles.categoryIconWrapper}>
+                <CategoryIcon
+                  category={detectedCategory}
+                  size={38}
+                />
+              </View>
+              <TextInput
+                style={[
+                  styles.descriptionInput,
+                  {
+                    color: colors.textPrimary,
+                  },
+                ]}
+                placeholder="What was this for? (e.g. Dinner, Uber, Coffee)"
+                placeholderTextColor={colors.textMuted}
+                value={description}
+                onChangeText={setDescription}
+                accessibilityLabel="Expense description"
+              />
+            </View>
 
-          {/* Category Picker */}
-          <View style={styles.sectionContainer}>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-              Category
-            </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.categoryRow}
-            >
-              {(Object.keys(CATEGORIES_CONFIG) as ExpenseCategory[]).map((catKey) => {
-                const config = CATEGORIES_CONFIG[catKey];
-                const IconComp = config.icon;
-                const isSelected = selectedCategory === catKey;
-
-                return (
-                  <TouchableOpacity
-                    key={catKey}
-                    style={[
-                      styles.categoryCard,
-                      {
-                        backgroundColor: isSelected ? config.bgColor : colors.surface,
-                        borderColor: isSelected ? config.color : colors.border,
-                      },
-                    ]}
-                    onPress={() => {
-                      if (Platform.OS !== 'web') {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                      }
-                      setSelectedCategory(catKey);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <IconComp
-                      size={20}
-                      color={isSelected ? config.color : colors.textSecondary}
-                      strokeWidth={2.2}
-                    />
-                    <Text
-                      style={[
-                        styles.categoryLabel,
-                        {
-                          color: isSelected ? config.color : colors.textSecondary,
-                          fontWeight: isSelected ? '700' : '500',
-                        },
-                      ]}
-                    >
-                      {catKey}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
           </View>
 
           {/* Payer Selection */}
@@ -751,44 +679,39 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     letterSpacing: -0.2,
   },
-  descriptionInput: {
-    borderWidth: 1,
-    borderRadius: radii.lg,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.md,
-    fontSize: typography.sizes.base,
+  descriptionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
   },
-  suggestionsScroll: {
-    marginTop: spacing.sm,
-  },
-  suggestionsRow: {
-    gap: spacing.sm,
-  },
-  suggestionChip: {
-    paddingVertical: 5,
-    paddingHorizontal: 12,
+  detectedBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
     borderRadius: radii.full,
     borderWidth: 1,
   },
-  suggestionText: {
+  detectedBadgeText: {
     fontSize: typography.sizes.xs,
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  categoryRow: {
-    gap: spacing.sm,
-    paddingVertical: 2,
-  },
-  categoryCard: {
+  descriptionInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.full,
-    borderWidth: 1.5,
+    borderWidth: 1,
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: Platform.OS === 'ios' ? 4 : 2,
   },
-  categoryLabel: {
-    fontSize: typography.sizes.xs,
+  categoryIconWrapper: {
+    marginRight: spacing.sm,
+    marginLeft: 2,
+  },
+  descriptionInput: {
+    flex: 1,
+    paddingVertical: Platform.OS === 'ios' ? spacing.md : spacing.sm,
+    paddingRight: spacing.sm,
+    fontSize: typography.sizes.base,
   },
   payerRow: {
     gap: spacing.sm,
