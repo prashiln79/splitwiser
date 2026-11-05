@@ -11,10 +11,15 @@
       "android",
       "web"
     ],
-    "version": "2.0.9",
+    "version": "3.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -47,6 +52,15 @@
     },
     "plugins": [
       "expo-sqlite",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
       "@react-native-google-signin/google-signin",
       [
         "expo-image-picker",

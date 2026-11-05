@@ -1,5 +1,6 @@
-import React from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import React, { useEffect } from 'react';
+import { StyleSheet } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
@@ -11,14 +12,18 @@ const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
   const { user, isLoading } = useAuth();
-  const { navTheme, colors } = useAppTheme();
+  const { navTheme } = useAppTheme();
+
+  useEffect(() => {
+    if (!isLoading) {
+      // Dismiss the native splash screen smoothly once auth state and initial resources are ready
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [isLoading]);
 
   if (isLoading) {
-    return (
-      <View style={[styles.loaderContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
+    // Return null while loading so native splash screen stays visible without flicker
+    return null;
   }
 
   return (

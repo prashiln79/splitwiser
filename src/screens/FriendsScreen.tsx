@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   TrendingUp,
   CreditCard,
+  Smile,
 } from 'lucide-react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -244,30 +245,58 @@ export const FriendsScreen = ({ navigation }: any) => {
     return () => loop.stop();
   }, [opacityAnim]);
 
-  // Balance Summary Card showing two distinct figures
+  // Balance Summary Card showing two distinct figures (or settled minimal banner when no balances)
   const renderBalanceSummary = () => (
     <View style={styles.summaryContainer}>
-      <View style={styles.summaryGrid}>
-        <View style={styles.summaryCardOwed}>
-          <View style={styles.summaryHeaderRow}>
-            <TrendingUp size={15} color="#059669" style={{ marginRight: 6 }} />
-            <Text style={styles.summaryLabelOwed}>You are owed</Text>
+      {totalYouAreOwed <= 0.01 && totalYouOwe <= 0.01 ? (
+        <View style={styles.settledBanner}>
+          <View style={styles.settledIconWrap}>
+            <CheckCircle2 size={24} color="#059669" strokeWidth={2.4} />
           </View>
-          <Text style={styles.summaryAmountOwed}>
-            {formatCurrency(totalYouAreOwed)}
-          </Text>
+          <View style={styles.settledTextContainer}>
+            <Text style={styles.settledBannerTitle}>You are all settled up</Text>
+            <Text style={styles.settledBannerSubtitle}>
+              You don't owe anything, and no one owes you
+            </Text>
+          </View>
         </View>
+      ) : (
+        <View style={styles.summaryGrid}>
+          {totalYouAreOwed > 0.01 && (
+            <View
+              style={[
+                styles.summaryCardOwed,
+                totalYouOwe <= 0.01 && { flex: 1 },
+              ]}
+            >
+              <View style={styles.summaryHeaderRow}>
+                <TrendingUp size={15} color="#059669" style={{ marginRight: 6 }} />
+                <Text style={styles.summaryLabelOwed}>You are owed</Text>
+              </View>
+              <Text style={styles.summaryAmountOwed}>
+                {formatCurrency(totalYouAreOwed)}
+              </Text>
+            </View>
+          )}
 
-        <View style={styles.summaryCardOwe}>
-          <View style={styles.summaryHeaderRow}>
-            <CreditCard size={15} color="#E11D48" style={{ marginRight: 6 }} />
-            <Text style={styles.summaryLabelOwe}>You owe</Text>
-          </View>
-          <Text style={styles.summaryAmountOwe}>
-            {formatCurrency(totalYouOwe)}
-          </Text>
+          {totalYouOwe > 0.01 && (
+            <View
+              style={[
+                styles.summaryCardOwe,
+                totalYouAreOwed <= 0.01 && { flex: 1 },
+              ]}
+            >
+              <View style={styles.summaryHeaderRow}>
+                <CreditCard size={15} color="#E11D48" style={{ marginRight: 6 }} />
+                <Text style={styles.summaryLabelOwe}>You owe</Text>
+              </View>
+              <Text style={styles.summaryAmountOwe}>
+                {formatCurrency(totalYouOwe)}
+              </Text>
+            </View>
+          )}
         </View>
-      </View>
+      )}
 
       {/* Filter Chips Bar */}
       <View style={styles.filterChipsRow}>
@@ -310,6 +339,143 @@ export const FriendsScreen = ({ navigation }: any) => {
       </View>
     </View>
   );
+
+  // Friendly Empty State when there are no owned or owe, or matching filter
+  const renderEmptyState = () => {
+    // Case 1: Initial empty state - No friends added yet
+    if (friends.length === 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIllustration}>
+            <View style={styles.emptyOuterRing}>
+              <View style={styles.emptyInnerCircle}>
+                <Users size={46} color="#059669" strokeWidth={1.8} />
+              </View>
+            </View>
+          </View>
+          <Text style={styles.emptyTitle}>Start sharing expenses with friends</Text>
+          <Text style={styles.emptySub}>
+            Add friends to track balances across shared groups or directly split dinner, trips, and bills.
+          </Text>
+          <TouchableOpacity
+            style={styles.addFriendPillBtn}
+            onPress={() => {
+              if (Platform.OS !== 'web') {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+              }
+              setAddFriendModalVisible(true);
+            }}
+            activeOpacity={0.8}
+          >
+            <UserPlus size={18} color="#FFFFFF" strokeWidth={2.4} style={{ marginRight: 8 }} />
+            <Text style={styles.addFriendPillBtnText}>Add Friend</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    // Case 2: Search with no results
+    if (searchQuery.trim().length > 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIllustration}>
+            <View style={styles.emptyOuterRingNeutral}>
+              <View style={styles.emptyInnerCircleNeutral}>
+                <Search size={40} color="#9CA3AF" strokeWidth={1.8} />
+              </View>
+            </View>
+          </View>
+          <Text style={styles.emptyTitle}>No matching friends</Text>
+          <Text style={styles.emptySub}>
+            We couldn't find any friends matching "{searchQuery}".
+          </Text>
+          <TouchableOpacity
+            style={styles.clearFilterBtn}
+            onPress={() => setSearchQuery('')}
+          >
+            <Text style={styles.clearFilterBtnText}>Clear search</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    // Case 3: Filter "Owes you" with nobody owing (no owed)
+    if (activeFilter === 'owes_you') {
+      return (
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIllustration}>
+            <View style={styles.emptyOuterRing}>
+              <View style={styles.emptyInnerCircle}>
+                <Smile size={46} color="#059669" strokeWidth={1.8} />
+              </View>
+            </View>
+          </View>
+          <Text style={styles.emptyTitle}>No one owes you</Text>
+          <Text style={styles.emptySub}>
+            You're all squared away! None of your friends currently owe you money.
+          </Text>
+          <TouchableOpacity
+            style={styles.clearFilterBtn}
+            onPress={() => setActiveFilter('all')}
+          >
+            <Text style={styles.clearFilterBtnText}>Show all friends</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    // Case 4: Filter "You owe" with no debts (no owe)
+    if (activeFilter === 'you_owe') {
+      return (
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIllustration}>
+            <View style={styles.emptyOuterRing}>
+              <View style={styles.emptyInnerCircle}>
+                <CheckCircle2 size={46} color="#059669" strokeWidth={1.8} />
+              </View>
+            </View>
+          </View>
+          <Text style={styles.emptyTitle}>You don't owe anyone</Text>
+          <Text style={styles.emptySub}>
+            All caught up! You have no outstanding balances to pay right now.
+          </Text>
+          <TouchableOpacity
+            style={styles.clearFilterBtn}
+            onPress={() => setActiveFilter('all')}
+          >
+            <Text style={styles.clearFilterBtnText}>Show all friends</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    // Case 5: Filter "Settled" with no settled friends
+    if (activeFilter === 'settled') {
+      return (
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIllustration}>
+            <View style={styles.emptyOuterRingNeutral}>
+              <View style={styles.emptyInnerCircleNeutral}>
+                <Users size={40} color="#9CA3AF" strokeWidth={1.8} />
+              </View>
+            </View>
+          </View>
+          <Text style={styles.emptyTitle}>No settled friends</Text>
+          <Text style={styles.emptySub}>
+            Friends will show here once all shared expenses between you are fully settled up.
+          </Text>
+          <TouchableOpacity
+            style={styles.clearFilterBtn}
+            onPress={() => setActiveFilter('all')}
+          >
+            <Text style={styles.clearFilterBtnText}>Show all friends</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return null;
+  };
 
   return (
     <View style={styles.container}>
@@ -395,7 +561,7 @@ export const FriendsScreen = ({ navigation }: any) => {
           ListHeaderComponent={friends.length > 0 ? renderBalanceSummary : null}
           contentContainerStyle={[
             styles.listContent,
-            { paddingBottom: Math.max(insets.bottom + 80, 100) },
+            { paddingBottom: 80 },
           ]}
           renderItem={({ item }) => {
             const isSettled = Math.abs(item.netBalance) < 0.01;
@@ -455,30 +621,7 @@ export const FriendsScreen = ({ navigation }: any) => {
               </TouchableOpacity>
             );
           }}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconCircle}>
-                <Users size={56} color="#059669" strokeWidth={1.8} />
-              </View>
-              <Text style={styles.emptyTitle}>Start sharing expenses with friends</Text>
-              <Text style={styles.emptySub}>
-                Add friends to track balances across shared groups or directly split dinner, trips, and bills.
-              </Text>
-              <TouchableOpacity
-                style={styles.addFriendPillBtn}
-                onPress={() => {
-                  if (Platform.OS !== 'web') {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                  }
-                  setAddFriendModalVisible(true);
-                }}
-                activeOpacity={0.8}
-              >
-                <UserPlus size={18} color="#FFFFFF" strokeWidth={2.4} style={{ marginRight: 8 }} />
-                <Text style={styles.addFriendPillBtnText}>Add Friend</Text>
-              </TouchableOpacity>
-            </View>
-          }
+          ListEmptyComponent={renderEmptyState()}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
@@ -542,6 +685,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 4,
+  },
+  settledBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#D1FAE5',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  settledIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    borderWidth: 1.5,
+    borderColor: '#A7F3D0',
+  },
+  settledTextContainer: {
+    flex: 1,
+  },
+  settledBannerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#065F46',
+    marginBottom: 2,
+  },
+  settledBannerSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
+    lineHeight: 16,
   },
   summaryGrid: {
     flexDirection: 'row',
@@ -719,16 +902,46 @@ const styles = StyleSheet.create({
     paddingTop: 48,
     alignItems: 'center',
   },
-  emptyIconCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#D1FAE5',
-    borderWidth: 6,
-    borderColor: '#ECFDF5',
+  emptyIllustration: {
+    marginBottom: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+  },
+  emptyOuterRing: {
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyInnerCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#D1FAE5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#A7F3D0',
+  },
+  emptyOuterRingNeutral: {
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyInnerCircleNeutral: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
   },
   emptyTitle: {
     fontSize: 18,
@@ -762,6 +975,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  clearFilterBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#059669',
+    backgroundColor: '#FFFFFF',
+  },
+  clearFilterBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#059669',
   },
 });
 

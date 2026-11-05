@@ -57,6 +57,7 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'expenses' | 'balances'>('expenses');
   const [settleModalVisible, setSettleModalVisible] = useState(false);
+  const [onlyMemberPromptVisible, setOnlyMemberPromptVisible] = useState(false);
 
   // Expense details modal state
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
@@ -144,6 +145,17 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
       });
     } catch {
       // Ignored
+    }
+  };
+
+  const handleAddExpenseClick = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    if (members.length <= 1) {
+      setOnlyMemberPromptVisible(true);
+    } else {
+      navigation.navigate('AddExpense', { groupId });
     }
   };
 
@@ -240,7 +252,7 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
 
           <TouchableOpacity
             style={styles.addExpenseBtn}
-            onPress={() => navigation.navigate('AddExpense', { groupId })}
+            onPress={handleAddExpenseClick}
             activeOpacity={0.85}
             accessibilityLabel="Add Expense"
             accessibilityRole="button"
@@ -381,7 +393,7 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
               title="No expenses yet"
               description="Keep track of meals, bills, or trips by adding the first expense to this group."
               actionLabel="Add Expense"
-              onAction={() => navigation.navigate('AddExpense', { groupId })}
+              onAction={handleAddExpenseClick}
             />
           }
           refreshControl={
@@ -459,7 +471,7 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
           styles.fab,
           { bottom: Math.max(insets.bottom + 16, 24) },
         ]}
-        onPress={() => navigation.navigate('AddExpense', { groupId })}
+        onPress={handleAddExpenseClick}
         activeOpacity={0.85}
         accessibilityRole="button"
         accessibilityLabel="Add an expense"
@@ -566,6 +578,49 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
           </View>
         </Modal>
       )}
+
+      {/* Splitwise Screen 02: Only Member in Group Prompt */}
+      <Modal
+        visible={onlyMemberPromptVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOnlyMemberPromptVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setOnlyMemberPromptVisible(false)}
+        >
+          <View style={styles.onlyMemberDialog}>
+            <Text style={styles.onlyMemberTitle}>
+              You are the only person in this group.
+            </Text>
+            <Text style={styles.onlyMemberSub}>
+              Do you need to add anyone to your group before you start adding expenses?
+            </Text>
+            <TouchableOpacity
+              style={styles.onlyMemberPrimaryBtn}
+              onPress={() => {
+                setOnlyMemberPromptVisible(false);
+                navigation.navigate('AddExpense', { groupId });
+              }}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.onlyMemberPrimaryBtnText}>Start adding expenses</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.onlyMemberSecondaryBtn}
+              onPress={() => {
+                setOnlyMemberPromptVisible(false);
+                handleShareCode();
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.onlyMemberSecondaryBtnText}>Add group members</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Delete Expense Confirmation */}
       <ConfirmationDialog
@@ -830,6 +885,56 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#1A1A1A',
+  },
+  // Splitwise only member dialog
+  onlyMemberDialog: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    maxWidth: 340,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  onlyMemberTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 10,
+    lineHeight: 24,
+  },
+  onlyMemberSub: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  onlyMemberPrimaryBtn: {
+    backgroundColor: '#059669',
+    borderRadius: 8,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  onlyMemberPrimaryBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  onlyMemberSecondaryBtn: {
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  onlyMemberSecondaryBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#059669',
   },
 });
 

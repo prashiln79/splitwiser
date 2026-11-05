@@ -10,56 +10,91 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
+  Modal,
+  Image,
 } from 'react-native';
 import {
   Check,
   AlertCircle,
   Users,
+  Calendar,
+  Camera,
+  FileText,
+  X,
+  ArrowLeft,
+  Divide,
+  Percent,
+  Hash,
+  Receipt,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { getGroupMembers, getGroupById } from '../services/groups';
 import { getLocalGroupById, getLocalGroupMembers } from '../repositories/groupRepository';
 import { createExpenseLocal } from '../repositories/expenseRepository';
 import { getDirectGroupId } from '../repositories/friendRepository';
 import { useAuth } from '../context/AuthContext';
-import { useAppTheme } from '../theme';
-import { AppHeader } from '../components/common/AppHeader';
-import { AmountInput } from '../components/common/AmountInput';
 import { MemberAvatar } from '../components/common/MemberAvatar';
 import {
   CATEGORIES_CONFIG,
   detectCategory,
   CategoryIcon,
+  ExpenseCategory,
 } from '../components/common/CategoryIcon';
 import { GroupMember, ExpenseSplit, SplitType, Group } from '../types';
 import { formatCurrency } from '../utils/currency';
 
+const CURRENCIES = [
+  { symbol: '₹', label: 'INR (₹)' },
+  { symbol: '$', label: 'USD ($)' },
+  { symbol: '€', label: 'EUR (€)' },
+  { symbol: '£', label: 'GBP (£)' },
+];
 
-const AddExpenseScreen = ({ route, navigation }: any) => {
+export const AddExpenseScreen = ({ route, navigation }: any) => {
   const { groupId: passedGroupId, friendId, friendName } = route.params || {};
   const { user } = useAuth();
-  const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
 
   const isDirectFriendExpense = Boolean(friendId && !passedGroupId);
   const groupId = passedGroupId || (friendId && user ? getDirectGroupId(user.uid, friendId) : '');
 
+  // Form states
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
+  const [currency, setCurrency] = useState('₹');
+  const [manualCategory, setManualCategory] = useState<ExpenseCategory | null>(null);
   const [group, setGroup] = useState<Group | null>(null);
-  const detectedCategory = useMemo(() => detectCategory(description), [description]);
-  const categoryConfig = CATEGORIES_CONFIG[detectedCategory] || CATEGORIES_CONFIG.General;
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Split & Payer states
   const [splitMethod, setSplitMethod] = useState<SplitType>('equal');
   const [payerId, setPayerId] = useState<string | null>(null);
-
   const [percentages, setPercentages] = useState<Record<string, string>>({});
   const [shares, setShares] = useState<Record<string, string>>({});
   const [exactAmounts, setExactAmounts] = useState<Record<string, string>>({});
   const [selectedMembers, setSelectedMembers] = useState<Record<string, boolean>>({});
+
+  // Additional details (date, receipt photo, notes)
+  const [expenseDate, setExpenseDate] = useState<Date>(new Date());
+  const [receiptImage, setReceiptImage] = useState<string | null>(null);
+  const [notes, setNotes] = useState('');
+
+  // Contextual modal states
+  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+  const [payerModalVisible, setPayerModalVisible] = useState(false);
+  const [splitModalVisible, setSplitModalVisible] = useState(false);
+  const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
+  const [dateModalVisible, setDateModalVisible] = useState(false);
+  const [notesModalVisible, setNotesModalVisible] = useState(false);
+  const [tempNotes, setTempNotes] = useState('');
+
+  // Auto-detected category unless manually picked
+  const detectedCategory = useMemo(() => detectCategory(description), [description]);
+  const activeCategory: ExpenseCategory = manualCategory || detectedCategory || 'General';
 
   useEffect(() => {
     if (!user) return;
@@ -97,7 +132,6 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
     };
 
     if (isDirectFriendExpense) {
-      // Direct two-person expense between current user and friend
       const directMembers: GroupMember[] = [
         {
           userId: user.uid,
@@ -117,7 +151,6 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
       return;
     }
 
-    // Regular group expense
     if (groupId) {
       getLocalGroupById(groupId).then((g) => {
         if (g) setGroup(g);
@@ -145,7 +178,6 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
     }
   }, [groupId, user, isDirectFriendExpense, friendId, friendName]);
 
-
   const numericAmount = parseFloat(amount) || 0;
 
   // Real-time calculation helpers
@@ -167,12 +199,31 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
     );
   }, [percentages]);
 
-  const sharesTotal = useMemo(() => {
-    return Object.values(shares).reduce(
-      (sum, val) => sum + (parseInt(val, 10) || 0),
-      0
-    );
-  }, [shares]);
+  const handleAmountChange = (text: string) => {
+    const cleaned = text.replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    if (parts.length > 2) return;
+    if (parts[1] && parts[1].length > 2) return;
+    setAmount(cleaned);
+  };
+
+  const handlePickReceipt = async () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    try {
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.8,
+      });
+      if (!res.canceled && res.assets && res.assets.length > 0) {
+        setReceiptImage(res.assets[0].uri);
+      }
+    } catch {
+      // Ignored
+    }
+  };
 
   const handleAddExpense = async () => {
     if (!description.trim()) {
@@ -209,7 +260,7 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
       } else if (splitMethod === 'unequal') {
         if (Math.abs(exactTotal - numericAmount) > 0.05) {
           throw new Error(
-            `Exact amounts sum to ${formatCurrency(exactTotal)}, but total is ${formatCurrency(numericAmount)}.`
+            `Exact amounts sum to ${currency}${exactTotal.toFixed(2)}, but total is ${currency}${numericAmount.toFixed(2)}.`
           );
         }
         splits = Object.entries(exactAmounts)
@@ -235,13 +286,17 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
           }));
       }
 
+      const tags: string[] = [activeCategory];
+      if (notes.trim()) tags.push(`note:${notes.trim()}`);
+      if (receiptImage) tags.push(`receipt:${receiptImage}`);
+
       await createExpenseLocal(groupId, user!.uid, {
         description: description.trim(),
         amount: numericAmount,
         paidBy: payerId,
         splitType: finalSplitType,
         splits,
-        tags: [detectedCategory],
+        tags,
       });
 
       if (Platform.OS !== 'web') {
@@ -257,7 +312,7 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
 
   if (isLoading) {
     return (
-      <View style={[styles.loaderContainer, { backgroundColor: '#F5F5F5' }]}>
+      <View style={styles.loaderContainer}>
         <ActivityIndicator size="large" color="#059669" />
       </View>
     );
@@ -274,31 +329,43 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
     splitMethod === 'equal'
       ? 'equally'
       : splitMethod === 'unequal'
-      ? 'by exact amounts'
+      ? 'unequally'
       : 'by percentages';
+
+  const formattedDate =
+    expenseDate.toDateString() === new Date().toDateString()
+      ? 'Today'
+      : expenseDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
   return (
     <View style={styles.container}>
-      <AppHeader
-        title="Add expense"
-        showBack
-        onBack={() => navigation.goBack()}
-        rightAction={
-          <TouchableOpacity
-            onPress={handleAddExpense}
-            disabled={isSubmitting}
-            style={styles.saveHeaderBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Save expense"
-          >
-            {isSubmitting ? (
-              <ActivityIndicator size="small" color="#059669" />
-            ) : (
-              <Check size={24} color="#059669" strokeWidth={2.5} />
-            )}
-          </TouchableOpacity>
-        }
-      />
+      {/* 1. Header: Back, Title, Save Checkmark */}
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) }]}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.headerBtn}
+          accessibilityLabel="Cancel"
+          accessibilityRole="button"
+        >
+          <ArrowLeft size={24} color="#1A1A1A" strokeWidth={2.2} />
+        </TouchableOpacity>
+
+        <Text style={styles.headerTitle}>Add expense</Text>
+
+        <TouchableOpacity
+          onPress={handleAddExpense}
+          disabled={isSubmitting}
+          style={styles.headerBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Save expense"
+        >
+          {isSubmitting ? (
+            <ActivityIndicator size="small" color="#059669" />
+          ) : (
+            <Check size={26} color="#059669" strokeWidth={2.6} />
+          )}
+        </TouchableOpacity>
+      </View>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -312,98 +379,135 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* With you and: [Group name] context row (Splitwise Style) */}
+          {/* 2. Participants context: With you and: [Home budget] */}
           <View style={styles.groupContextRow}>
-            <Text style={styles.withYouAndText}>
-              With <Text style={{ fontWeight: '700', color: '#1A1A1A' }}>you</Text> and:{' '}
-            </Text>
+            <Text style={styles.withYouAndText}>With you and: </Text>
             <View style={styles.groupContextChip}>
               <Users size={14} color="#059669" style={{ marginRight: 6 }} />
               <Text style={styles.groupContextChipText}>
-                {isDirectFriendExpense ? (friendName || 'Friend') : (group?.name || 'Group')}
+                {isDirectFriendExpense
+                  ? (friendName || 'Friend')
+                  : `All of ${group?.name || 'Group'}`}
               </Text>
             </View>
           </View>
 
-          {/* Description + Category Icon */}
-          <View style={styles.descriptionRow}>
-            <View style={styles.categoryIconBox}>
-              <CategoryIcon
-                category={detectedCategory}
-                size={40}
+          {/* 3. Description Row with Category Icon Tile */}
+          <View style={styles.formRow}>
+            <TouchableOpacity
+              style={styles.categoryTile}
+              onPress={() => {
+                if (Platform.OS !== 'web') {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                }
+                setCategoryModalVisible(true);
+              }}
+              activeOpacity={0.7}
+              accessibilityLabel={`Category: ${activeCategory}. Tap to change.`}
+              accessibilityRole="button"
+            >
+              <CategoryIcon category={activeCategory} size={36} />
+            </TouchableOpacity>
+
+            <View style={styles.descriptionInputWrapper}>
+              <TextInput
+                style={styles.descriptionInput}
+                placeholder="Enter a description"
+                placeholderTextColor="#9CA3AF"
+                value={description}
+                onChangeText={setDescription}
+                accessibilityLabel="Expense description"
               />
             </View>
-            <TextInput
-              style={styles.descriptionInput}
-              placeholder="What was this for?"
-              placeholderTextColor="#9E9E9E"
-              value={description}
-              onChangeText={setDescription}
-              accessibilityLabel="Expense description"
-            />
           </View>
 
-          {/* Amount Hero */}
-          <View style={styles.amountSection}>
-            <AmountInput
-              value={amount}
-              onChangeText={setAmount}
-              placeholder="0.00"
-              autoFocus
-            />
-            <View style={styles.amountUnderline} />
-          </View>
-
-          {/* Paid by / Split by sentence */}
-          <View style={styles.paidBySentence}>
-            <Text style={styles.sentenceText}>Paid by </Text>
+          {/* 4. Amount Hero Input with Currency Selector Box */}
+          <View style={styles.formRow}>
             <TouchableOpacity
-              style={styles.sentenceChip}
+              style={styles.currencyBox}
               onPress={() => {
-                // Cycle through payers
-                const currentIdx = members.findIndex((m) => m.userId === payerId);
-                const nextIdx = (currentIdx + 1) % members.length;
-                setPayerId(members[nextIdx].userId);
                 if (Platform.OS !== 'web') {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                 }
+                setCurrencyModalVisible(true);
               }}
-              activeOpacity={0.6}
+              activeOpacity={0.7}
+              accessibilityLabel={`Currency: ${currency}. Tap to change.`}
+              accessibilityRole="button"
             >
-              <Text style={styles.sentenceChipText}>{payerDisplayName}</Text>
+              <Text style={styles.currencyBoxText}>{currency}</Text>
             </TouchableOpacity>
-            <Text style={styles.sentenceText}> and split </Text>
-            <TouchableOpacity
-              style={styles.sentenceChip}
-              onPress={() => {
-                const methods: SplitType[] = ['equal', 'unequal', 'percentage'];
-                const currentIdx = methods.indexOf(splitMethod);
-                const nextIdx = (currentIdx + 1) % methods.length;
-                setSplitMethod(methods[nextIdx]);
-                if (Platform.OS !== 'web') {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                }
-              }}
-              activeOpacity={0.6}
-            >
-              <Text style={styles.sentenceChipText}>{splitLabel}</Text>
-            </TouchableOpacity>
-            <Text style={styles.sentenceText}>.</Text>
+
+            <View style={styles.amountInputWrapper}>
+              <TextInput
+                style={styles.amountInput}
+                value={amount}
+                onChangeText={handleAmountChange}
+                placeholder="0.00"
+                placeholderTextColor="#D1D5DB"
+                keyboardType="decimal-pad"
+                accessibilityLabel="Expense amount"
+              />
+            </View>
           </View>
 
-          {/* Split Details */}
-          <View style={styles.splitSection}>
+          {/* 5. Paid by [you] and split [equally] */}
+          <View style={styles.paidByContainer}>
+            <View style={styles.paidByRow}>
+              <Text style={styles.paidByText}>Paid by </Text>
+
+              <TouchableOpacity
+                style={styles.pillButton}
+                onPress={() => {
+                  if (Platform.OS !== 'web') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  }
+                  setPayerModalVisible(true);
+                }}
+                activeOpacity={0.8}
+                accessibilityLabel={`Paid by ${payerDisplayName}. Tap to select payer.`}
+                accessibilityRole="button"
+              >
+                <Text style={styles.pillButtonText}>{payerDisplayName}</Text>
+              </TouchableOpacity>
+
+              <Text style={styles.paidByText}> and split </Text>
+
+              <TouchableOpacity
+                style={styles.pillButton}
+                onPress={() => {
+                  if (Platform.OS !== 'web') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  }
+                  setSplitModalVisible(true);
+                }}
+                activeOpacity={0.8}
+                accessibilityLabel={`Split ${splitLabel}. Tap to change split method.`}
+                accessibilityRole="button"
+              >
+                <Text style={styles.pillButtonText}>{splitLabel}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Quick inline equal-split summary (Splitwise verified) */}
+            {splitMethod === 'equal' && numericAmount > 0 && (
+              <Text style={styles.equalSummaryText}>
+                ({currency}{equalSharePerPerson.toFixed(2)}/person)
+              </Text>
+            )}
+          </View>
+
+          {/* 6. Contextual Split Breakdown */}
+          <View style={styles.splitBreakdownSection}>
+            {/* Equal Split Member Checklist */}
             {splitMethod === 'equal' && (
               <View>
-                <Text style={styles.splitHint}>
-                  {formatCurrency(equalSharePerPerson)}/person
-                </Text>
                 {members.map((m) => {
                   const isChecked = !!selectedMembers[m.userId];
                   return (
                     <TouchableOpacity
                       key={m.userId}
-                      style={styles.memberRow}
+                      style={styles.memberCheckRow}
                       onPress={() => {
                         setSelectedMembers((prev) => ({
                           ...prev,
@@ -412,17 +516,17 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
                       }}
                       activeOpacity={0.7}
                     >
-                      <View style={styles.memberLeft}>
+                      <View style={styles.memberCheckLeft}>
                         <MemberAvatar name={m.userName} size={36} />
                         <Text style={styles.memberName}>
                           {m.userId === user?.uid ? `${m.userName} (You)` : m.userName}
                         </Text>
                       </View>
 
-                      <View style={styles.memberRight}>
-                        {isChecked && (
+                      <View style={styles.memberCheckRight}>
+                        {isChecked && numericAmount > 0 && (
                           <Text style={styles.memberShareAmount}>
-                            {formatCurrency(equalSharePerPerson)}
+                            {currency}{equalSharePerPerson.toFixed(2)}
                           </Text>
                         )}
                         <View
@@ -430,7 +534,7 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
                             styles.checkbox,
                             {
                               backgroundColor: isChecked ? '#059669' : 'transparent',
-                              borderColor: isChecked ? '#059669' : '#D0D0D0',
+                              borderColor: isChecked ? '#059669' : '#D1D5DB',
                             },
                           ]}
                         >
@@ -443,48 +547,49 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
               </View>
             )}
 
+            {/* Unequal / Exact Split */}
             {splitMethod === 'unequal' && (
               <View>
                 <View style={styles.validationRow}>
                   <Text style={styles.validationText}>
-                    {formatCurrency(exactTotal)} of {formatCurrency(numericAmount)}
+                    {currency}{exactTotal.toFixed(2)} of {currency}{numericAmount.toFixed(2)}
                   </Text>
                   {Math.abs(exactTotal - numericAmount) < 0.05 ? (
-                    <View style={[styles.validPill, { backgroundColor: '#F0FAF6' }]}>
+                    <View style={[styles.validPill, { backgroundColor: '#ECFDF5' }]}>
                       <Check size={12} color="#059669" strokeWidth={2.5} />
                       <Text style={[styles.validPillText, { color: '#059669' }]}>
-                        ✓
+                        Balanced
                       </Text>
                     </View>
                   ) : (
                     <View style={[styles.validPill, { backgroundColor: '#FEF2F2' }]}>
-                      <AlertCircle size={12} color="#E74C3C" strokeWidth={2.5} />
-                      <Text style={[styles.validPillText, { color: '#E74C3C' }]}>
-                        {formatCurrency(Math.abs(exactTotal - numericAmount))} off
+                      <AlertCircle size={12} color="#E11D48" strokeWidth={2.5} />
+                      <Text style={[styles.validPillText, { color: '#E11D48' }]}>
+                        {currency}{Math.abs(exactTotal - numericAmount).toFixed(2)} off
                       </Text>
                     </View>
                   )}
                 </View>
 
                 {members.map((m) => (
-                  <View key={m.userId} style={styles.memberRow}>
-                    <View style={styles.memberLeft}>
+                  <View key={m.userId} style={styles.memberCheckRow}>
+                    <View style={styles.memberCheckLeft}>
                       <MemberAvatar name={m.userName} size={36} />
                       <Text style={styles.memberName}>
                         {m.userId === user?.uid ? `${m.userName} (You)` : m.userName}
                       </Text>
                     </View>
                     <View style={styles.inputWrapper}>
-                      <Text style={styles.currencyPrefix}>₹</Text>
+                      <Text style={styles.currencyPrefix}>{currency}</Text>
                       <TextInput
                         style={styles.exactInput}
                         value={exactAmounts[m.userId] || ''}
                         onChangeText={(val) =>
                           setExactAmounts((prev) => ({ ...prev, [m.userId]: val }))
                         }
-                        keyboardType="numeric"
+                        keyboardType="decimal-pad"
                         placeholder="0.00"
-                        placeholderTextColor="#CCCCCC"
+                        placeholderTextColor="#9CA3AF"
                       />
                     </View>
                   </View>
@@ -492,6 +597,7 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
               </View>
             )}
 
+            {/* Percentage Split */}
             {splitMethod === 'percentage' && (
               <View>
                 <View style={styles.validationRow}>
@@ -499,16 +605,16 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
                     {percentageTotal.toFixed(1)}% of 100%
                   </Text>
                   {Math.abs(percentageTotal - 100) < 0.1 ? (
-                    <View style={[styles.validPill, { backgroundColor: '#F0FAF6' }]}>
+                    <View style={[styles.validPill, { backgroundColor: '#ECFDF5' }]}>
                       <Check size={12} color="#059669" strokeWidth={2.5} />
                       <Text style={[styles.validPillText, { color: '#059669' }]}>
-                        ✓
+                        100%
                       </Text>
                     </View>
                   ) : (
                     <View style={[styles.validPill, { backgroundColor: '#FEF2F2' }]}>
-                      <AlertCircle size={12} color="#E74C3C" strokeWidth={2.5} />
-                      <Text style={[styles.validPillText, { color: '#E74C3C' }]}>
+                      <AlertCircle size={12} color="#E11D48" strokeWidth={2.5} />
+                      <Text style={[styles.validPillText, { color: '#E11D48' }]}>
                         {percentageTotal < 100
                           ? `${(100 - percentageTotal).toFixed(1)}% left`
                           : `${(percentageTotal - 100).toFixed(1)}% over`}
@@ -521,15 +627,15 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
                   const pct = parseFloat(percentages[m.userId] || '0');
                   const calculatedShare = (numericAmount * pct) / 100;
                   return (
-                    <View key={m.userId} style={styles.memberRow}>
-                      <View style={styles.memberLeft}>
+                    <View key={m.userId} style={styles.memberCheckRow}>
+                      <View style={styles.memberCheckLeft}>
                         <MemberAvatar name={m.userName} size={36} />
                         <View>
                           <Text style={styles.memberName}>
                             {m.userId === user?.uid ? `${m.userName} (You)` : m.userName}
                           </Text>
                           <Text style={styles.calcShareText}>
-                            {formatCurrency(calculatedShare)}
+                            {currency}{calculatedShare.toFixed(2)}
                           </Text>
                         </View>
                       </View>
@@ -540,9 +646,9 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
                           onChangeText={(val) =>
                             setPercentages((prev) => ({ ...prev, [m.userId]: val }))
                           }
-                          keyboardType="numeric"
+                          keyboardType="decimal-pad"
                           placeholder="0"
-                          placeholderTextColor="#CCCCCC"
+                          placeholderTextColor="#9CA3AF"
                         />
                         <Text style={styles.pctSuffix}>%</Text>
                       </View>
@@ -553,25 +659,508 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
             )}
           </View>
 
-          {/* Save Button */}
+          {/* 7. Bottom Toolbar: Group Context, Date, Camera, Notes */}
+          <View style={styles.bottomToolbar}>
+            <View style={styles.toolbarLeft}>
+              <Users size={16} color="#059669" style={{ marginRight: 6 }} />
+              <Text style={styles.toolbarGroupText} numberOfLines={1}>
+                {isDirectFriendExpense ? (friendName || 'Friend') : (group?.name || 'Group')}
+              </Text>
+            </View>
+
+            <View style={styles.toolbarRight}>
+              {/* Date */}
+              <TouchableOpacity
+                style={styles.toolbarActionBtn}
+                onPress={() => setDateModalVisible(true)}
+                accessibilityLabel={`Date: ${formattedDate}`}
+                accessibilityRole="button"
+              >
+                <Calendar size={20} color="#6B7280" strokeWidth={2} />
+              </TouchableOpacity>
+
+              {/* Camera / Receipt */}
+              <TouchableOpacity
+                style={[
+                  styles.toolbarActionBtn,
+                  receiptImage && styles.toolbarActionBtnActive,
+                ]}
+                onPress={handlePickReceipt}
+                accessibilityLabel="Attach receipt"
+                accessibilityRole="button"
+              >
+                <Camera
+                  size={20}
+                  color={receiptImage ? '#059669' : '#6B7280'}
+                  strokeWidth={2}
+                />
+              </TouchableOpacity>
+
+              {/* Notes */}
+              <TouchableOpacity
+                style={[
+                  styles.toolbarActionBtn,
+                  notes.trim().length > 0 && styles.toolbarActionBtnActive,
+                ]}
+                onPress={() => {
+                  setTempNotes(notes);
+                  setNotesModalVisible(true);
+                }}
+                accessibilityLabel="Add note"
+                accessibilityRole="button"
+              >
+                <FileText
+                  size={20}
+                  color={notes.trim().length > 0 ? '#059669' : '#6B7280'}
+                  strokeWidth={2}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Active Attachments Preview (Receipt Image or Notes) */}
+          {(receiptImage || notes.trim().length > 0) && (
+            <View style={styles.attachmentPreviewRow}>
+              {receiptImage && (
+                <View style={styles.attachmentBadge}>
+                  <Camera size={13} color="#059669" style={{ marginRight: 4 }} />
+                  <Text style={styles.attachmentBadgeText}>Receipt attached</Text>
+                  <TouchableOpacity
+                    onPress={() => setReceiptImage(null)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <X size={14} color="#6B7280" style={{ marginLeft: 6 }} />
+                  </TouchableOpacity>
+                </View>
+              )}
+              {notes.trim().length > 0 && (
+                <View style={styles.attachmentBadge}>
+                  <FileText size={13} color="#059669" style={{ marginRight: 4 }} />
+                  <Text style={styles.attachmentBadgeText} numberOfLines={1}>
+                    {notes}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setNotes('')}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <X size={14} color="#6B7280" style={{ marginLeft: 6 }} />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* 8. Full-Width Save CTA Button */}
           <TouchableOpacity
-            style={styles.saveButton}
+            style={styles.saveCtaBtn}
             onPress={handleAddExpense}
             disabled={isSubmitting}
-            activeOpacity={0.85}
+            activeOpacity={0.88}
             accessibilityRole="button"
             accessibilityLabel="Save Expense"
           >
             {isSubmitting ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-              <Text style={styles.saveButtonText}>
-                Save Expense{numericAmount > 0 ? ` · ${formatCurrency(numericAmount)}` : ''}
+              <Text style={styles.saveCtaBtnText}>
+                Save expense{numericAmount > 0 ? ` · ${currency}${numericAmount.toFixed(2)}` : ''}
               </Text>
             )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ── Contextual Modal 1: Category Selector ───────────────────────────── */}
+      <Modal
+        visible={categoryModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCategoryModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setCategoryModalVisible(false)}
+        >
+          <View style={styles.categoryDialog}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Choose a category</Text>
+              <TouchableOpacity
+                onPress={() => setCategoryModalVisible(false)}
+                style={styles.modalCloseBtn}
+              >
+                <X size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+              <View style={styles.categoryGrid}>
+                {Object.keys(CATEGORIES_CONFIG).map((catKey) => {
+                  const cfg = CATEGORIES_CONFIG[catKey];
+                  const isSelected = activeCategory === catKey;
+                  return (
+                    <TouchableOpacity
+                      key={catKey}
+                      style={[
+                        styles.categoryItem,
+                        isSelected && styles.categoryItemSelected,
+                      ]}
+                      onPress={() => {
+                        if (Platform.OS !== 'web') {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                        }
+                        setManualCategory(catKey as ExpenseCategory);
+                        setCategoryModalVisible(false);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <View
+                        style={[
+                          styles.categoryItemIconWrap,
+                          { backgroundColor: cfg.bgColor },
+                        ]}
+                      >
+                        <CategoryIcon category={catKey as ExpenseCategory} size={28} />
+                      </View>
+                      <Text
+                        style={[
+                          styles.categoryItemLabel,
+                          isSelected && styles.categoryItemLabelSelected,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {cfg.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ── Contextual Modal 2: Payer Selector ──────────────────────────────── */}
+      <Modal
+        visible={payerModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPayerModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setPayerModalVisible(false)}
+        >
+          <View style={styles.selectionDialog}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Who paid?</Text>
+              <TouchableOpacity
+                onPress={() => setPayerModalVisible(false)}
+                style={styles.modalCloseBtn}
+              >
+                <X size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+              {members.map((m) => {
+                const isSelected = m.userId === payerId;
+                const isMe = m.userId === user?.uid;
+                return (
+                  <TouchableOpacity
+                    key={m.userId}
+                    style={[
+                      styles.selectionOptionRow,
+                      isSelected && styles.selectionOptionRowSelected,
+                    ]}
+                    onPress={() => {
+                      if (Platform.OS !== 'web') {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                      }
+                      setPayerId(m.userId);
+                      setPayerModalVisible(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.selectionOptionLeft}>
+                      <MemberAvatar name={m.userName} size={36} />
+                      <Text
+                        style={[
+                          styles.selectionOptionText,
+                          isSelected && styles.selectionOptionTextSelected,
+                        ]}
+                      >
+                        {isMe ? `${m.userName} (You)` : m.userName}
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <Check size={20} color="#059669" strokeWidth={2.5} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ── Contextual Modal 3: Split Method Selector ──────────────────────── */}
+      <Modal
+        visible={splitModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSplitModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setSplitModalVisible(false)}
+        >
+          <View style={styles.selectionDialog}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Choose split options</Text>
+              <TouchableOpacity
+                onPress={() => setSplitModalVisible(false)}
+                style={styles.modalCloseBtn}
+              >
+                <X size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Split Equally */}
+            <TouchableOpacity
+              style={[
+                styles.splitMethodOption,
+                splitMethod === 'equal' && styles.splitMethodOptionSelected,
+              ]}
+              onPress={() => {
+                if (Platform.OS !== 'web') {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                }
+                setSplitMethod('equal');
+                setSplitModalVisible(false);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.splitMethodIconCircle}>
+                <Divide size={20} color="#059669" strokeWidth={2.2} />
+              </View>
+              <View style={styles.splitMethodTextCol}>
+                <Text style={styles.splitMethodTitle}>Split equally</Text>
+                <Text style={styles.splitMethodSub}>
+                  Split evenly between all or selected members
+                </Text>
+              </View>
+              {splitMethod === 'equal' && (
+                <Check size={20} color="#059669" strokeWidth={2.5} />
+              )}
+            </TouchableOpacity>
+
+            {/* Split by Exact Amounts */}
+            <TouchableOpacity
+              style={[
+                styles.splitMethodOption,
+                splitMethod === 'unequal' && styles.splitMethodOptionSelected,
+              ]}
+              onPress={() => {
+                if (Platform.OS !== 'web') {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                }
+                setSplitMethod('unequal');
+                setSplitModalVisible(false);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.splitMethodIconCircle}>
+                <Hash size={20} color="#059669" strokeWidth={2.2} />
+              </View>
+              <View style={styles.splitMethodTextCol}>
+                <Text style={styles.splitMethodTitle}>Split by exact amounts</Text>
+                <Text style={styles.splitMethodSub}>
+                  Specify the exact dollar or rupee amount each person owes
+                </Text>
+              </View>
+              {splitMethod === 'unequal' && (
+                <Check size={20} color="#059669" strokeWidth={2.5} />
+              )}
+            </TouchableOpacity>
+
+            {/* Split by Percentages */}
+            <TouchableOpacity
+              style={[
+                styles.splitMethodOption,
+                splitMethod === 'percentage' && styles.splitMethodOptionSelected,
+              ]}
+              onPress={() => {
+                if (Platform.OS !== 'web') {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                }
+                setSplitMethod('percentage');
+                setSplitModalVisible(false);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.splitMethodIconCircle}>
+                <Percent size={20} color="#059669" strokeWidth={2.2} />
+              </View>
+              <View style={styles.splitMethodTextCol}>
+                <Text style={styles.splitMethodTitle}>Split by percentages</Text>
+                <Text style={styles.splitMethodSub}>
+                  Enter the percentage of the total each person owes
+                </Text>
+              </View>
+              {splitMethod === 'percentage' && (
+                <Check size={20} color="#059669" strokeWidth={2.5} />
+              )}
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ── Contextual Modal 4: Currency Picker ────────────────────────────── */}
+      <Modal
+        visible={currencyModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCurrencyModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setCurrencyModalVisible(false)}
+        >
+          <View style={styles.selectionDialog}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Select currency</Text>
+              <TouchableOpacity
+                onPress={() => setCurrencyModalVisible(false)}
+                style={styles.modalCloseBtn}
+              >
+                <X size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            {CURRENCIES.map((c) => (
+              <TouchableOpacity
+                key={c.symbol}
+                style={[
+                  styles.selectionOptionRow,
+                  currency === c.symbol && styles.selectionOptionRowSelected,
+                ]}
+                onPress={() => {
+                  setCurrency(c.symbol);
+                  setCurrencyModalVisible(false);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.selectionOptionText}>{c.label}</Text>
+                {currency === c.symbol && (
+                  <Check size={20} color="#059669" strokeWidth={2.5} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ── Contextual Modal 5: Date Picker ────────────────────────────────── */}
+      <Modal
+        visible={dateModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDateModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setDateModalVisible(false)}
+        >
+          <View style={styles.selectionDialog}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Expense date</Text>
+              <TouchableOpacity
+                onPress={() => setDateModalVisible(false)}
+                style={styles.modalCloseBtn}
+              >
+                <X size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.selectionOptionRow}
+              onPress={() => {
+                setExpenseDate(new Date());
+                setDateModalVisible(false);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.selectionOptionText}>Today ({new Date().toLocaleDateString()})</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.selectionOptionRow}
+              onPress={() => {
+                const y = new Date();
+                y.setDate(y.getDate() - 1);
+                setExpenseDate(y);
+                setDateModalVisible(false);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.selectionOptionText}>Yesterday</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ── Contextual Modal 6: Notes ──────────────────────────────────────── */}
+      <Modal
+        visible={notesModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setNotesModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setNotesModalVisible(false)}
+        >
+          <View style={styles.selectionDialog}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Add a note</Text>
+              <TouchableOpacity
+                onPress={() => setNotesModalVisible(false)}
+                style={styles.modalCloseBtn}
+              >
+                <X size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              style={styles.notesTextInput}
+              placeholder="Add optional notes, details, or bill reference..."
+              placeholderTextColor="#9CA3AF"
+              value={tempNotes}
+              onChangeText={setTempNotes}
+              multiline
+              numberOfLines={4}
+              autoFocus
+            />
+
+            <TouchableOpacity
+              style={styles.notesSaveBtn}
+              onPress={() => {
+                setNotes(tempNotes.trim());
+                setNotesModalVisible(false);
+              }}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.notesSaveBtnText}>Save note</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
@@ -585,136 +1174,187 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#FFFFFF',
   },
-  saveHeaderBtn: {
+  // 1. Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  headerBtn: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
   scrollContent: {
     paddingBottom: 48,
   },
-  // Group context row
+  // 2. Participants context row
   groupContextRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E8E8E8',
+    borderBottomColor: '#F3F4F6',
   },
   withYouAndText: {
     fontSize: 15,
-    color: '#6B6B6B',
+    color: '#6B7280',
+    fontWeight: '500',
   },
   groupContextChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0FAF6',
+    backgroundColor: '#F0FDF4',
     borderWidth: 1,
-    borderColor: '#D1FAE5',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    borderColor: '#DCFCE7',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
   groupContextChipText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#059669',
   },
-  // Description row
-  descriptionRow: {
+  // 3 & 4. Form rows (Category + Description, Currency + Amount)
+  formRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E8E8E8',
   },
-  categoryIconBox: {
-    marginRight: 12,
+  categoryTile: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  descriptionInputWrapper: {
+    flex: 1,
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#059669',
+    paddingBottom: 4,
   },
   descriptionInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#1A1A1A',
+    fontSize: 17,
+    fontWeight: '500',
+    color: '#111827',
     paddingVertical: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
   },
-  // Amount
-  amountSection: {
+  currencyBox: {
+    width: 48,
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  currencyBoxText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#374151',
+  },
+  amountInputWrapper: {
+    flex: 1,
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#059669',
+    paddingBottom: 2,
+  },
+  amountInput: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#111827',
+    paddingVertical: 0,
+    letterSpacing: -0.5,
+  },
+  // 5. Paid by [you] and split [equally]
+  paidByContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E8E8E8',
+    borderBottomColor: '#F3F4F6',
   },
-  amountUnderline: {
-    width: 160,
-    height: 2,
-    backgroundColor: '#059669',
-    borderRadius: 1,
-    marginTop: -4,
-  },
-  // Paid by sentence
-  paidBySentence: {
+  paidByRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E8E8E8',
   },
-  sentenceText: {
+  paidByText: {
     fontSize: 15,
-    color: '#6B6B6B',
-  },
-  sentenceChip: {
-    borderWidth: 1,
-    borderColor: '#D0D0D0',
-    borderRadius: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  sentenceChipText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
-  // Split section
-  splitSection: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-  },
-  splitHint: {
-    fontSize: 14,
-    color: '#6B6B6B',
-    marginBottom: 8,
+    color: '#4B5563',
     fontWeight: '500',
   },
-  memberRow: {
+  pillButton: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  pillButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  equalSummaryText: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500',
+    marginTop: 6,
+  },
+  // 6. Split breakdown section
+  splitBreakdownSection: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+  },
+  memberCheckRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E8E8E8',
+    borderBottomColor: '#F3F4F6',
   },
-  memberLeft: {
+  memberCheckLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     flex: 1,
   },
   memberName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: '#1F2937',
   },
-  memberRight: {
+  memberCheckRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -742,7 +1382,7 @@ const styles = StyleSheet.create({
   validationText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6B6B6B',
+    color: '#6B7280',
   },
   validPill: {
     flexDirection: 'row',
@@ -764,54 +1404,286 @@ const styles = StyleSheet.create({
   currencyPrefix: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B6B6B',
+    color: '#6B7280',
   },
   exactInput: {
     borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
+    borderBottomColor: '#D1D5DB',
     paddingHorizontal: 4,
     paddingVertical: 4,
     fontSize: 15,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: '#111827',
     width: 80,
     textAlign: 'right',
   },
   calcShareText: {
     fontSize: 12,
-    color: '#6B6B6B',
+    color: '#6B7280',
     marginTop: 1,
   },
   pctInput: {
     borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
+    borderBottomColor: '#D1D5DB',
     paddingHorizontal: 4,
     paddingVertical: 4,
     fontSize: 15,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: '#111827',
     width: 56,
     textAlign: 'right',
   },
   pctSuffix: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#6B6B6B',
+    color: '#6B7280',
   },
-  // Save button
-  saveButton: {
+  // 7. Bottom Toolbar (Splitwise Style)
+  bottomToolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    marginHorizontal: 20,
+    marginTop: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  toolbarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  toolbarGroupText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  toolbarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  toolbarActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  toolbarActionBtnActive: {
+    borderColor: '#A7F3D0',
+    backgroundColor: '#ECFDF5',
+  },
+  attachmentPreviewRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginHorizontal: 20,
+    marginTop: 10,
+  },
+  attachmentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  attachmentBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#065F46',
+    maxWidth: 200,
+  },
+  // 8. Save CTA Button
+  saveCtaBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 15,
     borderRadius: 10,
     backgroundColor: '#059669',
-    marginHorizontal: 16,
+    marginHorizontal: 20,
     marginTop: 24,
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  saveButtonText: {
+  saveCtaBtnText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
+  },
+  // Modals
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  categoryDialog: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 380,
+  },
+  selectionDialog: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 360,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  modalCloseBtn: {
+    padding: 4,
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  categoryItem: {
+    width: '30%',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
+  },
+  categoryItemSelected: {
+    borderColor: '#059669',
+    backgroundColor: '#ECFDF5',
+  },
+  categoryItemIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  categoryItemLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#4B5563',
+    textAlign: 'center',
+  },
+  categoryItemLabelSelected: {
+    color: '#059669',
+    fontWeight: '700',
+  },
+  selectionOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F3F4F6',
+  },
+  selectionOptionRowSelected: {
+    backgroundColor: '#ECFDF5',
+    borderRadius: 8,
+  },
+  selectionOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  selectionOptionText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  selectionOptionTextSelected: {
+    color: '#059669',
+  },
+  splitMethodOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 10,
+  },
+  splitMethodOptionSelected: {
+    borderColor: '#059669',
+    backgroundColor: '#ECFDF5',
+  },
+  splitMethodIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  splitMethodTextCol: {
+    flex: 1,
+    marginRight: 8,
+  },
+  splitMethodTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  splitMethodSub: {
+    fontSize: 12,
+    color: '#6B7280',
+    lineHeight: 16,
+  },
+  notesTextInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 15,
+    color: '#111827',
+    minHeight: 90,
+    textAlignVertical: 'top',
+    marginBottom: 16,
+  },
+  notesSaveBtn: {
+    backgroundColor: '#059669',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notesSaveBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
 

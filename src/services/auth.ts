@@ -86,7 +86,7 @@ export async function loadUserProfile(uid: string): Promise<AppUser | null> {
  */
 export async function updateUserProfile(
   uid: string,
-  updates: Partial<Pick<AppUser, 'name' | 'imageUrl'>>
+  updates: Partial<AppUser>
 ): Promise<void> {
   await setDoc(
     usersPath(uid),

@@ -369,7 +369,7 @@ const HomeScreen = ({ navigation }: any) => {
           ListFooterComponent={displayedGroups.length > 0 ? renderFooter : null}
           contentContainerStyle={[
             styles.listContent,
-            { paddingBottom: Math.max(insets.bottom + 80, 100) },
+            { paddingBottom: 80 },
           ]}
           renderItem={({ item }) => {
             const status = groupSettlements[item.id];
@@ -403,10 +403,7 @@ const HomeScreen = ({ navigation }: any) => {
       {/* Floating Add Expense Pill (Splitwise Style) */}
       {!isLoading && groups.length > 0 && (
         <TouchableOpacity
-          style={[
-            styles.addExpensePill,
-            { bottom: Math.max(insets.bottom + 16, 24) },
-          ]}
+          style={styles.addExpensePill}
           onPress={handleAddExpenseClick}
           activeOpacity={0.88}
           accessibilityRole="button"
@@ -597,11 +594,16 @@ const styles = StyleSheet.create({
   createGroupFooterBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: '#059669',
+    backgroundColor: 'transparent',
   },
   createGroupFooterText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: '#059669',
   },
@@ -609,6 +611,7 @@ const styles = StyleSheet.create({
   addExpensePill: {
     position: 'absolute',
     right: 16,
+    bottom: 16,
     height: 46,
     paddingHorizontal: 18,
     borderRadius: 23,

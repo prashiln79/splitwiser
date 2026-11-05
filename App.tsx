@@ -1,10 +1,14 @@
 import React, { useEffect } from 'react';
+import * as SplashScreen from 'expo-splash-screen';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
 import { ThemeProvider, useAppTheme } from './src/theme';
 import AppNavigator from './src/navigation/AppNavigator';
 import { getDatabase } from './src/db/sqlite';
+
+// Keep the native splash screen visible while app initializes resources
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function MainApp() {
   const { paperTheme } = useAppTheme();

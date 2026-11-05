@@ -25,8 +25,8 @@ interface AuthContextValue {
   isLoading: boolean;
   /** Call during onboarding to create a session with the given display name */
   completeOnboarding: (name: string) => Promise<void>;
-  /** Update the user's profile (name, imageUrl) */
-  updateProfile: (updates: Partial<Pick<AppUser, 'name' | 'imageUrl'>>) => Promise<void>;
+  /** Update the user's profile (name, imageUrl, preferences) */
+  updateProfile: (updates: Partial<AppUser>) => Promise<void>;
   /** Link Google Account to the current anonymous user preserving UID */
   linkGoogleAccount: (idToken: string, accessToken?: string) => Promise<{ user: AppUser; isSameUid: boolean }>;
   /** Sign in with existing Google account (login on a second device) */
@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProfile = async (
-    updates: Partial<Pick<AppUser, 'name' | 'imageUrl'>>
+    updates: Partial<AppUser>
   ): Promise<void> => {
     if (!user) throw new Error('No authenticated user');
     await updateUserProfile(user.uid, updates);

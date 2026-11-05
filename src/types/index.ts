@@ -13,6 +13,10 @@ export interface AppUser {
   authProvider?: string;
   updatedAt?: Date;
   accountLinkedAt?: Date;
+  phone?: string;
+  currency?: string;
+  timezone?: string;
+  language?: string;
 }
 
 // ─── Group ───────────────────────────────────────────────────────────────────
