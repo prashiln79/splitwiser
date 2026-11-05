@@ -15,12 +15,10 @@ export const firebaseConfig = {
   measurementId: 'YOUR_MEASUREMENT_ID',
 };
 
-// Google OAuth Client IDs for Expo AuthSession
-// Set via environment variables or paste your OAuth 2.0 Web Client ID from Google Cloud Console / Firebase Authentication Settings.
+// Web Client ID (type 3) for Google Sign-In via Google Play Services.
+// Find in google-services.json > oauth_client where client_type == 3
 export const googleAuthConfig = {
-  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
-  androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '',
-  iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '',
+  webClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
 };
 
 // Initialize Firebase App singleton
