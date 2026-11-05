@@ -20,14 +20,13 @@ import * as Haptics from 'expo-haptics';
 import { getGroupMembers } from '../services/groups';
 import { createExpense } from '../services/expenses';
 import { useAuth } from '../context/AuthContext';
-import { useAppTheme, typography, spacing, radii, shadows } from '../theme';
+import { useAppTheme } from '../theme';
 import { AppHeader } from '../components/common/AppHeader';
 import { AmountInput } from '../components/common/AmountInput';
 import { MemberAvatar } from '../components/common/MemberAvatar';
 import {
   CATEGORIES_CONFIG,
   detectCategory,
-  ExpenseCategory,
   CategoryIcon,
 } from '../components/common/CategoryIcon';
 import { GroupMember, ExpenseSplit, SplitType } from '../types';
@@ -205,18 +204,47 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
 
   if (isLoading) {
     return (
-      <View style={[styles.loaderContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={[styles.loaderContainer, { backgroundColor: '#F5F5F5' }]}>
+        <ActivityIndicator size="large" color="#059669" />
       </View>
     );
   }
 
+  const payerMember = members.find((m) => m.userId === payerId);
+  const payerDisplayName = payerMember
+    ? payerMember.userId === user?.uid
+      ? 'you'
+      : payerMember.userName
+    : 'you';
+
+  const splitLabel =
+    splitMethod === 'equal'
+      ? 'equally'
+      : splitMethod === 'unequal'
+      ? 'by exact amounts'
+      : 'by percentages';
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={styles.container}>
       <AppHeader
-        title="Add Expense"
+        title="Add expense"
         showBack
         onBack={() => navigation.goBack()}
+        rightAction={
+          <TouchableOpacity
+            onPress={handleAddExpense}
+            disabled={isSubmitting}
+            style={styles.saveHeaderBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Save expense"
+          >
+            {isSubmitting ? (
+              <ActivityIndicator size="small" color="#059669" />
+            ) : (
+              <Check size={24} color="#059669" strokeWidth={2.5} />
+            )}
+          </TouchableOpacity>
+        }
       />
 
       <KeyboardAvoidingView
@@ -231,417 +259,251 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Amount Hero Input */}
+          {/* Description + Category Icon */}
+          <View style={styles.descriptionRow}>
+            <View style={styles.categoryIconBox}>
+              <CategoryIcon
+                category={detectedCategory}
+                size={40}
+              />
+            </View>
+            <TextInput
+              style={styles.descriptionInput}
+              placeholder="What was this for?"
+              placeholderTextColor="#9E9E9E"
+              value={description}
+              onChangeText={setDescription}
+              accessibilityLabel="Expense description"
+            />
+          </View>
+
+          {/* Amount Hero */}
           <View style={styles.amountSection}>
-            <Text style={[styles.amountLabel, { color: colors.textSecondary }]}>
-              ENTER AMOUNT
-            </Text>
             <AmountInput
               value={amount}
               onChangeText={setAmount}
               placeholder="0.00"
               autoFocus
             />
+            <View style={styles.amountUnderline} />
           </View>
 
-          {/* Description Input with Auto-Selected Category Icon */}
-          <View style={styles.sectionContainer}>
-            <View style={styles.descriptionHeaderRow}>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-                Description
-              </Text>
-              {description.trim().length > 0 && (
-                <View
-                  style={[
-                    styles.detectedBadge,
-                    {
-                      backgroundColor: categoryConfig.bgColor,
-                      borderColor: categoryConfig.color + '40',
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.detectedBadgeText,
-                      { color: categoryConfig.color },
-                    ]}
-                  >
-                    {categoryConfig.label}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            <View
-              style={[
-                styles.descriptionInputWrapper,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                },
-              ]}
+          {/* Paid by / Split by sentence */}
+          <View style={styles.paidBySentence}>
+            <Text style={styles.sentenceText}>Paid by </Text>
+            <TouchableOpacity
+              style={styles.sentenceChip}
+              onPress={() => {
+                // Cycle through payers
+                const currentIdx = members.findIndex((m) => m.userId === payerId);
+                const nextIdx = (currentIdx + 1) % members.length;
+                setPayerId(members[nextIdx].userId);
+                if (Platform.OS !== 'web') {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                }
+              }}
+              activeOpacity={0.6}
             >
-              <View style={styles.categoryIconWrapper}>
-                <CategoryIcon
-                  category={detectedCategory}
-                  size={38}
-                />
-              </View>
-              <TextInput
-                style={[
-                  styles.descriptionInput,
-                  {
-                    color: colors.textPrimary,
-                  },
-                ]}
-                placeholder="What was this for? (e.g. Dinner, Uber, Coffee)"
-                placeholderTextColor={colors.textMuted}
-                value={description}
-                onChangeText={setDescription}
-                accessibilityLabel="Expense description"
-              />
-            </View>
-
+              <Text style={styles.sentenceChipText}>{payerDisplayName}</Text>
+            </TouchableOpacity>
+            <Text style={styles.sentenceText}> and split </Text>
+            <TouchableOpacity
+              style={styles.sentenceChip}
+              onPress={() => {
+                const methods: SplitType[] = ['equal', 'unequal', 'percentage'];
+                const currentIdx = methods.indexOf(splitMethod);
+                const nextIdx = (currentIdx + 1) % methods.length;
+                setSplitMethod(methods[nextIdx]);
+                if (Platform.OS !== 'web') {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                }
+              }}
+              activeOpacity={0.6}
+            >
+              <Text style={styles.sentenceChipText}>{splitLabel}</Text>
+            </TouchableOpacity>
+            <Text style={styles.sentenceText}>.</Text>
           </View>
 
-          {/* Payer Selection */}
-          <View style={styles.sectionContainer}>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-              Paid By
-            </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.payerRow}
-            >
-              {members.map((m) => {
-                const isSelected = payerId === m.userId;
-                return (
-                  <TouchableOpacity
-                    key={m.userId}
-                    style={[
-                      styles.payerCard,
-                      {
-                        backgroundColor: isSelected
-                          ? colors.primaryLight
-                          : colors.surface,
-                        borderColor: isSelected ? colors.primary : colors.border,
-                      },
-                    ]}
-                    onPress={() => {
-                      if (Platform.OS !== 'web') {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                      }
-                      setPayerId(m.userId);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <MemberAvatar name={m.userName} size={32} />
-                    <Text
-                      style={[
-                        styles.payerName,
-                        {
-                          color: isSelected
-                            ? colors.primaryDark
-                            : colors.textPrimary,
-                          fontWeight: isSelected ? '700' : '500',
-                        },
-                      ]}
-                    >
-                      {m.userId === user?.uid ? 'You' : m.userName}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-
-          {/* Split Method Selector */}
-          <View style={styles.sectionContainer}>
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-              Split Method
-            </Text>
-            <View
-              style={[
-                styles.splitTabsContainer,
-                { backgroundColor: colors.surfaceVariant, borderColor: colors.border },
-              ]}
-            >
-              {[
-                { key: 'equal', label: 'Equally' },
-                { key: 'unequal', label: 'Exact' },
-                { key: 'percentage', label: 'Percentage' },
-              ].map((tab) => {
-                const isSelected = splitMethod === tab.key;
-                return (
-                  <TouchableOpacity
-                    key={tab.key}
-                    style={[
-                      styles.splitTabBtn,
-                      isSelected && [
-                        styles.splitTabActive,
-                        { backgroundColor: colors.surface },
-                      ],
-                    ]}
-                    onPress={() => {
-                      if (Platform.OS !== 'web') {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                      }
-                      setSplitMethod(tab.key as SplitType);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Text
-                      style={[
-                        styles.splitTabText,
-                        {
-                          color: isSelected ? colors.textPrimary : colors.textSecondary,
-                          fontWeight: isSelected ? '700' : '500',
-                        },
-                      ]}
-                    >
-                      {tab.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Split Members List */}
-            <View
-              style={[
-                styles.splitDetailsCard,
-                { backgroundColor: colors.surface, borderColor: colors.border },
-                shadows.sm,
-              ]}
-            >
-              {splitMethod === 'equal' && (
-                <View style={styles.equalContainer}>
-                  <Text style={[styles.equalHint, { color: colors.textSecondary }]}>
-                    Split between {equalSplitsCount} {equalSplitsCount === 1 ? 'person' : 'people'} ({formatCurrency(equalSharePerPerson)} each):
-                  </Text>
-                  {members.map((m) => {
-                    const isChecked = !!selectedMembers[m.userId];
-                    return (
-                      <TouchableOpacity
-                        key={m.userId}
-                        style={[
-                          styles.memberSplitRow,
-                          { borderBottomColor: colors.borderLight },
-                        ]}
-                        onPress={() => {
-                          setSelectedMembers((prev) => ({
-                            ...prev,
-                            [m.userId]: !prev[m.userId],
-                          }));
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <View style={styles.memberSplitLeft}>
-                          <MemberAvatar name={m.userName} size={36} />
-                          <Text
-                            style={[
-                              styles.memberSplitName,
-                              { color: colors.textPrimary },
-                            ]}
-                          >
-                            {m.userId === user?.uid ? `${m.userName} (You)` : m.userName}
-                          </Text>
-                        </View>
-
-                        <View style={styles.memberSplitRight}>
-                          {isChecked && (
-                            <Text
-                              style={[
-                                styles.memberSplitAmount,
-                                { color: colors.primaryDark },
-                              ]}
-                            >
-                              {formatCurrency(equalSharePerPerson)}
-                            </Text>
-                          )}
-                          <View
-                            style={[
-                              styles.checkbox,
-                              {
-                                backgroundColor: isChecked
-                                  ? colors.primary
-                                  : 'transparent',
-                                borderColor: isChecked ? colors.primary : colors.border,
-                              },
-                            ]}
-                          >
-                            {isChecked && <Check size={14} color="#FFFFFF" strokeWidth={3} />}
-                          </View>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-
-              {splitMethod === 'unequal' && (
-                <View style={styles.unequalContainer}>
-                  <View style={styles.validationBanner}>
-                    <Text style={[styles.validationText, { color: colors.textSecondary }]}>
-                      Total: {formatCurrency(exactTotal)} / {formatCurrency(numericAmount)}
-                    </Text>
-                    {Math.abs(exactTotal - numericAmount) < 0.05 ? (
-                      <View style={[styles.validPill, { backgroundColor: colors.incomeLight }]}>
-                        <Check size={12} color={colors.income} strokeWidth={2.5} />
-                        <Text style={[styles.validPillText, { color: colors.incomeDark }]}>
-                          Matches
-                        </Text>
-                      </View>
-                    ) : (
-                      <View style={[styles.validPill, { backgroundColor: colors.expenseLight }]}>
-                        <AlertCircle size={12} color={colors.expense} strokeWidth={2.5} />
-                        <Text style={[styles.validPillText, { color: colors.expenseDark }]}>
-                          Diff: {formatCurrency(Math.abs(exactTotal - numericAmount))}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {members.map((m) => (
-                    <View
+          {/* Split Details */}
+          <View style={styles.splitSection}>
+            {splitMethod === 'equal' && (
+              <View>
+                <Text style={styles.splitHint}>
+                  {formatCurrency(equalSharePerPerson)}/person
+                </Text>
+                {members.map((m) => {
+                  const isChecked = !!selectedMembers[m.userId];
+                  return (
+                    <TouchableOpacity
                       key={m.userId}
-                      style={[
-                        styles.memberSplitRow,
-                        { borderBottomColor: colors.borderLight },
-                      ]}
+                      style={styles.memberRow}
+                      onPress={() => {
+                        setSelectedMembers((prev) => ({
+                          ...prev,
+                          [m.userId]: !prev[m.userId],
+                        }));
+                      }}
+                      activeOpacity={0.7}
                     >
-                      <View style={styles.memberSplitLeft}>
+                      <View style={styles.memberLeft}>
                         <MemberAvatar name={m.userName} size={36} />
-                        <Text style={[styles.memberSplitName, { color: colors.textPrimary }]}>
+                        <Text style={styles.memberName}>
                           {m.userId === user?.uid ? `${m.userName} (You)` : m.userName}
                         </Text>
                       </View>
-                      <View style={styles.inputWrapper}>
-                        <Text style={[styles.currencyPrefix, { color: colors.textSecondary }]}>
-                          ₹
-                        </Text>
-                        <TextInput
+
+                      <View style={styles.memberRight}>
+                        {isChecked && (
+                          <Text style={styles.memberShareAmount}>
+                            {formatCurrency(equalSharePerPerson)}
+                          </Text>
+                        )}
+                        <View
                           style={[
-                            styles.exactInput,
+                            styles.checkbox,
                             {
-                              backgroundColor: colors.surfaceVariant,
-                              color: colors.textPrimary,
-                              borderColor: colors.border,
+                              backgroundColor: isChecked ? '#059669' : 'transparent',
+                              borderColor: isChecked ? '#059669' : '#D0D0D0',
                             },
                           ]}
-                          value={exactAmounts[m.userId] || ''}
-                          onChangeText={(val) =>
-                            setExactAmounts((prev) => ({ ...prev, [m.userId]: val }))
-                          }
-                          keyboardType="numeric"
-                          placeholder="0.00"
-                          placeholderTextColor={colors.textMuted}
-                        />
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {splitMethod === 'percentage' && (
-                <View style={styles.percentageContainer}>
-                  <View style={styles.validationBanner}>
-                    <Text style={[styles.validationText, { color: colors.textSecondary }]}>
-                      Total: {percentageTotal.toFixed(1)}% / 100%
-                    </Text>
-                    {Math.abs(percentageTotal - 100) < 0.1 ? (
-                      <View style={[styles.validPill, { backgroundColor: colors.incomeLight }]}>
-                        <Check size={12} color={colors.income} strokeWidth={2.5} />
-                        <Text style={[styles.validPillText, { color: colors.incomeDark }]}>
-                          100%
-                        </Text>
-                      </View>
-                    ) : (
-                      <View style={[styles.validPill, { backgroundColor: colors.expenseLight }]}>
-                        <AlertCircle size={12} color={colors.expense} strokeWidth={2.5} />
-                        <Text style={[styles.validPillText, { color: colors.expenseDark }]}>
-                          {percentageTotal < 100 ? `Add ${(100 - percentageTotal).toFixed(1)}%` : `Over by ${(percentageTotal - 100).toFixed(1)}%`}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {members.map((m) => {
-                    const pct = parseFloat(percentages[m.userId] || '0');
-                    const calculatedShare = (numericAmount * pct) / 100;
-                    return (
-                      <View
-                        key={m.userId}
-                        style={[
-                          styles.memberSplitRow,
-                          { borderBottomColor: colors.borderLight },
-                        ]}
-                      >
-                        <View style={styles.memberSplitLeft}>
-                          <MemberAvatar name={m.userName} size={36} />
-                          <View>
-                            <Text style={[styles.memberSplitName, { color: colors.textPrimary }]}>
-                              {m.userId === user?.uid ? `${m.userName} (You)` : m.userName}
-                            </Text>
-                            <Text style={[styles.calcShareText, { color: colors.textSecondary }]}>
-                              {formatCurrency(calculatedShare)}
-                            </Text>
-                          </View>
+                        >
+                          {isChecked && <Check size={14} color="#FFFFFF" strokeWidth={3} />}
                         </View>
-                        <View style={styles.inputWrapper}>
-                          <TextInput
-                            style={[
-                              styles.pctInput,
-                              {
-                                backgroundColor: colors.surfaceVariant,
-                                color: colors.textPrimary,
-                                borderColor: colors.border,
-                              },
-                            ]}
-                            value={percentages[m.userId] || ''}
-                            onChangeText={(val) =>
-                              setPercentages((prev) => ({ ...prev, [m.userId]: val }))
-                            }
-                            keyboardType="numeric"
-                            placeholder="0"
-                            placeholderTextColor={colors.textMuted}
-                          />
-                          <Text style={[styles.pctSuffix, { color: colors.textSecondary }]}>
-                            %
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
+            {splitMethod === 'unequal' && (
+              <View>
+                <View style={styles.validationRow}>
+                  <Text style={styles.validationText}>
+                    {formatCurrency(exactTotal)} of {formatCurrency(numericAmount)}
+                  </Text>
+                  {Math.abs(exactTotal - numericAmount) < 0.05 ? (
+                    <View style={[styles.validPill, { backgroundColor: '#F0FAF6' }]}>
+                      <Check size={12} color="#059669" strokeWidth={2.5} />
+                      <Text style={[styles.validPillText, { color: '#059669' }]}>
+                        ✓
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.validPill, { backgroundColor: '#FEF2F2' }]}>
+                      <AlertCircle size={12} color="#E74C3C" strokeWidth={2.5} />
+                      <Text style={[styles.validPillText, { color: '#E74C3C' }]}>
+                        {formatCurrency(Math.abs(exactTotal - numericAmount))} off
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {members.map((m) => (
+                  <View key={m.userId} style={styles.memberRow}>
+                    <View style={styles.memberLeft}>
+                      <MemberAvatar name={m.userName} size={36} />
+                      <Text style={styles.memberName}>
+                        {m.userId === user?.uid ? `${m.userName} (You)` : m.userName}
+                      </Text>
+                    </View>
+                    <View style={styles.inputWrapper}>
+                      <Text style={styles.currencyPrefix}>₹</Text>
+                      <TextInput
+                        style={styles.exactInput}
+                        value={exactAmounts[m.userId] || ''}
+                        onChangeText={(val) =>
+                          setExactAmounts((prev) => ({ ...prev, [m.userId]: val }))
+                        }
+                        keyboardType="numeric"
+                        placeholder="0.00"
+                        placeholderTextColor="#CCCCCC"
+                      />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {splitMethod === 'percentage' && (
+              <View>
+                <View style={styles.validationRow}>
+                  <Text style={styles.validationText}>
+                    {percentageTotal.toFixed(1)}% of 100%
+                  </Text>
+                  {Math.abs(percentageTotal - 100) < 0.1 ? (
+                    <View style={[styles.validPill, { backgroundColor: '#F0FAF6' }]}>
+                      <Check size={12} color="#059669" strokeWidth={2.5} />
+                      <Text style={[styles.validPillText, { color: '#059669' }]}>
+                        ✓
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.validPill, { backgroundColor: '#FEF2F2' }]}>
+                      <AlertCircle size={12} color="#E74C3C" strokeWidth={2.5} />
+                      <Text style={[styles.validPillText, { color: '#E74C3C' }]}>
+                        {percentageTotal < 100
+                          ? `${(100 - percentageTotal).toFixed(1)}% left`
+                          : `${(percentageTotal - 100).toFixed(1)}% over`}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {members.map((m) => {
+                  const pct = parseFloat(percentages[m.userId] || '0');
+                  const calculatedShare = (numericAmount * pct) / 100;
+                  return (
+                    <View key={m.userId} style={styles.memberRow}>
+                      <View style={styles.memberLeft}>
+                        <MemberAvatar name={m.userName} size={36} />
+                        <View>
+                          <Text style={styles.memberName}>
+                            {m.userId === user?.uid ? `${m.userName} (You)` : m.userName}
+                          </Text>
+                          <Text style={styles.calcShareText}>
+                            {formatCurrency(calculatedShare)}
                           </Text>
                         </View>
                       </View>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
+                      <View style={styles.inputWrapper}>
+                        <TextInput
+                          style={styles.pctInput}
+                          value={percentages[m.userId] || ''}
+                          onChangeText={(val) =>
+                            setPercentages((prev) => ({ ...prev, [m.userId]: val }))
+                          }
+                          keyboardType="numeric"
+                          placeholder="0"
+                          placeholderTextColor="#CCCCCC"
+                        />
+                        <Text style={styles.pctSuffix}>%</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
           </View>
 
-          {/* Prominent Save Button */}
-          <View style={styles.saveSection}>
-            <TouchableOpacity
-              style={[
-                styles.saveButton,
-                { backgroundColor: colors.primary },
-                shadows.md,
-              ]}
-              onPress={handleAddExpense}
-              disabled={isSubmitting}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel="Save Expense"
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <Text style={styles.saveButtonText}>
-                  Save Expense {numericAmount > 0 ? `• ${formatCurrency(numericAmount)}` : ''}
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
+          {/* Save Button */}
+          <TouchableOpacity
+            style={styles.saveButton}
+            onPress={handleAddExpense}
+            disabled={isSubmitting}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Save Expense"
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={styles.saveButtonText}>
+                Save Expense{numericAmount > 0 ? ` · ${formatCurrency(numericAmount)}` : ''}
+              </Text>
+            )}
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -651,173 +513,153 @@ const AddExpenseScreen = ({ route, navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
   },
   loaderContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  saveHeaderBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   scrollContent: {
-    padding: spacing.base,
     paddingBottom: 48,
   },
-  amountSection: {
-    alignItems: 'center',
-    marginBottom: spacing.base,
-  },
-  amountLabel: {
-    fontSize: typography.sizes.xs,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
-  sectionContainer: {
-    marginBottom: spacing.lg,
-  },
-  sectionTitle: {
-    fontSize: typography.sizes.sm,
-    fontWeight: '700',
-    marginBottom: spacing.sm,
-    letterSpacing: -0.2,
-  },
-  descriptionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  detectedBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radii.full,
-    borderWidth: 1,
-  },
-  detectedBadgeText: {
-    fontSize: typography.sizes.xs,
-    fontWeight: '600',
-  },
-  descriptionInputWrapper: {
+  // Description row
+  descriptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: radii.lg,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: Platform.OS === 'ios' ? 4 : 2,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
   },
-  categoryIconWrapper: {
-    marginRight: spacing.sm,
-    marginLeft: 2,
+  categoryIconBox: {
+    marginRight: 12,
   },
   descriptionInput: {
     flex: 1,
-    paddingVertical: Platform.OS === 'ios' ? spacing.md : spacing.sm,
-    paddingRight: spacing.sm,
-    fontSize: typography.sizes.base,
+    fontSize: 16,
+    color: '#1A1A1A',
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E8E8',
   },
-  payerRow: {
-    gap: spacing.sm,
-    paddingVertical: 2,
+  // Amount
+  amountSection: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
   },
-  payerCard: {
+  amountUnderline: {
+    width: 160,
+    height: 2,
+    backgroundColor: '#059669',
+    borderRadius: 1,
+    marginTop: -4,
+  },
+  // Paid by sentence
+  paidBySentence: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: spacing.sm - 2,
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.full,
-    borderWidth: 1.5,
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
   },
-  payerName: {
-    fontSize: typography.sizes.sm,
+  sentenceText: {
+    fontSize: 15,
+    color: '#6B6B6B',
   },
-  splitTabsContainer: {
-    flexDirection: 'row',
-    borderRadius: radii.lg,
-    padding: 3,
+  sentenceChip: {
     borderWidth: 1,
-    marginBottom: spacing.md,
+    borderColor: '#D0D0D0',
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
-  splitTabBtn: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    borderRadius: radii.md,
+  sentenceChipText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
-  splitTabActive: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
+  // Split section
+  splitSection: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
   },
-  splitTabText: {
-    fontSize: typography.sizes.xs,
-  },
-  splitDetailsCard: {
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    padding: spacing.base,
-  },
-  equalContainer: {},
-  equalHint: {
-    fontSize: typography.sizes.xs,
-    marginBottom: spacing.md,
+  splitHint: {
+    fontSize: 14,
+    color: '#6B6B6B',
+    marginBottom: 8,
     fontWeight: '500',
   },
-  memberSplitRow: {
+  memberRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.sm + 2,
+    paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
   },
-  memberSplitLeft: {
+  memberLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 10,
     flex: 1,
   },
-  memberSplitName: {
-    fontSize: typography.sizes.sm,
+  memberName: {
+    fontSize: 15,
     fontWeight: '600',
+    color: '#1A1A1A',
   },
-  memberSplitRight: {
+  memberRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: 12,
   },
-  memberSplitAmount: {
-    fontSize: typography.sizes.sm,
-    fontWeight: '700',
+  memberShareAmount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#059669',
   },
   checkbox: {
     width: 22,
     height: 22,
     borderRadius: 6,
-    borderWidth: 1.5,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  unequalContainer: {},
-  validationBanner: {
+  validationRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: 8,
+    paddingVertical: 4,
   },
   validationText: {
-    fontSize: typography.sizes.xs,
+    fontSize: 13,
     fontWeight: '600',
+    color: '#6B6B6B',
   },
   validPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingVertical: 2,
+    paddingVertical: 3,
     paddingHorizontal: 8,
-    borderRadius: radii.full,
+    borderRadius: 99,
   },
   validPillText: {
-    fontSize: typography.sizes.xs - 1,
+    fontSize: 12,
     fontWeight: '700',
   },
   inputWrapper: {
@@ -826,50 +668,55 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   currencyPrefix: {
-    fontSize: typography.sizes.sm,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B6B6B',
   },
   exactInput: {
-    borderWidth: 1,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E8E8',
+    paddingHorizontal: 4,
     paddingVertical: 4,
-    fontSize: typography.sizes.sm,
+    fontSize: 15,
     fontWeight: '600',
+    color: '#1A1A1A',
     width: 80,
     textAlign: 'right',
   },
-  percentageContainer: {},
   calcShareText: {
-    fontSize: typography.sizes.xs - 1,
+    fontSize: 12,
+    color: '#6B6B6B',
     marginTop: 1,
   },
   pctInput: {
-    borderWidth: 1,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E8E8',
+    paddingHorizontal: 4,
     paddingVertical: 4,
-    fontSize: typography.sizes.sm,
+    fontSize: 15,
     fontWeight: '600',
-    width: 60,
+    color: '#1A1A1A',
+    width: 56,
     textAlign: 'right',
   },
   pctSuffix: {
-    fontSize: typography.sizes.sm,
+    fontSize: 15,
     fontWeight: '600',
+    color: '#6B6B6B',
   },
-  saveSection: {
-    marginTop: spacing.md,
-  },
+  // Save button
   saveButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.base,
-    borderRadius: radii.xl,
+    paddingVertical: 16,
+    borderRadius: 10,
+    backgroundColor: '#059669',
+    marginHorizontal: 16,
+    marginTop: 24,
   },
   saveButtonText: {
     color: '#FFFFFF',
-    fontSize: typography.sizes.base,
+    fontSize: 16,
     fontWeight: '700',
   },
 });

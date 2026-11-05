@@ -9,17 +9,15 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import { Hash, ArrowRight, Sparkles, Check } from 'lucide-react-native';
+import { Hash } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { joinGroup } from '../services/groups';
 import { useAuth } from '../context/AuthContext';
-import { useAppTheme, typography, spacing, radii, shadows } from '../theme';
 import { AppHeader } from '../components/common/AppHeader';
 
 const JoinGroupScreen = ({ navigation }: any) => {
   const { user } = useAuth();
-  const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
 
   const [joinCode, setJoinCode] = useState('');
@@ -49,7 +47,7 @@ const JoinGroupScreen = ({ navigation }: any) => {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={styles.container}>
       <AppHeader
         title="Join a Group"
         showBack
@@ -57,39 +55,25 @@ const JoinGroupScreen = ({ navigation }: any) => {
       />
 
       <View style={[styles.content, { paddingBottom: Math.max(insets.bottom + 24, 32) }]}>
-        {/* Hero Card */}
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-            shadows.sm,
-          ]}
-        >
-          <View style={[styles.iconCircle, { backgroundColor: colors.primaryLight }]}>
-            <Hash size={32} color={colors.primary} strokeWidth={2.4} />
+        <View style={styles.card}>
+          <View style={styles.iconCircle}>
+            <Hash size={28} color="#059669" strokeWidth={2.4} />
           </View>
 
-          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
+          <Text style={styles.cardTitle}>
             Enter Group Code
           </Text>
-          <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
-            Ask the group creator or members to share their 6-character join code found in group details.
+          <Text style={styles.cardSubtitle}>
+            Enter the 6-character code shared by the group creator.
           </Text>
 
           <View style={styles.inputContainer}>
             <TextInput
-              style={[
-                styles.codeInput,
-                {
-                  backgroundColor: colors.surfaceVariant,
-                  borderColor: joinCode.trim().length >= 6 ? colors.primary : colors.border,
-                  color: colors.textPrimary,
-                },
-              ]}
+              style={styles.codeInput}
               value={joinCode}
               onChangeText={(text) => setJoinCode(text.toUpperCase())}
               placeholder="e.g. 7X8K2M"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor="#9E9E9E"
               autoCapitalize="characters"
               autoCorrect={false}
               maxLength={8}
@@ -104,39 +88,25 @@ const JoinGroupScreen = ({ navigation }: any) => {
             style={[
               styles.joinButton,
               {
-                backgroundColor:
-                  joinCode.trim().length >= 4 ? colors.primary : colors.surfaceVariant,
+                backgroundColor: joinCode.trim().length >= 4 ? '#059669' : '#E8E8E8',
               },
-              shadows.sm,
             ]}
             onPress={handleJoinGroup}
             disabled={isJoining || joinCode.trim().length < 4}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel="Join Group"
           >
             {isJoining ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-              <>
-                <Text
-                  style={[
-                    styles.joinButtonText,
-                    {
-                      color:
-                        joinCode.trim().length >= 4 ? '#FFFFFF' : colors.textMuted,
-                    },
-                  ]}
-                >
-                  Join Group
-                </Text>
-                <ArrowRight
-                  size={16}
-                  color={joinCode.trim().length >= 4 ? '#FFFFFF' : colors.textMuted}
-                  strokeWidth={2.2}
-                  style={{ marginLeft: 6 }}
-                />
-              </>
+              <Text
+                style={[
+                  styles.joinButtonText,
+                  { color: joinCode.trim().length >= 4 ? '#FFFFFF' : '#9E9E9E' },
+                ]}
+              >
+                Join Group
+              </Text>
             )}
           </TouchableOpacity>
         </View>
@@ -148,61 +118,71 @@ const JoinGroupScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F5F5F5',
   },
   content: {
-    padding: spacing.base,
-    paddingTop: spacing.xl,
+    padding: 16,
   },
   card: {
-    borderRadius: radii.xl,
-    padding: spacing.xl,
-    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 24,
     borderWidth: 1,
+    borderColor: '#E8E8E8',
+    alignItems: 'center',
+    marginTop: 12,
   },
   iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#F0FAF6',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.base,
+    marginBottom: 16,
   },
   cardTitle: {
-    fontSize: typography.sizes.xl,
-    fontWeight: typography.weights.bold,
-    letterSpacing: -0.3,
-    marginBottom: spacing.xs,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 6,
+    textAlign: 'center',
   },
   cardSubtitle: {
-    fontSize: typography.sizes.sm,
+    fontSize: 14,
+    color: '#6B6B6B',
     textAlign: 'center',
-    lineHeight: typography.lineHeights.sm,
-    marginBottom: spacing.xl,
+    lineHeight: 20,
+    marginBottom: 24,
+    paddingHorizontal: 8,
   },
   inputContainer: {
     width: '100%',
-    marginBottom: spacing.lg,
+    marginBottom: 24,
   },
   codeInput: {
-    borderWidth: 2,
-    borderRadius: radii.lg,
-    paddingVertical: spacing.md + 2,
-    fontSize: 26,
-    fontFamily: 'Courier',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    fontSize: 22,
     fontWeight: '800',
-    textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     letterSpacing: 4,
+    textAlign: 'center',
+    color: '#1A1A1A',
   },
   joinButton: {
     width: '100%',
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.base,
-    borderRadius: radii.xl,
+    paddingVertical: 14,
+    borderRadius: 10,
   },
   joinButtonText: {
-    fontSize: typography.sizes.base,
+    fontSize: 15,
     fontWeight: '700',
   },
 });

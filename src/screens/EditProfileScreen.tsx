@@ -14,13 +14,11 @@ import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../context/AuthContext';
-import { useAppTheme, typography, spacing, radii, shadows } from '../theme';
 import { AppHeader } from '../components/common/AppHeader';
 import { MemberAvatar } from '../components/common/MemberAvatar';
 
 const EditProfileScreen = ({ navigation }: any) => {
   const { user, updateProfile } = useAuth();
-  const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
 
   const [name, setName] = useState(user?.name ?? '');
@@ -81,11 +79,26 @@ const EditProfileScreen = ({ navigation }: any) => {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={styles.container}>
       <AppHeader
         title="Edit Profile"
         showBack
         onBack={() => navigation.goBack()}
+        rightAction={
+          <TouchableOpacity
+            onPress={handleUpdateProfile}
+            disabled={isSubmitting}
+            style={styles.saveHeaderBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Save profile"
+          >
+            {isSubmitting ? (
+              <ActivityIndicator size="small" color="#059669" />
+            ) : (
+              <Check size={22} color="#059669" strokeWidth={2.5} />
+            )}
+          </TouchableOpacity>
+        }
       />
 
       <View style={[styles.content, { paddingBottom: Math.max(insets.bottom + 24, 32) }]}>
@@ -95,47 +108,32 @@ const EditProfileScreen = ({ navigation }: any) => {
             <MemberAvatar
               name={name || user?.name || 'User'}
               imageUrl={pickedImage?.uri || user?.imageUrl}
-              size={96}
+              size={88}
             />
             <TouchableOpacity
-              style={[styles.cameraBadge, { backgroundColor: colors.primary }]}
+              style={styles.cameraBadge}
               onPress={pickImage}
               activeOpacity={0.8}
               accessibilityRole="button"
               accessibilityLabel="Change profile picture"
             >
-              <Camera size={18} color="#FFFFFF" strokeWidth={2.2} />
+              <Camera size={16} color="#FFFFFF" strokeWidth={2.2} />
             </TouchableOpacity>
           </View>
-          <Text style={[styles.avatarHint, { color: colors.textSecondary }]}>
+          <Text style={styles.avatarHint}>
             Tap camera to change photo
           </Text>
         </View>
 
-        {/* Form */}
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-            shadows.sm,
-          ]}
-        >
-          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-            Display Name
-          </Text>
+        {/* Input */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.fieldLabel}>Display Name</Text>
           <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: colors.surfaceVariant,
-                borderColor: colors.border,
-                color: colors.textPrimary,
-              },
-            ]}
+            style={styles.input}
             value={name}
             onChangeText={setName}
             placeholder="Your name"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor="#9E9E9E"
             autoFocus
             accessibilityLabel="Full Name"
           />
@@ -145,11 +143,10 @@ const EditProfileScreen = ({ navigation }: any) => {
         <TouchableOpacity
           style={[
             styles.saveButton,
-            { backgroundColor: colors.primary },
-            shadows.md,
+            { backgroundColor: name.trim() ? '#059669' : '#E8E8E8' },
           ]}
           onPress={handleUpdateProfile}
-          disabled={isSubmitting}
+          disabled={isSubmitting || !name.trim()}
           activeOpacity={0.85}
           accessibilityRole="button"
           accessibilityLabel="Save Profile Changes"
@@ -157,7 +154,9 @@ const EditProfileScreen = ({ navigation }: any) => {
           {isSubmitting ? (
             <ActivityIndicator color="#FFFFFF" size="small" />
           ) : (
-            <Text style={styles.saveButtonText}>Save Changes</Text>
+            <Text style={[styles.saveButtonText, { color: name.trim() ? '#FFFFFF' : '#9E9E9E' }]}>
+              Save Changes
+            </Text>
           )}
         </TouchableOpacity>
       </View>
@@ -168,13 +167,20 @@ const EditProfileScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
+  saveHeaderBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
-    padding: spacing.base,
+    padding: 16,
   },
   avatarSection: {
     alignItems: 'center',
-    marginVertical: spacing.xl,
+    marginVertical: 24,
   },
   avatarWrapper: {
     position: 'relative',
@@ -183,47 +189,51 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
     bottom: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#059669',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#FFFFFF',
   },
   avatarHint: {
-    fontSize: typography.sizes.xs,
-    marginTop: spacing.sm,
+    fontSize: 13,
+    color: '#6B6B6B',
+    marginTop: 8,
     fontWeight: '500',
   },
-  card: {
-    borderRadius: radii.xl,
-    padding: spacing.base,
+  inputContainer: {
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
     borderWidth: 1,
-    marginBottom: spacing.xl,
+    borderColor: '#E8E8E8',
+    marginBottom: 24,
   },
   fieldLabel: {
-    fontSize: typography.sizes.xs,
+    fontSize: 12,
     fontWeight: '600',
-    marginBottom: spacing.xs,
+    color: '#6B6B6B',
+    marginBottom: 6,
   },
   input: {
-    borderWidth: 1,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: typography.sizes.base,
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#059669',
+    paddingVertical: 8,
+    fontSize: 16,
     fontWeight: '600',
+    color: '#1A1A1A',
   },
   saveButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.base,
-    borderRadius: radii.xl,
+    paddingVertical: 14,
+    borderRadius: 10,
   },
   saveButtonText: {
-    color: '#FFFFFF',
-    fontSize: typography.sizes.base,
+    fontSize: 15,
     fontWeight: '700',
   },
 });

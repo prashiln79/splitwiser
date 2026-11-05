@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useAppTheme, typography, spacing, radii } from '../../theme';
 import { CategoryIcon } from './CategoryIcon';
 import { Expense } from '../../types';
 import { formatCurrency } from '../../utils/currency';
@@ -19,8 +18,6 @@ export const ExpenseListItem: React.FC<ExpenseListItemProps> = ({
   payerName,
   onPress,
 }) => {
-  const { colors } = useAppTheme();
-
   const handlePress = () => {
     if (onPress) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -34,77 +31,72 @@ export const ExpenseListItem: React.FC<ExpenseListItemProps> = ({
   const myShare = mySplit ? mySplit.amount : 0;
 
   // Compute what I lent or borrowed
-  // If I paid: I lent (total - myShare)
-  // If another paid: I borrowed (myShare)
   const lentAmount = isPayerMe ? expense.amount - myShare : 0;
   const borrowedAmount = !isPayerMe ? myShare : 0;
 
-  // Format date
-  const dateStr = expense.createdAt
-    ? new Date(expense.createdAt).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      })
+  // Format date like Splitwise: "Mar 18"
+  const dateObj = expense.createdAt ? new Date(expense.createdAt) : null;
+  const monthStr = dateObj
+    ? dateObj.toLocaleDateString('en-US', { month: 'short' })
     : '';
+  const dayStr = dateObj ? dateObj.getDate().toString().padStart(2, '0') : '';
 
   return (
     <TouchableOpacity
-      style={[
-        styles.container,
-        {
-          backgroundColor: colors.surface,
-          borderBottomColor: colors.borderLight,
-        },
-      ]}
+      style={styles.container}
       onPress={handlePress}
       disabled={!onPress}
-      activeOpacity={0.7}
+      activeOpacity={0.6}
       accessibilityRole="button"
       accessibilityLabel={`Expense ${expense.description}, amount ${formatCurrency(expense.amount)}`}
     >
-      {/* Category Icon */}
-      <CategoryIcon
-        description={expense.description}
-        tags={expense.tags}
-        size={44}
-      />
+      {/* Date column */}
+      <View style={styles.dateCol}>
+        <Text style={styles.dateMonth}>{monthStr}</Text>
+        <Text style={styles.dateDay}>{dayStr}</Text>
+      </View>
 
-      {/* Description & Payer Meta */}
-      <View style={styles.centerSection}>
-        <Text
-          style={[styles.description, { color: colors.textPrimary }]}
-          numberOfLines={1}
-        >
+      {/* Category icon */}
+      <View style={styles.iconCol}>
+        <CategoryIcon
+          description={expense.description}
+          tags={expense.tags}
+          size={36}
+        />
+      </View>
+
+      {/* Description & payer */}
+      <View style={styles.infoCol}>
+        <Text style={styles.description} numberOfLines={1}>
           {expense.description}
         </Text>
-        <Text style={[styles.metaText, { color: colors.textSecondary }]}>
-          {isPayerMe ? 'You paid' : `${payerName} paid`} • {dateStr}
+        <Text style={styles.payer} numberOfLines={1}>
+          {isPayerMe ? 'You' : payerName} paid {formatCurrency(expense.amount)}
         </Text>
       </View>
 
-      {/* Financial Details (Total + Net) */}
-      <View style={styles.rightSection}>
-        <Text style={[styles.totalAmount, { color: colors.textPrimary }]}>
-          {formatCurrency(expense.amount)}
-        </Text>
+      {/* Amount & net share */}
+      <View style={styles.amountCol}>
         {isPayerMe ? (
           lentAmount > 0 ? (
-            <Text style={[styles.shareText, { color: colors.income }]}>
-              You lent {formatCurrency(lentAmount)}
-            </Text>
+            <>
+              <Text style={styles.lentLabel}>you lent</Text>
+              <Text style={styles.lentAmount}>
+                {formatCurrency(lentAmount)}
+              </Text>
+            </>
           ) : (
-            <Text style={[styles.shareText, { color: colors.textMuted }]}>
-              not involved
-            </Text>
+            <Text style={styles.notInvolved}>not involved</Text>
           )
         ) : borrowedAmount > 0 ? (
-          <Text style={[styles.shareText, { color: colors.expense }]}>
-            You borrowed {formatCurrency(borrowedAmount)}
-          </Text>
+          <>
+            <Text style={styles.borrowedLabel}>you borrowed</Text>
+            <Text style={styles.borrowedAmount}>
+              {formatCurrency(borrowedAmount)}
+            </Text>
+          </>
         ) : (
-          <Text style={[styles.shareText, { color: colors.textMuted }]}>
-            not involved
-          </Text>
+          <Text style={styles.notInvolved}>not involved</Text>
         )}
       </View>
     </TouchableOpacity>
@@ -115,44 +107,76 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.base,
-    marginHorizontal: spacing.base,
-    marginBottom: spacing.sm + 2,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
   },
-  centerSection: {
+  dateCol: {
+    width: 34,
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  dateMonth: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#9E9E9E',
+    textTransform: 'capitalize',
+  },
+  dateDay: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B6B6B',
+    marginTop: 1,
+  },
+  iconCol: {
+    marginRight: 12,
+  },
+  infoCol: {
     flex: 1,
-    marginLeft: spacing.md,
-    marginRight: spacing.sm,
+    marginRight: 10,
   },
   description: {
-    fontSize: typography.sizes.base,
-    fontWeight: typography.weights.semibold,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A1A',
     marginBottom: 2,
-    letterSpacing: -0.2,
+    letterSpacing: -0.1,
   },
-  metaText: {
-    fontSize: typography.sizes.xs,
+  payer: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    fontWeight: '400',
   },
-  rightSection: {
+  amountCol: {
     alignItems: 'flex-end',
   },
-  totalAmount: {
-    fontSize: typography.sizes.base,
-    fontWeight: typography.weights.bold,
-    letterSpacing: -0.3,
+  lentLabel: {
+    fontSize: 12,
+    color: '#1CC88A',
+    fontWeight: '500',
   },
-  shareText: {
-    fontSize: typography.sizes.xs,
-    fontWeight: '600',
-    marginTop: 2,
+  lentAmount: {
+    fontSize: 14,
+    color: '#1CC88A',
+    fontWeight: '700',
+    marginTop: 1,
+  },
+  borrowedLabel: {
+    fontSize: 12,
+    color: '#E74C3C',
+    fontWeight: '500',
+  },
+  borrowedAmount: {
+    fontSize: 14,
+    color: '#E74C3C',
+    fontWeight: '700',
+    marginTop: 1,
+  },
+  notInvolved: {
+    fontSize: 12,
+    color: '#9E9E9E',
+    fontWeight: '400',
   },
 });
-

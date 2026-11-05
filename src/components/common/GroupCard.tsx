@@ -1,10 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, Share } from 'react-native';
-import { Users, ChevronRight, Share2 } from 'lucide-react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useAppTheme, typography, spacing, radii, shadows } from '../../theme';
 import { MemberAvatar } from './MemberAvatar';
-import { StatusBadge } from './StatusBadge';
 import { Group } from '../../types';
 import { formatCurrency } from '../../utils/currency';
 
@@ -21,171 +18,80 @@ export const GroupCard: React.FC<GroupCardProps> = ({
   isSettled = true,
   onPress,
 }) => {
-  const { colors } = useAppTheme();
-
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     onPress();
   };
 
-  const handleShareCode = async (e: any) => {
-    e.stopPropagation?.();
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-    if (!group.joinCode) return;
-    try {
-      await Share.share({
-        message: `Join my "${group.name}" group on Splitwiser using join code: ${group.joinCode}`,
-      });
-    } catch {
-      // Ignored
-    }
-  };
-
   const memberCount = group.memberIds?.length || 1;
 
-  let balanceVariant: 'settled' | 'lent' | 'borrowed' = 'settled';
-  let balanceLabel = 'Settled up';
+  // Determine balance display
+  let balanceText = 'settled up';
+  let balanceColor = '#9E9E9E';
 
   if (!isSettled && Math.abs(netBalance) >= 0.01) {
     if (netBalance > 0) {
-      balanceVariant = 'lent';
-      balanceLabel = `Owe you ${formatCurrency(netBalance)}`;
+      balanceText = `you are owed ${formatCurrency(netBalance)}`;
+      balanceColor = '#1CC88A';
     } else {
-      balanceVariant = 'borrowed';
-      balanceLabel = `You owe ${formatCurrency(Math.abs(netBalance))}`;
+      balanceText = `you owe ${formatCurrency(Math.abs(netBalance))}`;
+      balanceColor = '#E74C3C';
     }
   }
 
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.card,
-        {
-          backgroundColor: colors.surface,
-          borderColor: colors.border,
-          opacity: pressed ? 0.85 : 1,
-        },
-        shadows.sm,
+        styles.container,
+        pressed && { backgroundColor: '#F5F5F5' },
       ]}
       onPress={handlePress}
       accessibilityRole="button"
-      accessibilityLabel={`Group ${group.name}. ${balanceLabel}. Join code ${group.joinCode}`}
+      accessibilityLabel={`Group ${group.name}. ${balanceText}`}
     >
-      <View style={styles.contentRow}>
-        {/* Left: Avatar */}
-        <MemberAvatar
-          name={group.name}
-          imageUrl={group.imageUrl}
-          size={48}
-        />
+      {/* Avatar */}
+      <MemberAvatar
+        name={group.name}
+        imageUrl={group.imageUrl}
+        size={44}
+      />
 
-        {/* Center: Info */}
-        <View style={styles.centerInfo}>
-          <Text
-            style={[styles.groupName, { color: colors.textPrimary }]}
-            numberOfLines={1}
-          >
-            {group.name}
-          </Text>
-
-          {/* Member count & Join Code Row */}
-          <View style={styles.metaRow}>
-            <View style={styles.membersMeta}>
-              <Users size={12} color={colors.textSecondary} strokeWidth={2} />
-              <Text style={[styles.metaText, { color: colors.textSecondary }]}>
-                {memberCount} {memberCount === 1 ? 'member' : 'members'}
-              </Text>
-            </View>
-
-            {group.joinCode ? (
-              <Pressable
-                onPress={handleShareCode}
-                style={({ pressed }) => [
-                  styles.codeChip,
-                  { backgroundColor: colors.primaryLight, borderColor: colors.primary + '40' },
-                  pressed && { opacity: 0.7 },
-                ]}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                accessibilityRole="button"
-                accessibilityLabel={`Group code ${group.joinCode}. Tap to share.`}
-              >
-                <Text style={[styles.codeText, { color: colors.primaryDark }]}>
-                  {group.joinCode}
-                </Text>
-                <Share2 size={10} color={colors.primaryDark} strokeWidth={2.2} />
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
-
-        {/* Right: Balance Pill & Chevron */}
-        <View style={styles.rightSection}>
-          <StatusBadge variant={balanceVariant} label={balanceLabel} size="sm" />
-          <ChevronRight size={16} color={colors.textMuted} style={styles.chevron} />
-        </View>
+      {/* Group info */}
+      <View style={styles.infoContainer}>
+        <Text style={styles.groupName} numberOfLines={1}>
+          {group.name}
+        </Text>
+        <Text style={styles.balanceText} numberOfLines={1}>
+          <Text style={{ color: balanceColor }}>{balanceText}</Text>
+        </Text>
       </View>
     </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: radii.lg,
-    padding: spacing.base,
-    borderWidth: 1,
-    marginBottom: spacing.md,
-  },
-  contentRow: {
+  container: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
   },
-  centerInfo: {
+  infoContainer: {
     flex: 1,
-    marginLeft: spacing.md,
-    marginRight: spacing.sm,
+    marginLeft: 14,
   },
   groupName: {
-    fontSize: typography.sizes.base,
-    fontWeight: typography.weights.bold,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1A1A',
     letterSpacing: -0.2,
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    flexWrap: 'wrap',
-  },
-  membersMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  metaText: {
-    fontSize: typography.sizes.xs,
-    fontWeight: '500',
-  },
-  codeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 1,
-    paddingHorizontal: 6,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-  },
-  codeText: {
-    fontSize: typography.sizes.xs - 1,
-    fontFamily: 'Courier',
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  rightSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  chevron: {
-    marginLeft: spacing.xs,
+  balanceText: {
+    fontSize: 14,
+    fontWeight: '400',
   },
 });
-

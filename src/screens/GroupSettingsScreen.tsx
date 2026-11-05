@@ -13,16 +13,9 @@ import {
 } from 'react-native';
 import {
   Share2,
-  Copy,
   Camera,
   Trash2,
   LogOut,
-  Shield,
-  User,
-  Users,
-  Check,
-  Edit2,
-  X,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -38,17 +31,14 @@ import {
 import { getGroupExpenses } from '../services/expenses';
 import { getOptimizedSettlements } from '../utils/balanceCalculator';
 import { useAuth } from '../context/AuthContext';
-import { useAppTheme, typography, spacing, radii, shadows } from '../theme';
 import { AppHeader } from '../components/common/AppHeader';
 import { MemberAvatar } from '../components/common/MemberAvatar';
-import { StatusBadge } from '../components/common/StatusBadge';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 import { Group, GroupMember } from '../types';
 
 const GroupSettingsScreen = ({ route, navigation }: any) => {
   const { groupId } = route.params;
   const { user } = useAuth();
-  const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
@@ -226,14 +216,14 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
 
   if (loading) {
     return (
-      <View style={[styles.loaderContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" color="#059669" />
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={styles.container}>
       <AppHeader
         title="Group Settings"
         showBack
@@ -248,173 +238,127 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
         showsVerticalScrollIndicator={false}
       >
         {/* Group Edit Section */}
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-            shadows.sm,
-          ]}
-        >
-          <View style={styles.avatarEditRow}>
-            <View style={styles.avatarContainer}>
-              <MemberAvatar
-                name={name || group?.name || 'Group'}
-                imageUrl={pickedImage?.uri || group?.imageUrl}
-                size={72}
-              />
-              {isAdmin && (
-                <TouchableOpacity
-                  style={[styles.cameraBadge, { backgroundColor: colors.primary }]}
-                  onPress={pickImage}
-                  accessibilityRole="button"
-                  accessibilityLabel="Change group photo"
-                >
-                  <Camera size={14} color="#FFFFFF" strokeWidth={2.5} />
-                </TouchableOpacity>
-              )}
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>GROUP DETAILS</Text>
+          <View style={styles.boxContainer}>
+            <View style={styles.avatarEditRow}>
+              <View style={styles.avatarContainer}>
+                <MemberAvatar
+                  name={name || group?.name || 'Group'}
+                  imageUrl={pickedImage?.uri || group?.imageUrl}
+                  size={60}
+                />
+                {isAdmin && (
+                  <TouchableOpacity
+                    style={styles.cameraBadge}
+                    onPress={pickImage}
+                    accessibilityRole="button"
+                    accessibilityLabel="Change group photo"
+                  >
+                    <Camera size={13} color="#FFFFFF" strokeWidth={2.5} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <View style={styles.nameInputContainer}>
+                <Text style={styles.fieldLabel}>Group Name</Text>
+                <TextInput
+                  style={styles.nameInput}
+                  value={name}
+                  onChangeText={setName}
+                  editable={isAdmin}
+                  placeholder="Group Name"
+                  placeholderTextColor="#9E9E9E"
+                />
+              </View>
             </View>
 
-            <View style={styles.nameInputContainer}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
-                Group Name
-              </Text>
-              <TextInput
+            {isAdmin && (
+              <TouchableOpacity
                 style={[
-                  styles.nameInput,
-                  {
-                    backgroundColor: colors.surfaceVariant,
-                    borderColor: colors.border,
-                    color: colors.textPrimary,
-                  },
+                  styles.saveChangesBtn,
+                  { backgroundColor: name.trim() ? '#059669' : '#E8E8E8' },
                 ]}
-                value={name}
-                onChangeText={setName}
-                editable={isAdmin}
-                placeholder="Group Name"
-                placeholderTextColor={colors.textMuted}
-              />
-            </View>
+                onPress={onSave}
+                disabled={saving || !name.trim()}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={[styles.saveChangesBtnText, { color: name.trim() ? '#FFFFFF' : '#9E9E9E' }]}>
+                    Save Changes
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
-
-          {isAdmin && (
-            <TouchableOpacity
-              style={[
-                styles.saveChangesBtn,
-                { backgroundColor: colors.primary },
-              ]}
-              onPress={onSave}
-              disabled={saving}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-            >
-              {saving ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text style={styles.saveChangesBtnText}>Save Changes</Text>
-              )}
-            </TouchableOpacity>
-          )}
         </View>
 
-        {/* Prominent Join Code Card (Fixes "Group code is not visible on groups") */}
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-            shadows.sm,
-          ]}
-        >
-          <View style={styles.joinCodeHeader}>
-            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
-              Group Join Code
+        {/* Join Code */}
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>GROUP JOIN CODE</Text>
+          <View style={styles.boxContainer}>
+            <Text style={styles.cardDescription}>
+              Share this 6-character code with friends so they can join this group.
             </Text>
-            <StatusBadge variant="admin" label="Shareable" size="sm" />
-          </View>
-          <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>
-            Anyone with this 6-character code can join this group from their device.
-          </Text>
 
-          <View
-            style={[
-              styles.codeDisplayBox,
-              { backgroundColor: colors.primaryLight, borderColor: colors.primary + '40' },
-            ]}
-          >
-            <Text style={[styles.codeDisplayNumber, { color: colors.primaryDark }]}>
-              {group?.joinCode || '------'}
-            </Text>
-          </View>
+            <View style={styles.codeDisplayBox}>
+              <Text style={styles.codeDisplayNumber}>
+                {group?.joinCode || '------'}
+              </Text>
+            </View>
 
-          <View style={styles.codeActionsRow}>
             <TouchableOpacity
-              style={[
-                styles.shareCodeButton,
-                { backgroundColor: colors.primary },
-              ]}
+              style={styles.shareCodeButton}
               onPress={onShareInvite}
               activeOpacity={0.85}
               accessibilityRole="button"
               accessibilityLabel="Share invite code"
             >
-              <Share2 size={16} color="#FFFFFF" strokeWidth={2.2} style={{ marginRight: 6 }} />
+              <Share2 size={16} color="#FFFFFF" strokeWidth={2} style={{ marginRight: 6 }} />
               <Text style={styles.shareCodeButtonText}>Share Code</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Members Management */}
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-            shadows.sm,
-          ]}
-        >
-          <View style={styles.membersHeaderRow}>
-            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
-              Members ({members.length})
-            </Text>
-          </View>
-
-          <View style={styles.membersList}>
-            {members.map((m) => {
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>MEMBERS ({members.length})</Text>
+          <View style={styles.rowsContainer}>
+            {members.map((m, index) => {
               const isCurrentUser = m.userId === user?.uid;
               const isMemberAdmin = m.role === 'admin';
+              const isLast = index === members.length - 1;
 
               return (
                 <View
                   key={m.userId}
-                  style={[
-                    styles.memberRow,
-                    { borderBottomColor: colors.borderLight },
-                  ]}
+                  style={[styles.memberRow, isLast && styles.lastRow]}
                 >
                   <View style={styles.memberLeft}>
                     <MemberAvatar name={m.userName} size={40} />
                     <View style={styles.memberMeta}>
-                      <Text
-                        style={[styles.memberName, { color: colors.textPrimary }]}
-                      >
+                      <Text style={styles.memberName} numberOfLines={1}>
                         {m.userName} {isCurrentUser ? '(You)' : ''}
                       </Text>
-                      <Text style={[styles.memberRoleText, { color: colors.textSecondary }]}>
-                        {isMemberAdmin ? '★ Group Admin' : 'Member'}
+                      <Text style={styles.memberRoleText}>
+                        {isMemberAdmin ? 'Group Admin' : 'Member'}
                       </Text>
                     </View>
                   </View>
 
-                  <View style={styles.memberRight}>
-                    {isAdmin && !isCurrentUser && (
-                      <TouchableOpacity
-                        style={[styles.removeMemberBtn, { backgroundColor: colors.expenseLight }]}
-                        onPress={() => setMemberToRemove(m)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Remove ${m.userName}`}
-                      >
-                        <Trash2 size={14} color={colors.expense} strokeWidth={2.2} />
-                      </TouchableOpacity>
-                    )}
-                  </View>
+                  {isAdmin && !isCurrentUser && (
+                    <TouchableOpacity
+                      style={styles.removeMemberBtn}
+                      onPress={() => setMemberToRemove(m)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${m.userName}`}
+                    >
+                      <Trash2 size={16} color="#E74C3C" strokeWidth={2} />
+                    </TouchableOpacity>
+                  )}
                 </View>
               );
             })}
@@ -422,45 +366,31 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
         </View>
 
         {/* Danger Zone */}
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-            shadows.sm,
-          ]}
-        >
-          <Text style={[styles.dangerTitle, { color: colors.expense }]}>
-            Danger Zone
-          </Text>
-
-          <TouchableOpacity
-            style={[styles.dangerButton, { borderColor: colors.expense + '40' }]}
-            onPress={() => setConfirmLeaveVisible(true)}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-          >
-            <LogOut size={16} color={colors.expense} strokeWidth={2} style={{ marginRight: 8 }} />
-            <Text style={[styles.dangerButtonText, { color: colors.expense }]}>
-              Leave Group
-            </Text>
-          </TouchableOpacity>
-
-          {isAdmin && (
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>DANGER ZONE</Text>
+          <View style={styles.rowsContainer}>
             <TouchableOpacity
-              style={[
-                styles.dangerButton,
-                { borderColor: colors.expense + '40', marginTop: spacing.sm },
-              ]}
-              onPress={() => setConfirmDeleteVisible(true)}
+              style={[styles.dangerRow, !isAdmin && styles.lastRow]}
+              onPress={() => setConfirmLeaveVisible(true)}
               activeOpacity={0.7}
               accessibilityRole="button"
             >
-              <Trash2 size={16} color={colors.expense} strokeWidth={2} style={{ marginRight: 8 }} />
-              <Text style={[styles.dangerButtonText, { color: colors.expense }]}>
-                Delete Group Permanently
-              </Text>
+              <LogOut size={18} color="#E74C3C" strokeWidth={2} style={{ marginRight: 10 }} />
+              <Text style={styles.dangerRowText}>Leave Group</Text>
             </TouchableOpacity>
-          )}
+
+            {isAdmin && (
+              <TouchableOpacity
+                style={[styles.dangerRow, styles.lastRow]}
+                onPress={() => setConfirmDeleteVisible(true)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+              >
+                <Trash2 size={18} color="#E74C3C" strokeWidth={2} style={{ marginRight: 10 }} />
+                <Text style={styles.dangerRowText}>Delete Group</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </ScrollView>
 
@@ -507,6 +437,7 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F5F5F5',
   },
   loaderContainer: {
     flex: 1,
@@ -514,19 +445,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scrollContent: {
-    padding: spacing.base,
     paddingBottom: 48,
   },
-  card: {
-    borderRadius: radii.xl,
-    padding: spacing.base,
-    borderWidth: 1,
-    marginBottom: spacing.base,
+  section: {
+    marginTop: 20,
+  },
+  sectionHeader: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#9E9E9E',
+    letterSpacing: 0.8,
+    marginBottom: 6,
+    marginHorizontal: 16,
+  },
+  boxContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: '#E8E8E8',
+    padding: 16,
   },
   avatarEditRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.base,
+    gap: 16,
   },
   avatarContainer: {
     position: 'relative',
@@ -538,6 +480,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
+    backgroundColor: '#059669',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -545,133 +488,123 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fieldLabel: {
-    fontSize: typography.sizes.xs,
+    fontSize: 12,
     fontWeight: '600',
+    color: '#6B6B6B',
     marginBottom: 4,
   },
   nameInput: {
-    borderWidth: 1,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-    fontSize: typography.sizes.base,
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#059669',
+    paddingVertical: 6,
+    fontSize: 16,
     fontWeight: '600',
+    color: '#1A1A1A',
   },
   saveChangesBtn: {
-    marginTop: spacing.base,
+    marginTop: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.md,
-    borderRadius: radii.md,
+    paddingVertical: 12,
+    borderRadius: 8,
   },
   saveChangesBtnText: {
-    color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: typography.sizes.sm,
-  },
-  joinCodeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  cardTitle: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
-    letterSpacing: -0.2,
+    fontSize: 14,
   },
   cardDescription: {
-    fontSize: typography.sizes.xs,
-    lineHeight: typography.lineHeights.xs,
-    marginBottom: spacing.md,
+    fontSize: 13,
+    color: '#6B6B6B',
+    lineHeight: 18,
+    marginBottom: 12,
   },
   codeDisplayBox: {
-    borderWidth: 1.5,
-    borderRadius: radii.lg,
-    paddingVertical: spacing.md,
+    backgroundColor: '#F0FAF6',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    borderRadius: 8,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
+    marginBottom: 12,
   },
   codeDisplayNumber: {
-    fontSize: 28,
-    fontWeight: '900',
-    fontFamily: 'Courier',
+    fontSize: 26,
+    fontWeight: '800',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     letterSpacing: 4,
-  },
-  codeActionsRow: {
-    flexDirection: 'row',
+    color: '#059669',
   },
   shareCodeButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.md,
-    borderRadius: radii.md,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#059669',
   },
   shareCodeButtonText: {
     color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: typography.sizes.sm,
+    fontWeight: '600',
+    fontSize: 14,
   },
-  membersHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
+  rowsContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: '#E8E8E8',
   },
-  membersList: {},
   memberRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.md,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
+  },
+  lastRow: {
+    borderBottomWidth: 0,
   },
   memberLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: 12,
     flex: 1,
   },
   memberMeta: {
     flex: 1,
   },
   memberName: {
-    fontSize: typography.sizes.base,
+    fontSize: 15,
     fontWeight: '600',
+    color: '#1A1A1A',
   },
   memberRoleText: {
-    fontSize: typography.sizes.xs,
-    marginTop: 1,
+    fontSize: 12,
+    color: '#6B6B6B',
+    marginTop: 2,
   },
-  memberRight: {},
   removeMemberBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#FEF2F2',
   },
-  dangerTitle: {
-    fontSize: typography.sizes.sm,
-    fontWeight: '700',
-    marginBottom: spacing.md,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  dangerButton: {
+  dangerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    borderRadius: radii.md,
-    borderWidth: 1.5,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
   },
-  dangerButtonText: {
-    fontWeight: '700',
-    fontSize: typography.sizes.sm,
+  dangerRowText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#E74C3C',
   },
 });
 

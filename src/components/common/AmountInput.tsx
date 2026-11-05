@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
-import { useAppTheme, typography, spacing, radii } from '../../theme';
 
 interface AmountInputProps {
   value: string;
@@ -17,8 +16,6 @@ export const AmountInput: React.FC<AmountInputProps> = ({
   placeholder = '0.00',
   autoFocus = false,
 }) => {
-  const { colors } = useAppTheme();
-
   const handleChange = (text: string) => {
     // Sanitize input: allow only digits and single decimal point with up to 2 decimal places
     const cleaned = text.replace(/[^0-9.]/g, '');
@@ -29,24 +26,14 @@ export const AmountInput: React.FC<AmountInputProps> = ({
   };
 
   return (
-    <View
-      style={[
-        styles.container,
-        {
-          backgroundColor: colors.surfaceVariant,
-          borderColor: colors.border,
-        },
-      ]}
-    >
-      <Text style={[styles.currencySymbol, { color: colors.textSecondary }]}>
-        {currencySymbol}
-      </Text>
+    <View style={styles.container}>
+      <Text style={styles.currencySymbol}>{currencySymbol}</Text>
       <TextInput
-        style={[styles.input, { color: colors.textPrimary }]}
+        style={styles.input}
         value={value}
         onChangeText={handleChange}
         placeholder={placeholder}
-        placeholderTextColor={colors.textMuted}
+        placeholderTextColor="#CCCCCC"
         keyboardType="decimal-pad"
         autoFocus={autoFocus}
         accessibilityLabel="Expense amount"
@@ -58,25 +45,22 @@ export const AmountInput: React.FC<AmountInputProps> = ({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     justifyContent: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.base,
-    borderRadius: radii.lg,
-    borderWidth: 1.5,
-    marginVertical: spacing.sm,
+    paddingVertical: 8,
   },
   currencySymbol: {
     fontSize: 28,
-    fontWeight: '700',
-    marginRight: 6,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginRight: 4,
   },
   input: {
-    fontSize: 36,
-    fontWeight: '800',
-    minWidth: 120,
+    fontSize: 42,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    minWidth: 80,
     letterSpacing: -0.5,
     padding: 0,
   },
 });
-

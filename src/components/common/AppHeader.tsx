@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar } from 'r
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { useAppTheme, typography, spacing } from '../../theme';
 
 interface AppHeaderProps {
   title: string;
@@ -25,7 +24,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   avatar,
 }) => {
   const insets = useSafeAreaInsets();
-  const { colors, isDark } = useAppTheme();
 
   const handleBack = () => {
     if (Platform.OS !== 'web') {
@@ -39,9 +37,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       style={[
         styles.container,
         {
-          paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 12 : 0) + 8,
-          backgroundColor: transparent ? 'transparent' : colors.surface,
-          borderBottomColor: transparent ? 'transparent' : colors.border,
+          paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 12 : 0) + 4,
+          backgroundColor: transparent ? 'transparent' : '#FFFFFF',
+          borderBottomColor: transparent ? 'transparent' : '#E8E8E8',
           borderBottomWidth: transparent ? 0 : StyleSheet.hairlineWidth,
         },
       ]}
@@ -52,16 +50,12 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           {showBack && (
             <TouchableOpacity
               onPress={handleBack}
-              style={[
-                styles.backButton,
-                { backgroundColor: colors.surfaceVariant },
-                avatar ? { marginRight: spacing.sm } : null,
-              ]}
+              style={styles.backButton}
               accessibilityRole="button"
               accessibilityLabel="Go back"
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <ArrowLeft size={20} color={colors.textPrimary} strokeWidth={2.2} />
+              <ArrowLeft size={22} color="#1A1A1A" strokeWidth={2} />
             </TouchableOpacity>
           )}
           {avatar ? (
@@ -69,14 +63,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           ) : null}
           <View style={styles.titleContainer}>
             <Text
-              style={[styles.title, { color: colors.textPrimary }]}
+              style={styles.title}
               numberOfLines={1}
             >
               {title}
             </Text>
             {subtitle ? (
               <Text
-                style={[styles.subtitle, { color: colors.textSecondary }]}
+                style={styles.subtitle}
                 numberOfLines={1}
               >
                 {subtitle}
@@ -95,14 +89,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: spacing.base,
-    paddingBottom: spacing.md,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
   },
   contentRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 44,
+    minHeight: 40,
   },
   leftContainer: {
     flexDirection: 'row',
@@ -112,13 +106,13 @@ const styles = StyleSheet.create({
   backButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.md,
+    marginRight: 4,
+    marginLeft: -6,
   },
   avatarContainer: {
-    marginRight: spacing.sm + 2,
+    marginRight: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -126,18 +120,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.bold,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1A1A',
     letterSpacing: -0.3,
   },
   subtitle: {
-    fontSize: typography.sizes.xs,
+    fontSize: 13,
+    color: '#6B6B6B',
     marginTop: 1,
   },
   rightContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: spacing.sm,
+    marginLeft: 8,
   },
 });
-

@@ -5,7 +5,6 @@ import { PlatformPressable } from '@react-navigation/elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Users, UserCheck, User } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { useAppTheme, typography } from '../theme';
 import GroupsStackNavigator from './GroupsStackNavigator';
 import FriendsScreen from '../screens/FriendsScreen';
 import AccountStackNavigator from './AccountStackNavigator';
@@ -13,20 +12,18 @@ import AccountStackNavigator from './AccountStackNavigator';
 const Tab = createBottomTabNavigator();
 
 const MainNavigator = () => {
-  const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
 
-  // Ensure the footer accounts for Android navigation buttons (3-button nav or gesture bar)
-  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 14 : 10);
-  const tabHeight = 58 + bottomPadding;
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 8);
+  const tabHeight = 56 + bottomPadding;
 
   return (
     // @ts-ignore react-navigation v7 id prop
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
+        tabBarActiveTintColor: '#059669',
+        tabBarInactiveTintColor: '#9E9E9E',
         tabBarButton: (props) => (
           <PlatformPressable
             {...props}
@@ -36,16 +33,16 @@ const MainNavigator = () => {
           />
         ),
         tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-          borderTopWidth: 1,
+          backgroundColor: '#FFFFFF',
+          borderTopColor: '#E8E8E8',
+          borderTopWidth: StyleSheet.hairlineWidth,
           height: tabHeight,
           paddingBottom: bottomPadding,
-          paddingTop: 8,
-          elevation: 8,
+          paddingTop: 6,
+          elevation: 4,
         },
         tabBarLabelStyle: {
-          fontSize: typography.sizes.xs,
+          fontSize: 12,
           fontWeight: '600',
           marginTop: 2,
         },
@@ -103,5 +100,7 @@ const MainNavigator = () => {
     </Tab.Navigator>
   );
 };
+
+import { StyleSheet } from 'react-native';
 
 export default MainNavigator;

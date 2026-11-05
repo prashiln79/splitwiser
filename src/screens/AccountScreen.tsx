@@ -15,7 +15,6 @@ import {
   MessageSquare,
   Info,
   ChevronRight,
-  Sparkles,
   Lock,
   LogOut,
   CheckCircle2,
@@ -23,7 +22,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../context/AuthContext';
-import { useAppTheme, typography, spacing, radii, shadows } from '../theme';
 import { AppHeader } from '../components/common/AppHeader';
 import { MemberAvatar } from '../components/common/MemberAvatar';
 import { GoogleIcon } from '../components/common/GoogleIcon';
@@ -32,7 +30,6 @@ import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 
 const AccountScreen = ({ navigation }: any) => {
   const { user, signOut } = useAuth();
-  const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
 
   const [connectModalVisible, setConnectModalVisible] = useState(false);
@@ -61,7 +58,7 @@ const AccountScreen = ({ navigation }: any) => {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={styles.container}>
       <AppHeader title="Account" />
 
       <ScrollView
@@ -71,36 +68,30 @@ const AccountScreen = ({ navigation }: any) => {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Profile Hero Card */}
-        <View
-          style={[
-            styles.profileCard,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-            shadows.sm,
-          ]}
-        >
+        {/* Profile Header */}
+        <View style={styles.profileSection}>
           <MemberAvatar
             name={user?.name || 'User'}
             imageUrl={user?.imageUrl}
-            size={76}
+            size={56}
           />
 
-          <View style={styles.profileTextInfo}>
-            <Text style={[styles.userName, { color: colors.textPrimary }]}>
+          <View style={styles.profileInfo}>
+            <Text style={styles.userName} numberOfLines={1}>
               {user?.name || 'Anonymous User'}
             </Text>
 
             {isGoogleLinked ? (
-              <View style={[styles.statusBadge, { backgroundColor: colors.incomeLight }]}>
-                <CheckCircle2 size={13} color={colors.income} strokeWidth={2.4} />
-                <Text style={[styles.statusBadgeText, { color: colors.incomeDark }]}>
+              <View style={styles.badgeRow}>
+                <CheckCircle2 size={13} color="#1CC88A" strokeWidth={2.4} />
+                <Text style={styles.badgeTextLinked} numberOfLines={1}>
                   {user?.email || 'Google Account Connected'}
                 </Text>
               </View>
             ) : (
-              <View style={[styles.statusBadge, { backgroundColor: colors.surfaceVariant }]}>
-                <Lock size={12} color={colors.textSecondary} strokeWidth={2} />
-                <Text style={[styles.statusBadgeText, { color: colors.textSecondary }]}>
+              <View style={styles.badgeRow}>
+                <Lock size={12} color="#6B6B6B" strokeWidth={2} />
+                <Text style={styles.badgeTextGuest} numberOfLines={1}>
                   Guest Account • UID: {user?.uid.slice(0, 8)}...
                 </Text>
               </View>
@@ -108,218 +99,157 @@ const AccountScreen = ({ navigation }: any) => {
           </View>
 
           <TouchableOpacity
-            style={[styles.editProfileBtn, { backgroundColor: colors.primaryLight }]}
+            style={styles.editBtn}
             onPress={() => navigation.navigate('EditProfile')}
             accessibilityRole="button"
             accessibilityLabel="Edit Profile"
           >
-            <Edit3 size={15} color={colors.primaryDark} strokeWidth={2.2} />
-            <Text style={[styles.editProfileText, { color: colors.primaryDark }]}>
-              Edit Profile
-            </Text>
+            <Edit3 size={18} color="#059669" strokeWidth={2} />
           </TouchableOpacity>
         </View>
 
-        {/* Upgrade to Google Account Banner (when user is anonymous) */}
+        {/* Upgrade to Google Banner (when anonymous) */}
         {!isGoogleLinked && (
-          <View
-            style={[
-              styles.upgradeBannerCard,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-              shadows.sm,
-            ]}
-          >
-            <View style={styles.upgradeTopRow}>
-              <View style={[styles.upgradeIconCircle, { backgroundColor: colors.primaryLight }]}>
-                <GoogleIcon size={22} />
+          <View style={styles.upgradeCard}>
+            <View style={styles.upgradeHeader}>
+              <View style={styles.googleIconCircle}>
+                <GoogleIcon size={20} />
               </View>
-              <View style={styles.upgradeHeaderTexts}>
-                <Text style={[styles.upgradeTitle, { color: colors.textPrimary }]}>
-                  Connect Google Account
-                </Text>
-                <Text style={[styles.upgradeSubtitle, { color: colors.textSecondary }]}>
-                  Backup your data and sync across devices.
+              <View style={styles.upgradeHeaderText}>
+                <Text style={styles.upgradeTitle}>Connect Google Account</Text>
+                <Text style={styles.upgradeSubtitle}>
+                  Backup and sync your expenses across devices
                 </Text>
               </View>
             </View>
 
-            <Text style={[styles.upgradeDescription, { color: colors.textSecondary }]}>
-              Your existing Firebase UID ({user?.uid.slice(0, 8)}...) and all your groups, expenses, and balances will remain completely intact.
-            </Text>
-
             <TouchableOpacity
-              style={[
-                styles.connectGoogleBtn,
-                { backgroundColor: '#FFFFFF', borderColor: colors.border },
-                shadows.sm,
-              ]}
+              style={styles.connectGoogleBtn}
               onPress={() => setConnectModalVisible(true)}
-              activeOpacity={0.85}
+              activeOpacity={0.8}
               accessibilityRole="button"
               accessibilityLabel="Connect Google Account"
             >
-              <GoogleIcon size={18} />
-              <Text style={styles.connectGoogleBtnText}>
-                Connect Google Account
-              </Text>
+              <GoogleIcon size={16} />
+              <Text style={styles.connectGoogleBtnText}>Connect with Google</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* Section 1: Account Settings */}
+        {/* Section: Account */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-            ACCOUNT
-          </Text>
-
-          <View
-            style={[
-              styles.cardGroup,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-              shadows.sm,
-            ]}
-          >
+          <Text style={styles.sectionHeader}>ACCOUNT</Text>
+          <View style={styles.rowsContainer}>
             <TouchableOpacity
-              style={[styles.settingRow, { borderBottomColor: colors.borderLight, borderBottomWidth: 1 }]}
+              style={styles.settingRow}
               onPress={() => navigation.navigate('EditProfile')}
-              activeOpacity={0.7}
+              activeOpacity={0.6}
               accessibilityRole="button"
             >
               <View style={styles.settingLeft}>
-                <View style={[styles.iconCircle, { backgroundColor: colors.primaryLight }]}>
-                  <User size={18} color={colors.primary} strokeWidth={2.2} />
-                </View>
-                <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>
-                  Personal Information
-                </Text>
+                <User size={20} color="#1A1A1A" strokeWidth={1.8} style={styles.settingIcon} />
+                <Text style={styles.settingTitle}>Personal Information</Text>
               </View>
-              <ChevronRight size={18} color={colors.textMuted} />
+              <ChevronRight size={18} color="#9E9E9E" />
             </TouchableOpacity>
 
-            {!isGoogleLinked ? (
+            {!isGoogleLinked && (
               <TouchableOpacity
-                style={[styles.settingRow, { borderBottomColor: colors.borderLight, borderBottomWidth: 1 }]}
+                style={styles.settingRow}
                 onPress={() => setConnectModalVisible(true)}
-                activeOpacity={0.7}
+                activeOpacity={0.6}
                 accessibilityRole="button"
               >
                 <View style={styles.settingLeft}>
-                  <View style={[styles.iconCircle, { backgroundColor: '#F8FAFC' }]}>
+                  <View style={styles.settingIcon}>
                     <GoogleIcon size={18} />
                   </View>
                   <View>
-                    <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>
-                      Connect Google
-                    </Text>
-                    <Text style={[styles.settingSub, { color: colors.textSecondary }]}>
-                      Upgrade guest account
-                    </Text>
+                    <Text style={styles.settingTitle}>Connect Google Account</Text>
+                    <Text style={styles.settingSubtitle}>Upgrade guest account</Text>
                   </View>
                 </View>
-                <ChevronRight size={18} color={colors.textMuted} />
+                <ChevronRight size={18} color="#9E9E9E" />
               </TouchableOpacity>
-            ) : null}
+            )}
 
             <TouchableOpacity
-              style={styles.settingRow}
+              style={[styles.settingRow, styles.lastRow]}
               onPress={() => handleComingSoon('Privacy & Data')}
-              activeOpacity={0.7}
+              activeOpacity={0.6}
               accessibilityRole="button"
             >
               <View style={styles.settingLeft}>
-                <View style={[styles.iconCircle, { backgroundColor: colors.secondaryLight }]}>
-                  <Shield size={18} color={colors.secondary} strokeWidth={2.2} />
-                </View>
-                <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>
-                  Privacy & Data
-                </Text>
+                <Shield size={20} color="#1A1A1A" strokeWidth={1.8} style={styles.settingIcon} />
+                <Text style={styles.settingTitle}>Privacy & Data</Text>
               </View>
-              <ChevronRight size={18} color={colors.textMuted} />
+              <ChevronRight size={18} color="#9E9E9E" />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Section 2: Support & About */}
+        {/* Section: Support */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-            SUPPORT & ABOUT
-          </Text>
-
-          <View
-            style={[
-              styles.cardGroup,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-              shadows.sm,
-            ]}
-          >
+          <Text style={styles.sectionHeader}>SUPPORT & ABOUT</Text>
+          <View style={styles.rowsContainer}>
             <TouchableOpacity
-              style={[styles.settingRow, { borderBottomColor: colors.borderLight, borderBottomWidth: 1 }]}
+              style={styles.settingRow}
               onPress={() => handleComingSoon('Feedback')}
-              activeOpacity={0.7}
+              activeOpacity={0.6}
               accessibilityRole="button"
             >
               <View style={styles.settingLeft}>
-                <View style={[styles.iconCircle, { backgroundColor: colors.incomeLight }]}>
-                  <MessageSquare size={18} color={colors.income} strokeWidth={2.2} />
-                </View>
-                <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>
-                  Send Feedback
-                </Text>
+                <MessageSquare size={20} color="#1A1A1A" strokeWidth={1.8} style={styles.settingIcon} />
+                <Text style={styles.settingTitle}>Send Feedback</Text>
               </View>
-              <ChevronRight size={18} color={colors.textMuted} />
+              <ChevronRight size={18} color="#9E9E9E" />
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.settingRow}
+              style={[styles.settingRow, styles.lastRow]}
               onPress={() =>
                 Alert.alert(
                   'About Splitwiser',
-                  'Splitwiser is a modern, simple expense splitting app designed for stress-free shared finances with friends and roommates.\n\nVersion 1.0.0 (Expo SDK 58)'
+                  'Splitwiser is a simple, intuitive expense sharing app for stress-free finances with friends, roommates, and groups.\n\nVersion 2.0.1'
                 )
               }
-              activeOpacity={0.7}
+              activeOpacity={0.6}
               accessibilityRole="button"
             >
               <View style={styles.settingLeft}>
-                <View style={[styles.iconCircle, { backgroundColor: colors.surfaceVariant }]}>
-                  <Info size={18} color={colors.textSecondary} strokeWidth={2.2} />
-                </View>
-                <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>
-                  About Splitwiser
-                </Text>
+                <Info size={20} color="#1A1A1A" strokeWidth={1.8} style={styles.settingIcon} />
+                <Text style={styles.settingTitle}>About Splitwiser</Text>
               </View>
-              <ChevronRight size={18} color={colors.textMuted} />
+              <ChevronRight size={18} color="#9E9E9E" />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Sign Out Button (for linked or returning accounts) */}
+        {/* Sign Out */}
         {isGoogleLinked && (
           <View style={styles.section}>
-            <TouchableOpacity
-              style={[
-                styles.signOutCard,
-                { backgroundColor: colors.surface, borderColor: colors.border },
-                shadows.sm,
-              ]}
-              onPress={() => setConfirmSignOutVisible(true)}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Sign Out"
-            >
-              <LogOut size={18} color={colors.expense} strokeWidth={2.2} style={{ marginRight: 8 }} />
-              <Text style={[styles.signOutText, { color: colors.expense }]}>
-                Sign Out
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.rowsContainer}>
+              <TouchableOpacity
+                style={[styles.settingRow, styles.lastRow]}
+                onPress={() => setConfirmSignOutVisible(true)}
+                activeOpacity={0.6}
+                accessibilityRole="button"
+                accessibilityLabel="Sign Out"
+              >
+                <View style={styles.settingLeft}>
+                  <LogOut size={20} color="#E74C3C" strokeWidth={1.8} style={styles.settingIcon} />
+                  <Text style={[styles.settingTitle, { color: '#E74C3C', fontWeight: '600' }]}>
+                    Log Out
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
-        {/* App Version Tag */}
+        {/* Version Footer */}
         <View style={styles.versionContainer}>
-          <Text style={[styles.versionText, { color: colors.textMuted }]}>
-            Splitwiser Mobile • Version 1.0.0
-          </Text>
+          <Text style={styles.versionText}>Splitwiser v2.0.1 • Made for friends</Text>
         </View>
       </ScrollView>
 
@@ -334,9 +264,9 @@ const AccountScreen = ({ navigation }: any) => {
         visible={confirmSignOutVisible}
         onDismiss={() => setConfirmSignOutVisible(false)}
         onConfirm={handleSignOut}
-        title="Sign Out?"
-        message="Your account is safely linked to Google. You can sign back in anytime on this or another device."
-        confirmLabel="Sign Out"
+        title="Log Out?"
+        message="Your account is safely linked to Google. You can log back in anytime on this or another device."
+        confirmLabel="Log Out"
         isDestructive
         isLoading={isSigningOut}
         icon="logout"
@@ -348,162 +278,162 @@ const AccountScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F5F5F5',
   },
   scrollContent: {
-    padding: spacing.base,
+    paddingBottom: 32,
   },
-  profileCard: {
-    borderRadius: radii.xl,
-    padding: spacing.lg,
+  profileSection: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    marginBottom: spacing.base,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
   },
-  profileTextInfo: {
-    alignItems: 'center',
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
+  profileInfo: {
+    flex: 1,
+    marginLeft: 14,
+    marginRight: 10,
   },
   userName: {
-    fontSize: typography.sizes.xl,
-    fontWeight: typography.weights.bold,
-    letterSpacing: -0.3,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: radii.full,
-    marginTop: spacing.xs,
-  },
-  statusBadgeText: {
-    fontSize: typography.sizes.xs,
-    fontWeight: '600',
-  },
-  editProfileBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.base,
-    borderRadius: radii.full,
-  },
-  editProfileText: {
-    fontSize: typography.sizes.xs,
+    fontSize: 18,
     fontWeight: '700',
+    color: '#1A1A1A',
+    letterSpacing: -0.2,
   },
-  upgradeBannerCard: {
-    borderRadius: radii.xl,
-    padding: spacing.base,
-    borderWidth: 1.5,
-    marginBottom: spacing.lg,
-  },
-  upgradeTopRow: {
+  badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.sm,
+    gap: 4,
+    marginTop: 3,
   },
-  upgradeIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  badgeTextLinked: {
+    fontSize: 13,
+    color: '#1CC88A',
+    fontWeight: '500',
+  },
+  badgeTextGuest: {
+    fontSize: 13,
+    color: '#6B6B6B',
+  },
+  editBtn: {
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 18,
+    backgroundColor: '#F0FAF6',
   },
-  upgradeHeaderTexts: {
+  upgradeCard: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginTop: 14,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+  },
+  upgradeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  googleIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  upgradeHeaderText: {
     flex: 1,
   },
   upgradeTitle: {
-    fontSize: typography.sizes.base,
+    fontSize: 15,
     fontWeight: '700',
-    letterSpacing: -0.2,
+    color: '#1A1A1A',
   },
   upgradeSubtitle: {
-    fontSize: typography.sizes.xs,
+    fontSize: 12,
+    color: '#6B6B6B',
     marginTop: 1,
-  },
-  upgradeDescription: {
-    fontSize: typography.sizes.xs,
-    lineHeight: typography.lineHeights.xs,
-    marginBottom: spacing.md,
   },
   connectGoogleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: spacing.md - 2,
-    borderRadius: radii.lg,
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingVertical: 10,
+    borderRadius: 8,
   },
   connectGoogleBtnText: {
-    color: '#0F172A',
-    fontSize: typography.sizes.sm,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
   section: {
-    marginBottom: spacing.lg,
+    marginTop: 20,
   },
-  sectionTitle: {
-    fontSize: typography.sizes.xs,
+  sectionHeader: {
+    fontSize: 12,
     fontWeight: '700',
+    color: '#9E9E9E',
     letterSpacing: 0.8,
-    marginBottom: spacing.xs,
-    marginLeft: spacing.xs,
+    marginBottom: 6,
+    marginHorizontal: 16,
   },
-  cardGroup: {
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    overflow: 'hidden',
+  rowsContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: '#E8E8E8',
   },
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.base,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
+  },
+  lastRow: {
+    borderBottomWidth: 0,
   },
   settingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    flex: 1,
   },
-  iconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  settingIcon: {
+    marginRight: 14,
+    width: 22,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   settingTitle: {
-    fontSize: typography.sizes.base,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#1A1A1A',
   },
-  settingSub: {
-    fontSize: typography.sizes.xs,
+  settingSubtitle: {
+    fontSize: 12,
+    color: '#6B6B6B',
     marginTop: 1,
-  },
-  signOutCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-  },
-  signOutText: {
-    fontSize: typography.sizes.base,
-    fontWeight: '700',
   },
   versionContainer: {
     alignItems: 'center',
-    marginTop: spacing.xs,
+    marginTop: 24,
   },
   versionText: {
-    fontSize: typography.sizes.xs,
+    fontSize: 12,
+    color: '#9E9E9E',
     fontWeight: '500',
   },
 });

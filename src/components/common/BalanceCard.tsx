@@ -1,14 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
-import Svg, { Path, Text as SvgText, G } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
-import { useAppTheme, spacing } from '../../theme';
 import { formatCurrency } from '../../utils/currency';
 
 interface BalanceCardProps {
-  totalOwed: number; // Others owe me
-  totalOwes: number; // I owe others
+  totalOwed: number;
+  totalOwes: number;
   onPress?: () => void;
   onCreateGroup?: () => void;
   onJoinGroup?: () => void;
@@ -19,165 +16,141 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
   totalOwes,
   onPress,
 }) => {
-  const { colors, isDark } = useAppTheme();
   const netBalance = totalOwed - totalOwes;
   const isSettled = Math.abs(netBalance) < 0.01;
+  const hasOwed = totalOwed > 0.01;
+  const hasOwes = totalOwes > 0.01;
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     if (onPress) onPress();
   };
 
-  // Determine balance text and color
-  let statusText = 'All settled up';
-  let statusColor = '#0D8A58'; // Rich emerald green
-
-  if (!isSettled) {
-    if (netBalance > 0) {
-      statusText = `You are owed ${formatCurrency(netBalance)}`;
-      statusColor = '#0D8A58';
-    } else {
-      statusText = `You owe ${formatCurrency(Math.abs(netBalance))}`;
-      statusColor = '#DC2626';
-    }
+  // If completely settled, show a single-line message
+  if (isSettled && !hasOwed && !hasOwes) {
+    return (
+      <TouchableOpacity
+        style={styles.settledContainer}
+        onPress={handlePress}
+        activeOpacity={0.8}
+        disabled={!onPress}
+        accessibilityRole="button"
+        accessibilityLabel="All settled up"
+      >
+        <Text style={styles.settledText}>✓ All settled up</Text>
+      </TouchableOpacity>
+    );
   }
 
   return (
     <TouchableOpacity
-      style={[
-        styles.card,
-        {
-          backgroundColor: isDark ? '#14291F' : '#E6F7F0',
-          borderColor: isDark ? '#1E4030' : '#D1F0E2',
-        },
-      ]}
+      style={styles.container}
       onPress={handlePress}
-      activeOpacity={0.85}
+      activeOpacity={0.8}
+      disabled={!onPress}
       accessibilityRole="button"
-      accessibilityLabel={`Your balance: ${statusText}`}
+      accessibilityLabel={`Overall: you are owed ${formatCurrency(totalOwed)}, you owe ${formatCurrency(totalOwes)}`}
     >
-      {/* Decorative Wave & Receipt Graphic on the right */}
-      <View style={styles.illustrationContainer} pointerEvents="none">
-        <Svg width={100} height={78} viewBox="0 0 100 78">
-          {/* Subtle curved background blob flowing to the right edge */}
-          <Path
-            d="M 12 78 C 30 52, 45 40, 100 32 L 100 78 Z"
-            fill={isDark ? '#1B3D2C' : '#D2F2E2'}
-          />
+      {/* Overall summary line */}
+      <Text style={styles.overallText}>
+        Overall,{' '}
+        {netBalance > 0 ? (
+          <>
+            <Text style={styles.owedInline}>you are owed </Text>
+            <Text style={[styles.owedInline, styles.owedAmount]}>
+              {formatCurrency(netBalance)}
+            </Text>
+          </>
+        ) : netBalance < 0 ? (
+          <>
+            <Text style={styles.oweInline}>you owe </Text>
+            <Text style={[styles.oweInline, styles.oweAmount]}>
+              {formatCurrency(Math.abs(netBalance))}
+            </Text>
+          </>
+        ) : (
+          <Text style={styles.settledInline}>you are all settled up</Text>
+        )}
+      </Text>
 
-          {/* Slightly tilted Receipt */}
-          <G transform="translate(54, 11) rotate(8)">
-            {/* Receipt body with dog-eared top-right and sawtooth serrated bottom */}
-            <Path
-              d="
-                M 5 0
-                L 23 0
-                L 31 8
-                L 31 46
-                L 27 42.5
-                L 23 46
-                L 19 42.5
-                L 15 46
-                L 11 42.5
-                L 7 46
-                L 3 42.5
-                L 0 45.5
-                L 0 5
-                Q 0 0 5 0
-                Z
-              "
-              fill={isDark ? '#234E39' : '#FFFFFF'}
-              stroke={isDark ? '#3D7D5E' : '#7DCE9F'}
-              strokeWidth="1.75"
-              strokeLinejoin="round"
-            />
-            {/* Folded top-right corner */}
-            <Path
-              d="M 23 0 L 23 8 L 31 8 Z"
-              fill={isDark ? '#2B5E45' : '#E2F7ED'}
-              stroke={isDark ? '#3D7D5E' : '#7DCE9F'}
-              strokeWidth="1.5"
-              strokeLinejoin="round"
-            />
-            {/* Center Rupee Symbol */}
-            <SvgText
-              x="15.5"
-              y="28"
-              fill={isDark ? '#7EE0AE' : '#57BA87'}
-              fontSize="18"
-              fontWeight="bold"
-              textAnchor="middle"
-              alignmentBaseline="central"
-            >
-              ₹
-            </SvgText>
-          </G>
-        </Svg>
-      </View>
-
-      {/* Left Content */}
-      <View style={styles.textContainer}>
-        <Text style={[styles.label, { color: isDark ? '#98BFA9' : '#556E61' }]}>
-          Your balance
-        </Text>
-        <View style={styles.amountRow}>
-          <Text style={[styles.amountText, { color: statusColor }]}>
-            {statusText}
+      {/* Two-line breakdown if both exist */}
+      {hasOwed && hasOwes && (
+        <View style={styles.breakdownRow}>
+          <Text style={styles.breakdownItem}>
+            <Text style={styles.breakdownLabel}>you are owed </Text>
+            <Text style={styles.breakdownOwed}>{formatCurrency(totalOwed)}</Text>
           </Text>
-          <ChevronRight
-            size={18}
-            color={statusColor}
-            strokeWidth={2.4}
-            style={styles.chevron}
-          />
+          <Text style={styles.breakdownItem}>
+            <Text style={styles.breakdownLabel}>you owe </Text>
+            <Text style={styles.breakdownOwe}>{formatCurrency(totalOwes)}</Text>
+          </Text>
         </View>
-      </View>
+      )}
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    marginHorizontal: spacing.base,
-    marginBottom: spacing.base,
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    position: 'relative',
-    overflow: 'hidden',
-    minHeight: 82,
-    justifyContent: 'center',
+  container: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
   },
-  illustrationContainer: {
-    position: 'absolute',
-    right: 0,
-    bottom: 0,
-    top: 0,
-    width: 100,
-    justifyContent: 'flex-end',
-    alignItems: 'flex-end',
+  settledContainer: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
   },
-  textContainer: {
-    zIndex: 1,
-    paddingRight: 75, // Ensures text never collides with the receipt illustration
-  },
-  label: {
-    fontSize: 13,
+  settledText: {
+    fontSize: 15,
     fontWeight: '500',
-    marginBottom: 6,
-    letterSpacing: -0.1,
+    color: '#9E9E9E',
   },
-  amountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  overallText: {
+    fontSize: 15,
+    color: '#1A1A1A',
+    fontWeight: '400',
   },
-  amountText: {
-    fontSize: 17,
+  owedInline: {
+    color: '#1CC88A',
+    fontWeight: '500',
+  },
+  owedAmount: {
     fontWeight: '700',
-    letterSpacing: -0.3,
   },
-  chevron: {
-    marginLeft: 6,
+  oweInline: {
+    color: '#E74C3C',
+    fontWeight: '500',
+  },
+  oweAmount: {
+    fontWeight: '700',
+  },
+  settledInline: {
+    color: '#9E9E9E',
+    fontWeight: '500',
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    marginTop: 4,
+    gap: 16,
+  },
+  breakdownItem: {
+    fontSize: 13,
+  },
+  breakdownLabel: {
+    color: '#9E9E9E',
+    fontWeight: '400',
+  },
+  breakdownOwed: {
+    color: '#1CC88A',
+    fontWeight: '600',
+  },
+  breakdownOwe: {
+    color: '#E74C3C',
+    fontWeight: '600',
   },
 });

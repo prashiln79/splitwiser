@@ -13,7 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Plus, Search, Hash, X, Users, Sparkles } from 'lucide-react-native';
+import { Plus, Search, X, Users, Hash } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import {
@@ -25,7 +25,7 @@ import {
 import { getGroupExpenses } from '../services/expenses';
 import { getOptimizedSettlements } from '../utils/balanceCalculator';
 import { useAuth } from '../context/AuthContext';
-import { useAppTheme, typography, spacing, radii, shadows } from '../theme';
+import { useAppTheme } from '../theme';
 import { AppHeader } from '../components/common/AppHeader';
 import { BalanceCard } from '../components/common/BalanceCard';
 import { GroupCard } from '../components/common/GroupCard';
@@ -179,29 +179,17 @@ const HomeScreen = ({ navigation }: any) => {
   }, [groupSettlements]);
 
   const renderHeader = () => (
-    <View style={styles.listHeader}>
-      <BalanceCard
-        totalOwed={totalOwed}
-        totalOwes={totalOwes}
-      />
-
-      <View style={styles.sectionHeaderRow}>
-        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-          Your Groups
-        </Text>
-        <Text style={[styles.groupCountBadge, { color: colors.textSecondary }]}>
-          {displayedGroups.length} {displayedGroups.length === 1 ? 'group' : 'groups'}
-        </Text>
-      </View>
+    <View>
+      {/* Balance summary */}
+      <BalanceCard totalOwed={totalOwed} totalOwes={totalOwes} />
     </View>
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Modern Top Header */}
+    <View style={styles.container}>
+      {/* Header */}
       <AppHeader
-        title="Splitwiser"
-        subtitle="Track and split expenses, together"
+        title="Groups"
         rightAction={
           <View style={styles.headerActions}>
             <TouchableOpacity
@@ -209,43 +197,40 @@ const HomeScreen = ({ navigation }: any) => {
                 if (Platform.OS !== 'web') {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                 }
-                setIsJoinModalVisible(true);
+                setIsSearchActive(!isSearchActive);
+                if (isSearchActive) setSearchQuery('');
               }}
-              style={[styles.headerIconBtn, { backgroundColor: colors.surfaceVariant }]}
-              accessibilityLabel="Join group with code"
+              style={styles.headerIconBtn}
+              accessibilityLabel="Search groups"
               accessibilityRole="button"
             >
-              <Search size={18} color={colors.textPrimary} strokeWidth={2.2} />
+              {isSearchActive ? (
+                <X size={20} color="#1A1A1A" strokeWidth={2} />
+              ) : (
+                <Search size={20} color="#1A1A1A" strokeWidth={2} />
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => setModalVisible(true)}
-              style={[styles.headerIconBtn, { backgroundColor: colors.primary }]}
-              accessibilityLabel="Create group"
+              onPress={() => setIsJoinModalVisible(true)}
+              style={styles.headerIconBtn}
+              accessibilityLabel="Join group with code"
               accessibilityRole="button"
             >
-              <Plus size={18} color="#FFFFFF" strokeWidth={2.5} />
+              <Hash size={20} color="#1A1A1A" strokeWidth={2} />
             </TouchableOpacity>
           </View>
         }
       />
 
-      {/* Optional Search Bar */}
+      {/* Search Bar */}
       {isSearchActive && (
-        <View
-          style={[
-            styles.searchBarContainer,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <Search size={16} color={colors.textSecondary} style={{ marginRight: 8 }} />
+        <View style={styles.searchBarContainer}>
+          <Search size={16} color="#9E9E9E" style={{ marginRight: 8 }} />
           <TextInput
-            style={[styles.searchInput, { color: colors.textPrimary }]}
+            style={styles.searchInput}
             placeholder="Search groups..."
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor="#9E9E9E"
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoFocus
@@ -255,7 +240,7 @@ const HomeScreen = ({ navigation }: any) => {
               onPress={() => setSearchQuery('')}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <X size={16} color={colors.textSecondary} />
+              <X size={16} color="#9E9E9E" />
             </TouchableOpacity>
           )}
         </View>
@@ -264,10 +249,7 @@ const HomeScreen = ({ navigation }: any) => {
       {/* Main Content */}
       {isLoading ? (
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-            Loading your groups...
-          </Text>
+          <ActivityIndicator size="large" color="#059669" />
         </View>
       ) : (
         <FlatList
@@ -309,14 +291,30 @@ const HomeScreen = ({ navigation }: any) => {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={onRefresh}
-              colors={[colors.primary]}
-              tintColor={colors.primary}
+              colors={['#059669']}
+              tintColor="#059669"
             />
           }
         />
       )}
 
-      {/* Modern Create Group Modal */}
+      {/* FAB - Create Group */}
+      {!isLoading && groups.length > 0 && (
+        <TouchableOpacity
+          style={[
+            styles.fab,
+            { bottom: Math.max(insets.bottom + 16, 24) },
+          ]}
+          onPress={() => setModalVisible(true)}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Create group"
+        >
+          <Plus size={24} color="#FFFFFF" strokeWidth={2.5} />
+        </TouchableOpacity>
+      )}
+
+      {/* Create Group Modal */}
       <Modal
         visible={modalVisible}
         transparent
@@ -325,75 +323,54 @@ const HomeScreen = ({ navigation }: any) => {
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={[styles.modalBackdrop, { backgroundColor: colors.backdrop }]}
+          style={styles.modalBackdrop}
         >
-          <View
-            style={[
-              styles.modalDialog,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-              shadows.lg,
-            ]}
-          >
+          <View style={styles.modalDialog}>
             <View style={styles.modalHeaderRow}>
-              <View>
-                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
-                  Create a New Group
-                </Text>
-                <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
-                  A shareable join code will be generated automatically.
-                </Text>
-              </View>
+              <Text style={styles.modalTitle}>Create a New Group</Text>
               <TouchableOpacity
                 onPress={() => setModalVisible(false)}
-                style={[styles.modalCloseBtn, { backgroundColor: colors.surfaceVariant }]}
+                style={styles.modalCloseBtn}
                 accessibilityRole="button"
                 accessibilityLabel="Close"
               >
-                <X size={18} color={colors.textSecondary} strokeWidth={2.2} />
+                <X size={18} color="#6B6B6B" strokeWidth={2} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalBody}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                Group Name
-              </Text>
-              <TextInput
-                style={[
-                  styles.modalInput,
-                  {
-                    backgroundColor: colors.surfaceVariant,
-                    borderColor: colors.border,
-                    color: colors.textPrimary,
-                  },
-                ]}
-                placeholder="e.g. Goa Trip, Flat 402, Weekend Dinner"
-                placeholderTextColor={colors.textMuted}
-                value={newGroupName}
-                onChangeText={setNewGroupName}
-                autoFocus
-                returnKeyType="done"
-                onSubmitEditing={handleCreateGroup}
-                accessibilityLabel="New group name input"
-              />
-            </View>
+            <Text style={styles.modalSubtitle}>
+              A shareable join code will be generated automatically.
+            </Text>
+
+            <TextInput
+              style={styles.modalInput}
+              placeholder="e.g. Goa Trip, Flat 402, Weekend Dinner"
+              placeholderTextColor="#9E9E9E"
+              value={newGroupName}
+              onChangeText={setNewGroupName}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={handleCreateGroup}
+              accessibilityLabel="New group name input"
+            />
 
             <View style={styles.modalActionsRow}>
               <TouchableOpacity
-                style={[
-                  styles.modalCancelBtn,
-                  { backgroundColor: colors.surfaceVariant, borderColor: colors.border },
-                ]}
+                style={styles.modalCancelBtn}
                 onPress={() => setModalVisible(false)}
                 disabled={isCreatingGroup}
                 accessibilityRole="button"
               >
-                <Text style={[styles.modalCancelText, { color: colors.textPrimary }]}>
-                  Cancel
-                </Text>
+                <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.modalSubmitBtn, { backgroundColor: colors.primary }]}
+                style={[
+                  styles.modalSubmitBtn,
+                  {
+                    backgroundColor: newGroupName.trim() ? '#059669' : '#E8E8E8',
+                  },
+                ]}
                 onPress={handleCreateGroup}
                 disabled={isCreatingGroup || !newGroupName.trim()}
                 accessibilityRole="button"
@@ -401,7 +378,12 @@ const HomeScreen = ({ navigation }: any) => {
                 {isCreatingGroup ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.modalSubmitText}>Create Group</Text>
+                  <Text style={[
+                    styles.modalSubmitText,
+                    { color: newGroupName.trim() ? '#FFFFFF' : '#9E9E9E' },
+                  ]}>
+                    Create Group
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -409,7 +391,7 @@ const HomeScreen = ({ navigation }: any) => {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Modern Join Group Modal */}
+      {/* Join Group Modal */}
       <Modal
         visible={isJoinModalVisible}
         transparent
@@ -421,75 +403,56 @@ const HomeScreen = ({ navigation }: any) => {
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={[styles.modalBackdrop, { backgroundColor: colors.backdrop }]}
+          style={styles.modalBackdrop}
         >
-          <View
-            style={[
-              styles.modalDialog,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-              shadows.lg,
-            ]}
-          >
+          <View style={styles.modalDialog}>
             <View style={styles.modalHeaderRow}>
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
-                  Join a Group
-                </Text>
-                <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
-                  Enter the 6-character code shared by the group creator.
-                </Text>
-              </View>
+              <Text style={styles.modalTitle}>Join a Group</Text>
               <TouchableOpacity
                 onPress={() => {
                   setIsJoinModalVisible(false);
                   setJoinCode('');
                 }}
-                style={[styles.modalCloseBtn, { backgroundColor: colors.surfaceVariant }]}
+                style={styles.modalCloseBtn}
                 accessibilityRole="button"
                 accessibilityLabel="Close"
               >
-                <X size={18} color={colors.textSecondary} strokeWidth={2.2} />
+                <X size={18} color="#6B6B6B" strokeWidth={2} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalBody}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
-                Group Join Code
-              </Text>
-              <TextInput
-                style={[
-                  styles.modalInput,
-                  {
-                    backgroundColor: colors.surfaceVariant,
-                    borderColor: joinCode.trim().length >= 6 ? colors.primary : colors.border,
-                    color: colors.textPrimary,
-                    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-                    letterSpacing: 2,
-                    fontSize: 18,
-                    fontWeight: '700',
-                    textAlign: 'center',
-                  },
-                ]}
-                placeholder="e.g. 7X8K2M"
-                placeholderTextColor={colors.textMuted}
-                value={joinCode}
-                onChangeText={(text) => setJoinCode(text.toUpperCase())}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                maxLength={8}
-                autoFocus
-                returnKeyType="done"
-                onSubmitEditing={handleJoinGroup}
-                accessibilityLabel="Group join code input"
-              />
-            </View>
+            <Text style={styles.modalSubtitle}>
+              Enter the 6-character code shared by the group creator.
+            </Text>
+
+            <TextInput
+              style={[
+                styles.modalInput,
+                {
+                  fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+                  letterSpacing: 4,
+                  fontSize: 20,
+                  fontWeight: '700',
+                  textAlign: 'center',
+                  borderBottomColor: joinCode.trim().length >= 6 ? '#059669' : '#E8E8E8',
+                },
+              ]}
+              placeholder="e.g. 7X8K2M"
+              placeholderTextColor="#9E9E9E"
+              value={joinCode}
+              onChangeText={(text) => setJoinCode(text.toUpperCase())}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              maxLength={8}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={handleJoinGroup}
+              accessibilityLabel="Group join code input"
+            />
 
             <View style={styles.modalActionsRow}>
               <TouchableOpacity
-                style={[
-                  styles.modalCancelBtn,
-                  { backgroundColor: colors.surfaceVariant, borderColor: colors.border },
-                ]}
+                style={styles.modalCancelBtn}
                 onPress={() => {
                   setIsJoinModalVisible(false);
                   setJoinCode('');
@@ -497,9 +460,7 @@ const HomeScreen = ({ navigation }: any) => {
                 disabled={isJoiningGroup}
                 accessibilityRole="button"
               >
-                <Text style={[styles.modalCancelText, { color: colors.textPrimary }]}>
-                  Cancel
-                </Text>
+                <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -507,18 +468,22 @@ const HomeScreen = ({ navigation }: any) => {
                   styles.modalSubmitBtn,
                   {
                     backgroundColor:
-                      joinCode.trim().length >= 4 ? colors.primary : colors.border,
+                      joinCode.trim().length >= 4 ? '#059669' : '#E8E8E8',
                   },
                 ]}
                 onPress={handleJoinGroup}
                 disabled={isJoiningGroup || joinCode.trim().length < 4}
                 accessibilityRole="button"
-                accessibilityLabel="Join group button"
               >
                 {isJoiningGroup ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.modalSubmitText}>Join Group</Text>
+                  <Text style={[
+                    styles.modalSubmitText,
+                    { color: joinCode.trim().length >= 4 ? '#FFFFFF' : '#9E9E9E' },
+                  ]}>
+                    Join Group
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -532,146 +497,132 @@ const HomeScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F5F5F5',
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 4,
   },
   headerIconBtn: {
     width: 36,
     height: 36,
-    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   searchBarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: spacing.base,
-    marginTop: spacing.xs,
-    marginBottom: spacing.xs,
-    paddingHorizontal: spacing.md,
-    height: 42,
-    borderRadius: radii.md,
-    borderWidth: 1,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    height: 44,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
   },
   searchInput: {
     flex: 1,
-    fontSize: typography.sizes.sm,
+    fontSize: 15,
+    color: '#1A1A1A',
     paddingVertical: 0,
   },
   loaderContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: spacing.sm,
-  },
-  loadingText: {
-    fontSize: typography.sizes.sm,
-    fontWeight: '500',
   },
   listContent: {
-    paddingBottom: spacing.xxl,
+    paddingBottom: 32,
   },
-  listHeader: {
-    paddingTop: spacing.base,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  fab: {
+    position: 'absolute',
+    right: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#059669',
     alignItems: 'center',
-    paddingHorizontal: spacing.base,
-    marginBottom: spacing.md,
-    marginTop: spacing.xs,
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
-  sectionTitle: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
-    letterSpacing: -0.3,
-  },
-  groupCountBadge: {
-    fontSize: typography.sizes.xs,
-    fontWeight: '600',
-  },
+  // Modal styles
   modalBackdrop: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.base,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 24,
   },
   modalDialog: {
     width: '100%',
-    maxWidth: 420,
-    borderRadius: radii.xl,
-    padding: spacing.lg,
-    borderWidth: 1,
+    maxWidth: 400,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
   },
   modalHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.md,
+    alignItems: 'center',
+    marginBottom: 4,
   },
   modalTitle: {
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.bold,
-    letterSpacing: -0.3,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    flex: 1,
   },
   modalSubtitle: {
-    fontSize: typography.sizes.xs,
-    marginTop: 2,
+    fontSize: 14,
+    color: '#6B6B6B',
+    marginBottom: 16,
+    lineHeight: 20,
   },
   modalCloseBtn: {
     width: 32,
     height: 32,
-    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modalBody: {
-    marginVertical: spacing.sm,
-  },
-  inputLabel: {
-    fontSize: typography.sizes.xs,
-    fontWeight: '600',
-    marginBottom: spacing.xs,
-  },
   modalInput: {
-    borderWidth: 1,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: typography.sizes.base,
+    borderBottomWidth: 2,
+    borderBottomColor: '#E8E8E8',
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#1A1A1A',
+    marginBottom: 20,
   },
   modalActionsRow: {
     flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.base,
+    gap: 12,
   },
   modalCancelBtn: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.md,
-    borderRadius: radii.md,
+    paddingVertical: 14,
+    borderRadius: 10,
     borderWidth: 1,
+    borderColor: '#E8E8E8',
   },
   modalCancelText: {
     fontWeight: '600',
-    fontSize: typography.sizes.sm,
+    fontSize: 15,
+    color: '#1A1A1A',
   },
   modalSubmitBtn: {
     flex: 1.4,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.md,
-    borderRadius: radii.md,
+    paddingVertical: 14,
+    borderRadius: 10,
   },
   modalSubmitText: {
-    color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: typography.sizes.sm,
+    fontSize: 15,
   },
 });
 

@@ -10,86 +10,38 @@ import {
   ActivityIndicator,
   Share,
   Platform,
-  Image,
+  Modal,
+  ScrollView,
 } from 'react-native';
-import Svg, { Path, Circle, Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
-import * as ImagePicker from 'expo-image-picker';
 import {
   Plus,
-  Receipt,
-  Users,
-  Handshake,
   UserPlus,
-  EllipsisVertical,
-  Pencil,
-  Image as ImageIcon,
-  ChartColumnIncreasing,
-  ArrowRight,
+  Settings,
+  Handshake,
   CheckCircle2,
+  Receipt,
+  X,
+  Trash2,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { getGroupById, getGroupMembers, updateGroup } from '../services/groups';
-import { subscribeToExpenses } from '../services/expenses';
+import { getGroupById, getGroupMembers } from '../services/groups';
+import { subscribeToExpenses, deleteExpense } from '../services/expenses';
 import { getOptimizedSettlements } from '../utils/balanceCalculator';
 import { useAuth } from '../context/AuthContext';
-import { useAppTheme, typography, spacing, radii, shadows } from '../theme';
 import { AppHeader } from '../components/common/AppHeader';
+import { MemberAvatar } from '../components/common/MemberAvatar';
 import { ExpenseListItem } from '../components/common/ExpenseListItem';
+import { CategoryIcon } from '../components/common/CategoryIcon';
 import { SettleUpModal } from '../components/common/SettleUpModal';
+import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 import { EmptyState } from '../components/common/EmptyState';
 import { Expense, Group, GroupMember, OptimizedSettlement } from '../types';
 import { formatCurrency } from '../utils/currency';
 
-/**
- * Beautiful default rolling hills & sun illustration banner matching the design.
- */
-const GroupDefaultBanner = () => (
-  <Svg width="100%" height="100%" viewBox="0 0 400 130" preserveAspectRatio="xMidYMid slice">
-    <Defs>
-      <LinearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-        <Stop offset="0%" stopColor="#D1FAE5" />
-        <Stop offset="100%" stopColor="#A7F3D0" />
-      </LinearGradient>
-      <LinearGradient id="sunGrad" x1="0" y1="0" x2="0" y2="1">
-        <Stop offset="0%" stopColor="#FEF9C3" />
-        <Stop offset="100%" stopColor="#FEF08A" />
-      </LinearGradient>
-    </Defs>
-
-    {/* Sky */}
-    <Rect x="0" y="0" width="400" height="130" fill="url(#skyGrad)" />
-
-    {/* Sun */}
-    <Circle cx="308" cy="65" r="28" fill="url(#sunGrad)" opacity="0.95" />
-
-    {/* Distant Hills */}
-    <Path
-      d="M0,88 Q100,50 200,72 T400,66 L400,130 L0,130 Z"
-      fill="#6EE7B7"
-      opacity="0.75"
-    />
-
-    {/* Mid Hills */}
-    <Path
-      d="M0,80 Q130,105 250,76 T400,90 L400,130 L0,130 Z"
-      fill="#34D399"
-      opacity="0.85"
-    />
-
-    {/* Foreground Hills */}
-    <Path
-      d="M0,96 Q140,64 280,100 T400,86 L400,130 L0,130 Z"
-      fill="#10B981"
-      opacity="0.9"
-    />
-  </Svg>
-);
-
 const GroupDetailsScreen = ({ route, navigation }: any) => {
   const { groupId, groupName: initialGroupName } = route.params;
   const { user } = useAuth();
-  const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
 
   const [group, setGroup] = useState<Group | null>(null);
@@ -100,6 +52,11 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'expenses' | 'balances'>('expenses');
   const [settleModalVisible, setSettleModalVisible] = useState(false);
+
+  // Expense details modal state
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [isDeletingExpense, setIsDeletingExpense] = useState(false);
+  const [confirmDeleteExpenseVisible, setConfirmDeleteExpenseVisible] = useState(false);
 
   // Load group details & members
   const fetchGroupData = async () => {
@@ -158,53 +115,20 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
     }
   };
 
-  const handlePickBanner = async () => {
-    if (Platform.OS !== 'web') {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Allow photo library access to change the group cover photo.');
-        return;
+  const handleDeleteSelectedExpense = async () => {
+    if (!selectedExpense) return;
+    setIsDeletingExpense(true);
+    try {
+      await deleteExpense(groupId, selectedExpense.id);
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       }
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [16, 9],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets?.length > 0) {
-      const uri = result.assets[0].uri;
-      try {
-        await updateGroup(groupId, { bannerUrl: uri });
-        setGroup((prev) => (prev ? { ...prev, bannerUrl: uri } : prev));
-      } catch (e) {
-        console.warn('Failed to update group banner:', e);
-      }
-    }
-  };
-
-  const handlePickAvatar = async () => {
-    if (Platform.OS !== 'web') {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Allow photo library access to change the group avatar.');
-        return;
-      }
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets?.length > 0) {
-      const uri = result.assets[0].uri;
-      try {
-        await updateGroup(groupId, { imageUrl: uri });
-        setGroup((prev) => (prev ? { ...prev, imageUrl: uri } : prev));
-      } catch (e) {
-        console.warn('Failed to update group avatar:', e);
-      }
+      setConfirmDeleteExpenseVisible(false);
+      setSelectedExpense(null);
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to delete expense.');
+    } finally {
+      setIsDeletingExpense(false);
     }
   };
 
@@ -231,197 +155,104 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
 
   const isSettled = Math.abs(netBalance) < 0.01;
 
-  // Render header summary card
-  const renderGroupHeader = () => (
-    <View style={styles.headerContainer}>
-      {/* Group Card with Banner & Overlapping Avatar */}
-      <View style={[styles.heroCard, shadows.sm]}>
-        {/* Banner Area */}
-        <View style={styles.bannerArea}>
-          {group?.bannerUrl ? (
-            <Image
-              source={{ uri: group.bannerUrl }}
-              style={StyleSheet.absoluteFill}
-              resizeMode="cover"
-            />
-          ) : (
-            <GroupDefaultBanner />
-          )}
+  // Build balance summary text
+  const balanceSummary = useMemo(() => {
+    if (isSettled) return { text: 'no balances', color: '#9E9E9E' };
+    if (netBalance > 0) {
+      const mySettlements = settlements.filter((s) => s.toUserId === user?.uid);
+      if (mySettlements.length === 1) {
+        return {
+          text: `${mySettlements[0].fromUserName} owes you ${formatCurrency(mySettlements[0].amount)}`,
+          color: '#1CC88A',
+        };
+      }
+      return {
+        text: `you are owed ${formatCurrency(netBalance)}`,
+        color: '#1CC88A',
+      };
+    }
+    const myDebts = settlements.filter((s) => s.fromUserId === user?.uid);
+    if (myDebts.length === 1) {
+      return {
+        text: `you owe ${myDebts[0].toUserName} ${formatCurrency(myDebts[0].amount)}`,
+        color: '#E74C3C',
+      };
+    }
+    return {
+      text: `you owe ${formatCurrency(Math.abs(netBalance))}`,
+      color: '#E74C3C',
+    };
+  }, [isSettled, netBalance, settlements, user]);
 
-          {/* Change Banner Photo Button */}
+  // Render header
+  const renderGroupHeader = () => (
+    <View>
+      {/* Balance summary + actions */}
+      <View style={styles.summarySection}>
+        <Text style={[styles.balanceSummaryText, { color: balanceSummary.color }]}>
+          {balanceSummary.text}
+        </Text>
+
+        <View style={styles.actionButtonsRow}>
           <TouchableOpacity
-            style={styles.bannerImageBtn}
-            onPress={handlePickBanner}
-            activeOpacity={0.8}
-            accessibilityLabel="Change group cover photo"
+            style={styles.settleUpBtn}
+            onPress={() => setSettleModalVisible(true)}
+            activeOpacity={0.7}
+            accessibilityLabel="Settle Up"
             accessibilityRole="button"
           >
-            <ImageIcon size={18} color="#334155" strokeWidth={2.2} />
+            <Handshake size={16} color="#1A1A1A" strokeWidth={2} style={{ marginRight: 6 }} />
+            <Text style={styles.settleUpBtnText}>Settle up</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.addExpenseBtn}
+            onPress={() => navigation.navigate('AddExpense', { groupId })}
+            activeOpacity={0.85}
+            accessibilityLabel="Add Expense"
+            accessibilityRole="button"
+          >
+            <Plus size={16} color="#FFFFFF" strokeWidth={2.5} style={{ marginRight: 4 }} />
+            <Text style={styles.addExpenseBtnText}>Add expense</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Bottom Details Row with Overlapping Avatar */}
-        <View style={styles.groupInfoRow}>
-          {/* Overlapping Avatar */}
-          <View style={styles.avatarWrapper}>
-            <TouchableOpacity
-              onPress={handlePickAvatar}
-              activeOpacity={0.85}
-              style={styles.avatarPressable}
-              accessibilityLabel="Change group avatar"
-              accessibilityRole="button"
-            >
-              <View style={styles.avatarCircle}>
-                {group?.imageUrl ? (
-                  <Image
-                    source={{ uri: group.imageUrl }}
-                    style={styles.avatarImg}
-                  />
-                ) : (
-                  <Text style={styles.avatarInitial}>
-                    {(group?.name || initialGroupName || 'T')[0].toUpperCase()}
-                  </Text>
-                )}
-              </View>
-
-              {/* Edit Pencil Badge */}
-              <View style={styles.pencilBadge}>
-                <Pencil size={11} color="#334155" strokeWidth={2.4} />
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          {/* Group Name & Members */}
-          <View style={styles.groupMetaCol}>
-            <Text style={styles.groupTitle} numberOfLines={1}>
-              {group?.name || initialGroupName}
-            </Text>
-            <View style={styles.membersCountRow}>
-              <Users size={14} color="#64748B" strokeWidth={2} />
-              <Text style={styles.membersCountText}>
-                {members.length} {members.length === 1 ? 'member' : 'members'}
-              </Text>
-            </View>
-          </View>
-        </View>
       </View>
 
-      {/* Balance & Actions Row */}
-      <View style={styles.balanceActionsRow}>
-        {/* Your balance badge */}
-        <View
-          style={[
-            styles.balancePill,
-            {
-              backgroundColor: isSettled
-                ? '#F1F5F9'
-                : netBalance > 0
-                ? '#ECFDF5'
-                : '#FFF1F2',
-            },
-          ]}
-        >
-          <Text style={styles.balancePillLabel}>Your balance</Text>
-          <Text
-            style={[
-              styles.balancePillAmount,
-              {
-                color: isSettled
-                  ? '#0F172A'
-                  : netBalance > 0
-                  ? '#059669'
-                  : '#E11D48',
-              },
-            ]}
-          >
-            {isSettled
-              ? '₹0.00'
-              : `${netBalance > 0 ? '+' : '-'}${formatCurrency(Math.abs(netBalance))}`}
-          </Text>
-        </View>
-
-        {/* Settle Up Button */}
+      {/* Underline Tabs */}
+      <View style={styles.tabBar}>
         <TouchableOpacity
-          style={styles.settleUpBtn}
-          onPress={() => setSettleModalVisible(true)}
-          activeOpacity={0.8}
-          accessibilityLabel="Settle Up"
-          accessibilityRole="button"
-        >
-          <Handshake size={18} color="#0F172A" strokeWidth={2} style={{ marginRight: 6 }} />
-          <Text style={styles.settleUpBtnText}>Settle Up</Text>
-        </TouchableOpacity>
-
-        {/* Add Expense Button */}
-        <TouchableOpacity
-          style={styles.addExpenseBtn}
-          onPress={() => navigation.navigate('AddExpense', { groupId })}
-          activeOpacity={0.85}
-          accessibilityLabel="Add Expense"
-          accessibilityRole="button"
-        >
-          <Plus size={16} color="#FFFFFF" strokeWidth={2.8} style={{ marginRight: 4 }} />
-          <Text style={styles.addExpenseBtnText}>Add Expense</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Segmented Filter Tabs: Expenses vs Balances */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[
-            styles.tabButton,
-            activeTab === 'expenses' && styles.tabButtonActive,
-          ]}
+          style={[styles.tab, activeTab === 'expenses' && styles.tabActive]}
           onPress={() => {
             if (Platform.OS !== 'web') {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
             }
             setActiveTab('expenses');
           }}
-          activeOpacity={0.8}
+          activeOpacity={0.7}
         >
-          <Receipt
-            size={16}
-            color={activeTab === 'expenses' ? '#059669' : '#64748B'}
-            strokeWidth={activeTab === 'expenses' ? 2.4 : 2}
-            style={{ marginRight: 6 }}
-          />
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'expenses' ? styles.tabTextActive : styles.tabTextInactive,
-            ]}
-          >
-            Expenses ({expenses.length})
+          <Text style={[
+            styles.tabText,
+            activeTab === 'expenses' ? styles.tabTextActive : styles.tabTextInactive,
+          ]}>
+            Expenses
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[
-            styles.tabButton,
-            activeTab === 'balances' && styles.tabButtonActive,
-          ]}
+          style={[styles.tab, activeTab === 'balances' && styles.tabActive]}
           onPress={() => {
             if (Platform.OS !== 'web') {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
             }
             setActiveTab('balances');
           }}
-          activeOpacity={0.8}
+          activeOpacity={0.7}
         >
-          <ChartColumnIncreasing
-            size={16}
-            color={activeTab === 'balances' ? '#059669' : '#64748B'}
-            strokeWidth={activeTab === 'balances' ? 2.4 : 2}
-            style={{ marginRight: 6 }}
-          />
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'balances' ? styles.tabTextActive : styles.tabTextInactive,
-            ]}
-          >
-            Balances ({settlements.length})
+          <Text style={[
+            styles.tabText,
+            activeTab === 'balances' ? styles.tabTextActive : styles.tabTextInactive,
+          ]}>
+            Balances
           </Text>
         </TouchableOpacity>
       </View>
@@ -429,31 +260,38 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={styles.container}>
       {/* Top App Header */}
       <AppHeader
         title={group?.name || initialGroupName}
         subtitle={`${members.length} ${members.length === 1 ? 'member' : 'members'}`}
         showBack
         onBack={() => navigation.goBack()}
+        avatar={
+          <MemberAvatar
+            name={group?.name || initialGroupName || 'G'}
+            imageUrl={group?.imageUrl}
+            size={32}
+          />
+        }
         rightAction={
           <View style={styles.topRightActions}>
             <TouchableOpacity
               onPress={handleShareCode}
-              style={styles.headerCircleBtn}
+              style={styles.headerBtn}
               accessibilityLabel="Invite members"
               accessibilityRole="button"
             >
-              <UserPlus size={18} color="#0F172A" strokeWidth={2.2} />
+              <UserPlus size={20} color="#1A1A1A" strokeWidth={2} />
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => navigation.navigate('GroupSettings', { groupId })}
-              style={styles.headerMoreBtn}
-              accessibilityLabel="More options"
+              style={styles.headerBtn}
+              accessibilityLabel="Group settings"
               accessibilityRole="button"
             >
-              <EllipsisVertical size={20} color="#0F172A" strokeWidth={2.2} />
+              <Settings size={20} color="#1A1A1A" strokeWidth={2} />
             </TouchableOpacity>
           </View>
         }
@@ -463,9 +301,6 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
       {isLoading ? (
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color="#059669" />
-          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-            Loading expenses...
-          </Text>
         </View>
       ) : activeTab === 'expenses' ? (
         <FlatList
@@ -481,6 +316,7 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
               expense={item}
               currentUserId={user?.uid || ''}
               payerName={getMemberName(item.paidBy || item.createdBy)}
+              onPress={() => setSelectedExpense(item)}
             />
           )}
           ListEmptyComponent={
@@ -515,65 +351,39 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
             const isMeCreditor = item.toUserId === user?.uid;
 
             return (
-              <View
-                style={[
-                  styles.settlementItemCard,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.borderLight,
-                  },
-                  shadows.sm,
-                ]}
-              >
-                <View style={styles.settlementParties}>
-                  <Text
-                    style={[
-                      styles.debtorName,
-                      { color: isMeDebtor ? colors.expense : colors.textPrimary },
-                    ]}
-                  >
-                    {isMeDebtor ? 'You' : item.fromUserName}
-                  </Text>
-                  <View style={styles.arrowContainer}>
-                    <Text style={[styles.owesLabel, { color: colors.textMuted }]}>
-                      owes
+              <View style={styles.settlementRow}>
+                <View style={styles.settlementInfo}>
+                  <Text style={styles.settlementText}>
+                    <Text style={isMeDebtor ? { color: '#E74C3C', fontWeight: '600' } : { color: '#1A1A1A', fontWeight: '600' }}>
+                      {isMeDebtor ? 'You' : item.fromUserName}
                     </Text>
-                    <ArrowRight size={14} color={colors.textMuted} strokeWidth={2} />
-                  </View>
-                  <Text
-                    style={[
-                      styles.creditorName,
-                      { color: isMeCreditor ? colors.income : colors.textPrimary },
-                    ]}
-                  >
-                    {isMeCreditor ? 'You' : item.toUserName}
+                    <Text style={{ color: '#9E9E9E' }}> owes </Text>
+                    <Text style={isMeCreditor ? { color: '#1CC88A', fontWeight: '600' } : { color: '#1A1A1A', fontWeight: '600' }}>
+                      {isMeCreditor ? 'you' : item.toUserName}
+                    </Text>
+                  </Text>
+                  <Text style={styles.settlementAmount}>
+                    {formatCurrency(item.amount)}
                   </Text>
                 </View>
 
-                <View style={styles.settlementRight}>
-                  <Text style={[styles.settleAmount, { color: colors.textPrimary }]}>
-                    {formatCurrency(item.amount)}
-                  </Text>
-                  {(isMeDebtor || isMeCreditor) && (
-                    <TouchableOpacity
-                      style={[styles.quickSettleBtn, { backgroundColor: colors.incomeLight }]}
-                      onPress={() => setSettleModalVisible(true)}
-                      accessibilityRole="button"
-                    >
-                      <Text style={[styles.quickSettleText, { color: colors.incomeDark }]}>
-                        Settle
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+                {(isMeDebtor || isMeCreditor) && (
+                  <TouchableOpacity
+                    style={styles.quickSettleBtn}
+                    onPress={() => setSettleModalVisible(true)}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.quickSettleText}>Settle up</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             );
           }}
           ListEmptyComponent={
             <EmptyState
               icon={CheckCircle2}
-              title="All balances are settled"
-              description="Everyone in this group is completely settled up. No payments are currently owed!"
+              title="All settled up"
+              description="Everyone in this group is completely settled. No payments are owed!"
             />
           }
           refreshControl={
@@ -587,24 +397,21 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
         />
       )}
 
-      {/* Floating Action Button */}
+      {/* FAB */}
       <TouchableOpacity
         style={[
           styles.fab,
-          {
-            bottom: Math.max(insets.bottom + 16, 24),
-          },
-          shadows.md,
+          { bottom: Math.max(insets.bottom + 16, 24) },
         ]}
         onPress={() => navigation.navigate('AddExpense', { groupId })}
         activeOpacity={0.85}
         accessibilityRole="button"
         accessibilityLabel="Add an expense"
       >
-        <Plus size={26} color="#FFFFFF" strokeWidth={2.6} />
+        <Plus size={24} color="#FFFFFF" strokeWidth={2.5} />
       </TouchableOpacity>
 
-      {/* Settlement Workflow Modal */}
+      {/* Settlement Modal */}
       <SettleUpModal
         visible={settleModalVisible}
         onDismiss={() => setSettleModalVisible(false)}
@@ -615,6 +422,107 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
           fetchGroupData();
         }}
       />
+
+      {/* Expense Details Modal */}
+      {selectedExpense && (
+        <Modal
+          visible={!!selectedExpense}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSelectedExpense(null)}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalDialog}>
+              {/* Header */}
+              <View style={styles.modalHeaderRow}>
+                <CategoryIcon
+                  description={selectedExpense.description}
+                  tags={selectedExpense.tags}
+                  size={42}
+                />
+                <View style={styles.modalHeaderActions}>
+                  <TouchableOpacity
+                    onPress={() => setConfirmDeleteExpenseVisible(true)}
+                    style={styles.trashBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Delete expense"
+                  >
+                    <Trash2 size={20} color="#E74C3C" strokeWidth={2} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setSelectedExpense(null)}
+                    style={styles.closeBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Close"
+                  >
+                    <X size={20} color="#6B6B6B" strokeWidth={2} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Expense Title & Amount */}
+              <Text style={styles.expenseDetailTitle}>
+                {selectedExpense.description}
+              </Text>
+              <Text style={styles.expenseDetailAmount}>
+                {formatCurrency(selectedExpense.amount)}
+              </Text>
+              <Text style={styles.expenseDetailDate}>
+                Added on {new Date(selectedExpense.createdAt).toLocaleDateString('en-US', {
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </Text>
+
+              {/* Breakdown List */}
+              <View style={styles.breakdownBox}>
+                <View style={styles.payerDetailRow}>
+                  <Text style={styles.payerDetailText}>
+                    <Text style={{ fontWeight: '700', color: '#1A1A1A' }}>
+                      {getMemberName(selectedExpense.paidBy || selectedExpense.createdBy)}
+                    </Text>
+                    {' paid '}
+                    <Text style={{ fontWeight: '700', color: '#1A1A1A' }}>
+                      {formatCurrency(selectedExpense.amount)}
+                    </Text>
+                  </Text>
+                </View>
+
+                <ScrollView style={styles.splitsScrollView} showsVerticalScrollIndicator={false}>
+                  {selectedExpense.splits.map((s) => {
+                    const memberName = getMemberName(s.userId);
+                    const isMe = s.userId === user?.uid;
+                    return (
+                      <View key={s.userId} style={styles.splitDetailRow}>
+                        <Text style={styles.splitMemberName}>
+                          {isMe ? 'You owe' : `${memberName} owes`}
+                        </Text>
+                        <Text style={styles.splitAmountText}>
+                          {formatCurrency(s.amount)}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Delete Expense Confirmation */}
+      <ConfirmationDialog
+        visible={confirmDeleteExpenseVisible}
+        onDismiss={() => setConfirmDeleteExpenseVisible(false)}
+        onConfirm={handleDeleteSelectedExpense}
+        title="Delete Expense?"
+        message="Are you sure you want to delete this expense? Balances will be recalculated."
+        confirmLabel="Delete"
+        isDestructive
+        isLoading={isDeletingExpense}
+        icon="trash"
+      />
     </View>
   );
 };
@@ -622,24 +530,16 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F5F5F5',
   },
   topRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
   },
-  headerCircleBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerMoreBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  headerBtn: {
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -647,271 +547,119 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: spacing.sm,
-  },
-  loadingText: {
-    fontSize: typography.sizes.sm,
-    fontWeight: '500',
   },
   listContent: {
     paddingBottom: 96,
   },
-  headerContainer: {
-    paddingTop: 8,
-    paddingBottom: 4,
-  },
-  heroCard: {
-    marginHorizontal: 16,
-    borderRadius: 20,
+  summarySection: {
     backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    overflow: 'hidden',
-  },
-  bannerArea: {
-    height: 125,
-    backgroundColor: '#D1FAE5',
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  bannerImageBtn: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  groupInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingBottom: 16,
-    backgroundColor: '#FFFFFF',
+    paddingTop: 16,
+    paddingBottom: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
   },
-  avatarWrapper: {
-    marginTop: -28,
-  },
-  avatarPressable: {
-    position: 'relative',
-  },
-  avatarCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: '#059669',
-    borderWidth: 3.5,
-    borderColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImg: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 26,
-  },
-  avatarInitial: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '800',
-  },
-  pencilBadge: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 1.5,
-    elevation: 2,
-  },
-  groupMetaCol: {
-    marginLeft: 14,
-    flex: 1,
-    justifyContent: 'center',
-    paddingTop: 4,
-  },
-  groupTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#0F172A',
-    letterSpacing: -0.3,
-  },
-  membersCountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 3,
-  },
-  membersCountText: {
-    fontSize: 13,
-    color: '#64748B',
+  balanceSummaryText: {
+    fontSize: 16,
     fontWeight: '500',
+    marginBottom: 14,
   },
-  balanceActionsRow: {
+  actionButtonsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 14,
-    gap: 8,
-  },
-  balancePill: {
-    paddingVertical: 8,
-    paddingHorizontal: 13,
-    borderRadius: 14,
-  },
-  balancePillLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#64748B',
-  },
-  balancePillAmount: {
-    fontSize: 19,
-    fontWeight: '800',
-    letterSpacing: -0.4,
-    marginTop: 1,
+    gap: 10,
   },
   settleUpBtn: {
     flex: 1,
-    height: 44,
-    borderRadius: 12,
+    height: 40,
+    borderRadius: 8,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E0E0E0',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
   settleUpBtnText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
   addExpenseBtn: {
-    flex: 1.15,
-    height: 44,
-    borderRadius: 12,
+    flex: 1,
+    height: 40,
+    borderRadius: 8,
     backgroundColor: '#059669',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 2,
   },
   addExpenseBtnText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '600',
   },
-  tabContainer: {
+  tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 16,
-    padding: 4,
-    marginHorizontal: 16,
-    marginTop: 14,
-    marginBottom: 10,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
   },
-  tabButton: {
+  tab: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingVertical: 13,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
-  tabButtonActive: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+  tabActive: {
+    borderBottomColor: '#059669',
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 15,
   },
   tabTextActive: {
     color: '#059669',
     fontWeight: '700',
   },
   tabTextInactive: {
-    color: '#64748B',
-    fontWeight: '600',
+    color: '#6B6B6B',
+    fontWeight: '500',
   },
-  settlementItemCard: {
+  settlementRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.base,
-    paddingHorizontal: spacing.base,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    marginHorizontal: spacing.base,
-    marginBottom: spacing.sm,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
   },
-  settlementParties: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  settlementInfo: {
     flex: 1,
   },
-  debtorName: {
-    fontSize: typography.sizes.sm,
+  settlementText: {
+    fontSize: 15,
+    color: '#1A1A1A',
+  },
+  settlementAmount: {
+    fontSize: 15,
     fontWeight: '700',
-  },
-  arrowContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: spacing.sm,
-    gap: 2,
-  },
-  owesLabel: {
-    fontSize: typography.sizes.xs - 1,
-    fontWeight: '500',
-  },
-  creditorName: {
-    fontSize: typography.sizes.sm,
-    fontWeight: '700',
-  },
-  settlementRight: {
-    alignItems: 'flex-end',
-    gap: 4,
-  },
-  settleAmount: {
-    fontSize: typography.sizes.base,
-    fontWeight: '800',
-    letterSpacing: -0.3,
+    color: '#1A1A1A',
+    marginTop: 2,
   },
   quickSettleBtn: {
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: radii.full,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 6,
+    backgroundColor: '#F0FAF6',
+    marginLeft: 12,
   },
   quickSettleText: {
-    fontSize: typography.sizes.xs - 1,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#059669',
   },
   fab: {
     position: 'absolute',
@@ -922,6 +670,98 @@ const styles = StyleSheet.create({
     backgroundColor: '#059669',
     alignItems: 'center',
     justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  // Expense detail modal
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 24,
+  },
+  modalDialog: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  trashBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FEF2F2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  expenseDetailTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  expenseDetailAmount: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    marginBottom: 2,
+  },
+  expenseDetailDate: {
+    fontSize: 13,
+    color: '#9E9E9E',
+    marginBottom: 16,
+  },
+  breakdownBox: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E8E8E8',
+    paddingTop: 12,
+  },
+  payerDetailRow: {
+    marginBottom: 10,
+  },
+  payerDetailText: {
+    fontSize: 15,
+    color: '#6B6B6B',
+  },
+  splitsScrollView: {
+    maxHeight: 180,
+  },
+  splitDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  splitMemberName: {
+    fontSize: 14,
+    color: '#6B6B6B',
+  },
+  splitAmountText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
 });
 

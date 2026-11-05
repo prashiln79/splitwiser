@@ -16,10 +16,9 @@ import {
   ChevronDown,
   ChevronUp,
   ArrowRight,
-  ArrowUpRight,
-  ArrowDownLeft,
   Users,
   Search,
+  X,
 } from 'lucide-react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,17 +27,15 @@ import { getGroups, getGroupMembers } from '../services/groups';
 import { getGroupExpenses } from '../services/expenses';
 import { computeFriendBalances } from '../utils/balanceCalculator';
 import { useAuth } from '../context/AuthContext';
-import { useAppTheme, typography, spacing, radii, shadows } from '../theme';
 import { AppHeader } from '../components/common/AppHeader';
+import { BalanceCard } from '../components/common/BalanceCard';
 import { MemberAvatar } from '../components/common/MemberAvatar';
-import { StatusBadge } from '../components/common/StatusBadge';
 import { EmptyState } from '../components/common/EmptyState';
 import { FriendBalance } from '../types';
 import { formatCurrency } from '../utils/currency';
 
 const FriendsScreen = ({ navigation }: any) => {
   const { user } = useAuth();
-  const { colors } = useAppTheme();
   const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
 
@@ -46,6 +43,7 @@ const FriendsScreen = ({ navigation }: any) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [expandedFriends, setExpandedFriends] = useState<Record<string, boolean>>({});
+  const [isSearchActive, setIsSearchActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const fetchData = async (showLoading = true) => {
@@ -128,112 +126,75 @@ const FriendsScreen = ({ navigation }: any) => {
   }, [opacityAnim]);
 
   const renderHeader = () => (
-    <View style={styles.headerContainer}>
-      {/* Hero Overview */}
-      <View
-        style={[
-          styles.heroCard,
-          { backgroundColor: colors.surface, borderColor: colors.border },
-          shadows.sm,
-        ]}
-      >
-        <Text style={[styles.heroEyebrow, { color: colors.textSecondary }]}>
-          FRIENDS BALANCE OVERVIEW
-        </Text>
-
-        <View style={styles.metricsRow}>
-          <View
-            style={[
-              styles.metricBox,
-              { backgroundColor: colors.incomeLight, borderColor: colors.income + '25' },
-            ]}
-          >
-            <View style={styles.metricIconRow}>
-              <ArrowUpRight size={14} color={colors.income} strokeWidth={2.5} />
-              <Text style={[styles.metricLabel, { color: colors.incomeDark }]}>
-                Owed to You
-              </Text>
-            </View>
-            <Text style={[styles.metricVal, { color: colors.incomeDark }]}>
-              {formatCurrency(totalOwed)}
-            </Text>
-          </View>
-
-          <View
-            style={[
-              styles.metricBox,
-              { backgroundColor: colors.expenseLight, borderColor: colors.expense + '25' },
-            ]}
-          >
-            <View style={styles.metricIconRow}>
-              <ArrowDownLeft size={14} color={colors.expense} strokeWidth={2.5} />
-              <Text style={[styles.metricLabel, { color: colors.expenseDark }]}>
-                You Owe
-              </Text>
-            </View>
-            <Text style={[styles.metricVal, { color: colors.expenseDark }]}>
-              {formatCurrency(totalOwes)}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Search Input */}
-      {friends.length > 0 && (
-        <View
-          style={[
-            styles.searchContainer,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-          ]}
-        >
-          <Search size={16} color={colors.textMuted} strokeWidth={2} style={{ marginRight: 8 }} />
-          <TextInput
-            style={[styles.searchInput, { color: colors.textPrimary }]}
-            placeholder="Search friends or groups..."
-            placeholderTextColor={colors.textMuted}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-      )}
+    <View>
+      <BalanceCard totalOwed={totalOwed} totalOwes={totalOwes} />
     </View>
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={styles.container}>
       <AppHeader
         title="Friends"
-        subtitle={`${friends.length} active ${friends.length === 1 ? 'contact' : 'contacts'}`}
+        rightAction={
+          friends.length > 0 ? (
+            <TouchableOpacity
+              onPress={() => {
+                if (Platform.OS !== 'web') {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                }
+                setIsSearchActive(!isSearchActive);
+                if (isSearchActive) setSearchQuery('');
+              }}
+              style={styles.headerIconBtn}
+              accessibilityLabel="Search friends"
+              accessibilityRole="button"
+            >
+              {isSearchActive ? (
+                <X size={20} color="#1A1A1A" strokeWidth={2} />
+              ) : (
+                <Search size={20} color="#1A1A1A" strokeWidth={2} />
+              )}
+            </TouchableOpacity>
+          ) : undefined
+        }
       />
+
+      {/* Optional Search Bar */}
+      {isSearchActive && (
+        <View style={styles.searchBarContainer}>
+          <Search size={16} color="#9E9E9E" style={{ marginRight: 8 }} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search friends or groups..."
+            placeholderTextColor="#9E9E9E"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoFocus
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <X size={16} color="#9E9E9E" />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       {isLoading ? (
         <View style={styles.skeletonContainer}>
           {[1, 2, 3, 4, 5].map((i) => (
-            <View
-              key={i}
-              style={[
-                styles.skeletonCard,
-                { backgroundColor: colors.surface, borderColor: colors.border },
-              ]}
-            >
+            <View key={i} style={styles.skeletonRow}>
               <Animated.View
-                style={[
-                  styles.skeletonAvatar,
-                  { backgroundColor: colors.surfaceVariant, opacity: opacityAnim },
-                ]}
+                style={[styles.skeletonAvatar, { opacity: opacityAnim }]}
               />
-              <View style={{ flex: 1, marginLeft: 12 }}>
+              <View style={{ flex: 1, marginLeft: 14 }}>
                 <Animated.View
-                  style={[
-                    styles.skeletonLine,
-                    { backgroundColor: colors.surfaceVariant, opacity: opacityAnim, width: '50%' },
-                  ]}
+                  style={[styles.skeletonLine, { opacity: opacityAnim, width: '45%' }]}
                 />
                 <Animated.View
-                  style={[
-                    styles.skeletonLineSmall,
-                    { backgroundColor: colors.surfaceVariant, opacity: opacityAnim, width: '30%' },
-                  ]}
+                  style={[styles.skeletonLineSmall, { opacity: opacityAnim, width: '30%' }]}
                 />
               </View>
             </View>
@@ -254,62 +215,60 @@ const FriendsScreen = ({ navigation }: any) => {
             const owesMe = item.netBalance > 0;
 
             return (
-              <View
-                style={[
-                  styles.friendCard,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
-                  shadows.sm,
-                ]}
-              >
-                {/* Main Clickable Header */}
+              <View style={styles.friendItemWrapper}>
+                {/* Main Row */}
                 <TouchableOpacity
-                  style={styles.friendCardHeader}
+                  style={styles.friendRow}
                   onPress={() => toggleExpand(item.userId)}
-                  activeOpacity={0.7}
+                  activeOpacity={0.6}
                   accessibilityRole="button"
-                  accessibilityLabel={`${item.userName}. ${isSettled ? 'Settled' : owesMe ? `Owes you ${formatCurrency(item.netBalance)}` : `You owe ${formatCurrency(Math.abs(item.netBalance))}`}`}
+                  accessibilityLabel={`${item.userName}. ${isSettled ? 'Settled up' : owesMe ? `Owes you ${formatCurrency(item.netBalance)}` : `You owe ${formatCurrency(Math.abs(item.netBalance))}`}`}
                 >
                   <MemberAvatar name={item.userName} size={44} />
 
                   <View style={styles.friendInfo}>
-                    <Text
-                      style={[styles.friendName, { color: colors.textPrimary }]}
-                      numberOfLines={1}
-                    >
+                    <Text style={styles.friendName} numberOfLines={1}>
                       {item.userName}
                     </Text>
-                    <Text style={[styles.friendGroupsCount, { color: colors.textSecondary }]}>
+                    <Text style={styles.friendGroupsCount} numberOfLines={1}>
                       {item.groups.length} shared {item.groups.length === 1 ? 'group' : 'groups'}
                     </Text>
                   </View>
 
-                  <View style={styles.friendBalanceCol}>
-                    <StatusBadge
-                      variant={isSettled ? 'settled' : owesMe ? 'lent' : 'borrowed'}
-                      label={
-                        isSettled
-                          ? 'Settled'
-                          : owesMe
-                          ? `+${formatCurrency(item.netBalance)}`
-                          : `-${formatCurrency(Math.abs(item.netBalance))}`
-                      }
-                      size="sm"
-                    />
-                    <View style={styles.expandChevron}>
+                  <View style={styles.balanceRight}>
+                    {isSettled ? (
+                      <Text style={styles.settledText}>settled up</Text>
+                    ) : owesMe ? (
+                      <View style={styles.balanceColumn}>
+                        <Text style={styles.owesMeLabel}>owes you</Text>
+                        <Text style={styles.owesMeAmount}>
+                          {formatCurrency(item.netBalance)}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={styles.balanceColumn}>
+                        <Text style={styles.youOweLabel}>you owe</Text>
+                        <Text style={styles.youOweAmount}>
+                          {formatCurrency(Math.abs(item.netBalance))}
+                        </Text>
+                      </View>
+                    )}
+
+                    <View style={styles.chevronWrapper}>
                       {isExpanded ? (
-                        <ChevronUp size={16} color={colors.textMuted} />
+                        <ChevronUp size={16} color="#9E9E9E" />
                       ) : (
-                        <ChevronDown size={16} color={colors.textMuted} />
+                        <ChevronDown size={16} color="#9E9E9E" />
                       )}
                     </View>
                   </View>
                 </TouchableOpacity>
 
-                {/* Expanded Group Breakdown */}
+                {/* Expanded Breakdown */}
                 {isExpanded && (
-                  <View style={[styles.expandedContainer, { borderTopColor: colors.borderLight }]}>
-                    <Text style={[styles.breakdownTitle, { color: colors.textSecondary }]}>
-                      SHARED GROUP BALANCES
+                  <View style={styles.breakdownContainer}>
+                    <Text style={styles.breakdownHeader}>
+                      SHARED GROUP BREAKDOWN
                     </Text>
                     {item.groups.map((g) => {
                       const gSettled = Math.abs(g.balance) < 0.01;
@@ -318,7 +277,7 @@ const FriendsScreen = ({ navigation }: any) => {
                       return (
                         <TouchableOpacity
                           key={g.groupId}
-                          style={[styles.groupBalanceRow, { borderBottomColor: colors.borderLight }]}
+                          style={styles.groupRow}
                           onPress={() => {
                             if (navigation?.navigate) {
                               navigation.navigate('Groups', {
@@ -331,11 +290,8 @@ const FriendsScreen = ({ navigation }: any) => {
                           accessibilityRole="button"
                         >
                           <View style={styles.groupLeft}>
-                            <Users size={14} color={colors.textSecondary} style={{ marginRight: 6 }} />
-                            <Text
-                              style={[styles.groupRowName, { color: colors.textPrimary }]}
-                              numberOfLines={1}
-                            >
+                            <Users size={14} color="#6B6B6B" style={{ marginRight: 8 }} />
+                            <Text style={styles.groupNameText} numberOfLines={1}>
                               {g.groupName}
                             </Text>
                           </View>
@@ -346,18 +302,18 @@ const FriendsScreen = ({ navigation }: any) => {
                                 styles.groupBalanceAmount,
                                 {
                                   color: gSettled
-                                    ? colors.textSecondary
+                                    ? '#9E9E9E'
                                     : gOwesMe
-                                    ? colors.income
-                                    : colors.expense,
+                                    ? '#1CC88A'
+                                    : '#E74C3C',
                                 },
                               ]}
                             >
                               {gSettled
-                                ? 'Settled'
+                                ? 'settled'
                                 : `${gOwesMe ? '+' : '-'}${formatCurrency(Math.abs(g.balance))}`}
                             </Text>
-                            <ArrowRight size={12} color={colors.textMuted} style={{ marginLeft: 4 }} />
+                            <ArrowRight size={12} color="#9E9E9E" style={{ marginLeft: 6 }} />
                           </View>
                         </TouchableOpacity>
                       );
@@ -371,15 +327,15 @@ const FriendsScreen = ({ navigation }: any) => {
             <EmptyState
               icon={UserCheck}
               title="No balances with friends"
-              description="When you share expenses with friends in groups, their aggregated balances will show up here."
+              description="When you share expenses with friends across groups, their aggregate balances will appear here."
             />
           }
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={onRefresh}
-              colors={[colors.primary]}
-              tintColor={colors.primary}
+              colors={['#059669']}
+              tintColor="#059669"
             />
           }
         />
@@ -391,157 +347,169 @@ const FriendsScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F5F5F5',
   },
-  listContent: {
-    paddingBottom: 48,
+  headerIconBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  headerContainer: {
-    padding: spacing.base,
-    paddingBottom: spacing.sm,
-  },
-  heroCard: {
-    borderRadius: radii.xl,
-    padding: spacing.base,
-    borderWidth: 1,
-    marginBottom: spacing.md,
-  },
-  heroEyebrow: {
-    fontSize: typography.sizes.xs,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    marginBottom: spacing.sm,
-  },
-  metricsRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  metricBox: {
-    flex: 1,
-    padding: spacing.md,
-    borderRadius: radii.md,
-    borderWidth: 1,
-  },
-  metricIconRow: {
+  searchBarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginBottom: 4,
-  },
-  metricLabel: {
-    fontSize: typography.sizes.xs,
-    fontWeight: '600',
-  },
-  metricVal: {
-    fontSize: typography.sizes.md,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.lg,
-    borderWidth: 1,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    height: 44,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
   },
   searchInput: {
     flex: 1,
-    fontSize: typography.sizes.sm,
-    padding: 0,
+    fontSize: 15,
+    color: '#1A1A1A',
+    paddingVertical: 0,
   },
-  friendCard: {
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    marginHorizontal: spacing.base,
-    marginBottom: spacing.sm,
-    overflow: 'hidden',
+  listContent: {
+    paddingBottom: 32,
   },
-  friendCardHeader: {
+  friendItemWrapper: {
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
+  },
+  friendRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
   friendInfo: {
     flex: 1,
-    marginLeft: spacing.md,
-    marginRight: spacing.sm,
+    marginLeft: 14,
+    marginRight: 12,
   },
   friendName: {
-    fontSize: typography.sizes.base,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1A1A',
     letterSpacing: -0.2,
+    marginBottom: 2,
   },
   friendGroupsCount: {
-    fontSize: typography.sizes.xs,
-    marginTop: 2,
+    fontSize: 13,
+    color: '#6B6B6B',
   },
-  friendBalanceCol: {
+  balanceRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
   },
-  expandChevron: {
-    paddingLeft: 2,
+  balanceColumn: {
+    alignItems: 'flex-end',
   },
-  expandedContainer: {
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
+  settledText: {
+    fontSize: 14,
+    color: '#9E9E9E',
+    fontWeight: '400',
   },
-  breakdownTitle: {
-    fontSize: typography.sizes.xs - 1,
+  owesMeLabel: {
+    fontSize: 12,
+    color: '#1CC88A',
+    fontWeight: '500',
+  },
+  owesMeAmount: {
+    fontSize: 15,
     fontWeight: '700',
-    letterSpacing: 0.6,
-    marginBottom: spacing.sm,
+    color: '#1CC88A',
+    marginTop: 1,
   },
-  groupBalanceRow: {
+  youOweLabel: {
+    fontSize: 12,
+    color: '#E74C3C',
+    fontWeight: '500',
+  },
+  youOweAmount: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#E74C3C',
+    marginTop: 1,
+  },
+  chevronWrapper: {
+    marginLeft: 10,
+    width: 16,
+    alignItems: 'center',
+  },
+  breakdownContainer: {
+    backgroundColor: '#FAFAFA',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#EFEFEF',
+  },
+  breakdownHeader: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#9E9E9E',
+    letterSpacing: 0.6,
+    marginBottom: 6,
+    marginLeft: 4,
+  },
+  groupRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#EEEEEE',
   },
   groupLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    marginRight: 12,
   },
-  groupRowName: {
-    fontSize: typography.sizes.sm,
+  groupNameText: {
+    fontSize: 14,
     fontWeight: '500',
+    color: '#1A1A1A',
   },
   groupRight: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   groupBalanceAmount: {
-    fontSize: typography.sizes.sm,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
   },
   skeletonContainer: {
-    padding: spacing.base,
-    gap: spacing.sm,
+    backgroundColor: '#FFFFFF',
   },
-  skeletonCard: {
+  skeletonRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: radii.lg,
-    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
   },
   skeletonAvatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
+    backgroundColor: '#EBEBEB',
   },
   skeletonLine: {
     height: 14,
     borderRadius: 4,
+    backgroundColor: '#EBEBEB',
     marginBottom: 6,
   },
   skeletonLineSmall: {
     height: 10,
     borderRadius: 4,
+    backgroundColor: '#EBEBEB',
   },
 });
 
