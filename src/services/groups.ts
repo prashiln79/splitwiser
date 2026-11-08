@@ -17,7 +17,7 @@ import {
   Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { Group, GroupMember, MemberRole } from '../types';
+import { Group, GroupMember, MemberRole, GroupCoverPhoto } from '../types';
 
 import {
   updateGroupLocal,
@@ -46,6 +46,7 @@ function generateJoinCode(length = 6): string {
 }
 
 function mapGroup(id: string, data: Record<string, any>): Group {
+  const coverPhoto = data.coverPhoto || (data.bannerUrl ? { type: 'preset', imageUrl: data.bannerUrl } : undefined);
   return {
     id,
     name: data.name,
@@ -54,7 +55,8 @@ function mapGroup(id: string, data: Record<string, any>): Group {
     createdBy: data.createdBy,
     createdAt: data.createdAt?.toDate() ?? new Date(),
     imageUrl: data.imageUrl,
-    bannerUrl: data.bannerUrl,
+    bannerUrl: coverPhoto?.imageUrl || data.bannerUrl,
+    coverPhoto,
     icon: data.icon,
     memberIds: data.memberIds ?? [],
   };
@@ -78,7 +80,8 @@ export async function createGroup(
   creatorName: string,
   currency = 'INR',
   imageUrl?: string,
-  icon?: string
+  icon?: string,
+  coverPhoto?: GroupCoverPhoto
 ): Promise<Group> {
   const joinCode = generateJoinCode();
 
@@ -90,6 +93,8 @@ export async function createGroup(
     createdAt: serverTimestamp(),
     memberIds: [creatorUid],
     imageUrl: imageUrl || null,
+    bannerUrl: coverPhoto?.imageUrl || null,
+    coverPhoto: coverPhoto || null,
     icon: icon || null,
   });
 
@@ -121,7 +126,7 @@ export async function getGroupById(groupId: string): Promise<Group | null> {
 
 export async function updateGroup(
   groupId: string,
-  updates: Partial<Pick<Group, 'name' | 'imageUrl' | 'bannerUrl' | 'icon'>>
+  updates: Partial<Pick<Group, 'name' | 'imageUrl' | 'bannerUrl' | 'coverPhoto' | 'icon'>>
 ): Promise<void> {
   await updateGroupLocal(groupId, updates);
   await updateDoc(groupDoc(groupId), updates);

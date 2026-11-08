@@ -27,6 +27,9 @@ import { useAuth } from '../context/AuthContext';
 import { createGroup } from '../services/groups';
 import { createGroupLocal, getLocalGroups } from '../repositories/groupRepository';
 import { networkMonitor } from '../sync/networkMonitor';
+import { GroupCoverPhotoModal } from '../components/common/GroupCoverPhotoModal';
+import { getDefaultCoverPhoto } from '../constants/presetCovers';
+import { GroupCoverPhoto } from '../types';
 
 type GroupType = 'trip' | 'home' | 'couple' | 'other';
 
@@ -44,6 +47,8 @@ export const CreateGroupScreen = ({ navigation }: any) => {
   const [name, setName] = useState('');
   const [selectedType, setSelectedType] = useState<GroupType>('home');
   const [pickedImage, setPickedImage] = useState<{ uri: string; base64?: string | null } | null>(null);
+  const [pickedCover, setPickedCover] = useState<GroupCoverPhoto | null>(null);
+  const [coverModalVisible, setCoverModalVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const pickImage = async () => {
@@ -84,7 +89,8 @@ export const CreateGroupScreen = ({ navigation }: any) => {
           user.name,
           'INR',
           imagePayload,
-          selectedType
+          selectedType,
+          pickedCover || undefined
         );
         createdGroupId = created.id;
       } else {
@@ -94,7 +100,8 @@ export const CreateGroupScreen = ({ navigation }: any) => {
           user.name,
           'INR',
           imagePayload,
-          selectedType
+          selectedType,
+          pickedCover || undefined
         );
         createdGroupId = created.id;
         await getLocalGroups(user.uid);
@@ -234,8 +241,56 @@ export const CreateGroupScreen = ({ navigation }: any) => {
               })}
             </View>
           </View>
+
+          {/* Optional Cover Photo Selection */}
+          <View style={styles.coverSection}>
+            <Text style={styles.typeSectionTitle}>Cover Photo (Optional)</Text>
+            <TouchableOpacity
+              style={styles.coverPreviewCard}
+              onPress={() => setCoverModalVisible(true)}
+              activeOpacity={0.85}
+            >
+              <Image
+                source={{
+                  uri:
+                    pickedCover?.imageUrl ||
+                    getDefaultCoverPhoto('new', selectedType, name).imageUrl,
+                }}
+                style={StyleSheet.absoluteFill}
+                resizeMode="cover"
+              />
+              <View style={styles.coverScrim} />
+              <View style={styles.coverOverlayContent}>
+                <Camera size={18} color="#FFFFFF" strokeWidth={2.2} />
+                <Text style={styles.coverPickerText}>
+                  {pickedCover ? 'Change Cover Photo' : 'Select Cover Photo'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Cover Photo Selection Modal */}
+      <GroupCoverPhotoModal
+        visible={coverModalVisible}
+        group={{
+          id: 'temp_new',
+          name: name || 'New Group',
+          currency: 'INR',
+          joinCode: '',
+          createdBy: user?.uid || '',
+          createdAt: new Date(),
+          imageUrl: pickedImage?.uri,
+          memberIds: [user?.uid || ''],
+          coverPhoto: pickedCover || undefined,
+        }}
+        currentUserId={user?.uid || ''}
+        onClose={() => setCoverModalVisible(false)}
+        onSuccess={(updatedCover) => {
+          setPickedCover(updatedCover);
+        }}
+      />
     </View>
   );
 };
@@ -363,6 +418,45 @@ const styles = StyleSheet.create({
   },
   typeChipTextSelected: {
     color: '#059669',
+  },
+  coverSection: {
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  coverPreviewCard: {
+    height: 110,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#1E293B',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  coverScrim: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0, 0, 0, 0.42)',
+  },
+  coverOverlayContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    zIndex: 2,
+  },
+  coverPickerText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
 

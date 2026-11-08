@@ -18,6 +18,7 @@ import {
   NativeScrollEvent,
   TextInput,
   KeyboardAvoidingView,
+  Animated,
 } from 'react-native';
 import {
   Plus,
@@ -44,6 +45,7 @@ import {
   Check,
   SendHorizontal,
   ImagePlus,
+  Gem,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -57,7 +59,11 @@ import { getOptimizedSettlements } from '../utils/balanceCalculator';
 import { useAuth } from '../context/AuthContext';
 import { MemberAvatar } from '../components/common/MemberAvatar';
 import { ExpenseListItem } from '../components/common/ExpenseListItem';
-import { CategoryIcon, detectCategory } from '../components/common/CategoryIcon';
+import { CategoryIcon, detectCategory, CATEGORIES_CONFIG } from '../components/common/CategoryIcon';
+import { SpendingDonutChart } from '../components/common/SpendingDonutChart';
+import { MonthlyTrendsChart, MonthTrendItem } from '../components/common/MonthlyTrendsChart';
+import { GroupCoverHeader, COVER_SCROLL_DISTANCE } from '../components/common/GroupCoverHeader';
+import { GroupCoverPhotoModal } from '../components/common/GroupCoverPhotoModal';
 import { SettleUpModal } from '../components/common/SettleUpModal';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 import { EmptyState } from '../components/common/EmptyState';
@@ -89,8 +95,18 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
   const { width: screenWidth } = useWindowDimensions();
 
   const pagerRef = useRef<any>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
   const [activeTabIndex, setActiveTabIndex] = useState<number>(0);
   const [showSettledExpenses, setShowSettledExpenses] = useState<boolean>(false);
+  const [chartTimeframe, setChartTimeframe] = useState<'1M' | '3M' | 'ALL'>('ALL');
+
+  const headerTranslateY = scrollY.interpolate({
+    inputRange: [0, COVER_SCROLL_DISTANCE],
+    outputRange: [0, -COVER_SCROLL_DISTANCE],
+    extrapolate: 'clamp',
+  });
+
+  const TOTAL_HEADER_HEIGHT = insets.top + 44 + COVER_SCROLL_DISTANCE + 48;
 
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
@@ -102,6 +118,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
   const [settleModalVisible, setSettleModalVisible] = useState(false);
   const [settlePrefill, setSettlePrefill] = useState<{ toUserId?: string; amount?: number }>({});
   const [onlyMemberPromptVisible, setOnlyMemberPromptVisible] = useState(false);
+  const [coverModalVisible, setCoverModalVisible] = useState(false);
 
   // Expense details modal state
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
@@ -366,10 +383,36 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
     }, 0);
   }, [expenses, user]);
 
-  // Category breakdown for Charts
-  const categoryBreakdown = useMemo(() => {
+  // Chart Timeframe Filtered Expenses
+  const chartFilteredExpenses = useMemo(() => {
+    if (chartTimeframe === 'ALL') return expenses;
+    const now = new Date();
+    const cutoff = new Date();
+    if (chartTimeframe === '1M') {
+      cutoff.setMonth(now.getMonth() - 1);
+    } else if (chartTimeframe === '3M') {
+      cutoff.setMonth(now.getMonth() - 3);
+    }
+    const cutoffTime = cutoff.getTime();
+    return expenses.filter((e) => new Date(e.createdAt).getTime() >= cutoffTime);
+  }, [expenses, chartTimeframe]);
+
+  const filteredTotalExpensesAmount = useMemo(() => {
+    return chartFilteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  }, [chartFilteredExpenses]);
+
+  const filteredMyShareAmount = useMemo(() => {
+    if (!user) return 0;
+    return chartFilteredExpenses.reduce((sum, e) => {
+      const mySplit = e.splits?.find((s) => s.userId === user.uid);
+      return sum + (mySplit ? mySplit.amount : 0);
+    }, 0);
+  }, [chartFilteredExpenses, user]);
+
+  // Category breakdown for Charts with dynamic colors
+  const filteredCategoryBreakdown = useMemo(() => {
     const map = new Map<string, { total: number; count: number }>();
-    expenses.forEach((e) => {
+    chartFilteredExpenses.forEach((e) => {
       const cat = detectCategory(e.description, e.tags);
       const existing = map.get(cat) || { total: 0, count: 0 };
       existing.total += e.amount || 0;
@@ -377,15 +420,54 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
       map.set(cat, existing);
     });
 
-    const list = Array.from(map.entries()).map(([category, data]) => ({
-      category,
-      total: data.total,
-      count: data.count,
-      percentage: totalExpensesAmount > 0 ? (data.total / totalExpensesAmount) * 100 : 0,
-    }));
+    const list = Array.from(map.entries()).map(([category, data]) => {
+      const color = CATEGORIES_CONFIG[category]?.color || '#059669';
+      return {
+        category,
+        amount: data.total,
+        total: data.total,
+        count: data.count,
+        percentage:
+          filteredTotalExpensesAmount > 0 ? (data.total / filteredTotalExpensesAmount) * 100 : 0,
+        color,
+      };
+    });
 
     return list.sort((a, b) => b.total - a.total);
-  }, [expenses, totalExpensesAmount]);
+  }, [chartFilteredExpenses, filteredTotalExpensesAmount]);
+
+  // Legacy Category breakdown (for backwards compatibility if referenced)
+  const categoryBreakdown = filteredCategoryBreakdown;
+
+  // 6-month historical spending trends
+  const monthlyTrendsData = useMemo<MonthTrendItem[]>(() => {
+    const now = new Date();
+    const months: MonthTrendItem[] = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        monthLabel: d.toLocaleDateString('en-US', { month: 'short' }),
+        year: d.getFullYear(),
+        monthIdx: d.getMonth(),
+        total: 0,
+        count: 0,
+      });
+    }
+
+    expenses.forEach((e) => {
+      const d = new Date(e.createdAt);
+      const match = months.find(
+        (m) => m.monthIdx === d.getMonth() && m.year === d.getFullYear()
+      );
+      if (match) {
+        match.total += e.amount || 0;
+        match.count += 1;
+      }
+    });
+
+    return months;
+  }, [expenses]);
 
   // Per-member breakdown & net balance calculation
   const memberBalances = useMemo(() => {
@@ -434,6 +516,46 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
     });
   }, [members, expenses, recordedSettlements, totalExpensesAmount, user]);
 
+  // Filtered member spending for Charts tab (distinguishing cash disbursed vs fair share)
+  const filteredMemberSpending = useMemo(() => {
+    const paidMap = new Map<string, number>();
+    const shareMap = new Map<string, number>();
+
+    members.forEach((m) => {
+      paidMap.set(m.userId, 0);
+      shareMap.set(m.userId, 0);
+    });
+
+    chartFilteredExpenses.forEach((e) => {
+      const payer = e.paidBy || e.createdBy;
+      paidMap.set(payer, (paidMap.get(payer) || 0) + e.amount);
+      e.splits?.forEach((s) => {
+        shareMap.set(s.userId, (shareMap.get(s.userId) || 0) + s.amount);
+      });
+    });
+
+    return members.map((m) => {
+      const totalPaid = paidMap.get(m.userId) || 0;
+      const totalShare = shareMap.get(m.userId) || 0;
+      const net = totalPaid - totalShare;
+      const percentage =
+        filteredTotalExpensesAmount > 0 ? (totalPaid / filteredTotalExpensesAmount) * 100 : 0;
+      const isMe = m.userId === user?.uid;
+      const name = isMe && user?.name ? user.name : m.userName;
+
+      return {
+        userId: m.userId,
+        userName: name,
+        imageUrl: m.imageUrl,
+        totalPaid,
+        totalShare,
+        net,
+        percentage,
+        isMe,
+      };
+    });
+  }, [members, chartFilteredExpenses, filteredTotalExpensesAmount, user]);
+
   // Page navigation handling
   const handleTabPress = (index: number) => {
     if (Platform.OS !== 'web') {
@@ -441,6 +563,11 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
     }
     setActiveTabIndex(index);
     pagerRef.current?.scrollTo({ x: index * screenWidth, animated: true });
+    Animated.timing(scrollY, {
+      toValue: 0,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
   };
 
   const handleScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -448,6 +575,11 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
     const index = Math.round(offsetX / screenWidth);
     if (index !== activeTabIndex && index >= 0 && index < TABS.length) {
       setActiveTabIndex(index);
+      Animated.timing(scrollY, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }).start();
     }
   };
 
@@ -465,9 +597,17 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
         keyExtractor={(item) => item.id}
         contentContainerStyle={[
           styles.pageScrollContent,
-          { paddingBottom: Math.max(insets.bottom + 90, 110) },
+          {
+            paddingTop: TOTAL_HEADER_HEIGHT,
+            paddingBottom: Math.max(insets.bottom + 90, 110),
+          },
         ]}
         showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
         renderItem={({ item, index }) => {
           const dateObj = new Date(item.createdAt);
           const currentMonthYear = dateObj.toLocaleDateString('en-US', {
@@ -531,9 +671,17 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
         style={{ width: screenWidth }}
         contentContainerStyle={[
           styles.pageScrollContent,
-          { paddingBottom: Math.max(insets.bottom + 90, 110) },
+          {
+            paddingTop: TOTAL_HEADER_HEIGHT,
+            paddingBottom: Math.max(insets.bottom + 90, 110),
+          },
         ]}
         showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -690,9 +838,17 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
         style={{ width: screenWidth }}
         contentContainerStyle={[
           styles.pageScrollContent,
-          { paddingBottom: Math.max(insets.bottom + 90, 110) },
+          {
+            paddingTop: TOTAL_HEADER_HEIGHT,
+            paddingBottom: Math.max(insets.bottom + 90, 110),
+          },
         ]}
         showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -702,15 +858,47 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
           />
         }
       >
+        {/* Timeframe Filter Selector */}
+        <View style={styles.chartFilterPillsRow}>
+          {(['1M', '3M', 'ALL'] as const).map((tf) => {
+            const isSelected = chartTimeframe === tf;
+            const label = tf === '1M' ? 'This month' : tf === '3M' ? 'Past 3 months' : 'All-time';
+            return (
+              <TouchableOpacity
+                key={tf}
+                style={[styles.chartFilterPill, isSelected && styles.chartFilterPillActive]}
+                onPress={() => {
+                  if (Platform.OS !== 'web') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  }
+                  setChartTimeframe(tf);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.chartFilterPillText,
+                    isSelected && styles.chartFilterPillTextActive,
+                  ]}
+                >
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         {/* Spending Hero Card */}
         <View style={styles.chartsHeroCard}>
           <View style={styles.chartsHeroHeader}>
             <View>
               <Text style={styles.chartsHeroLabel}>Total Group Spending</Text>
-              <Text style={styles.chartsHeroAmount}>{formatCurrency(totalExpensesAmount)}</Text>
+              <Text style={styles.chartsHeroAmount}>
+                {formatCurrency(filteredTotalExpensesAmount)}
+              </Text>
             </View>
             <View style={styles.sparkleIconBadge}>
-              <Sparkles size={22} color="#059669" />
+              <Gem size={22} color="#7C3AED" />
             </View>
           </View>
 
@@ -719,96 +907,145 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
           <View style={styles.chartsHeroStatsRow}>
             <View style={styles.chartsHeroStat}>
               <Text style={styles.chartsHeroStatLabel}>Total Expenses</Text>
-              <Text style={styles.chartsHeroStatVal}>{expenses.length}</Text>
+              <Text style={styles.chartsHeroStatVal}>{chartFilteredExpenses.length}</Text>
             </View>
             <View style={styles.chartsHeroStat}>
               <Text style={styles.chartsHeroStatLabel}>Average / Person</Text>
               <Text style={styles.chartsHeroStatVal}>
-                {formatCurrency(members.length > 0 ? totalExpensesAmount / members.length : 0)}
+                {formatCurrency(
+                  members.length > 0 ? filteredTotalExpensesAmount / members.length : 0
+                )}
               </Text>
             </View>
             <View style={styles.chartsHeroStat}>
               <Text style={styles.chartsHeroStatLabel}>Your Fair Share</Text>
-              <Text style={styles.chartsHeroStatVal}>{formatCurrency(myShareAmount)}</Text>
+              <Text style={styles.chartsHeroStatVal}>{formatCurrency(filteredMyShareAmount)}</Text>
             </View>
           </View>
         </View>
 
-        {/* Category-Wise Spending */}
+        {/* Category-Wise Spending Donut Chart Card */}
         <View style={styles.chartBlockCard}>
           <View style={styles.chartBlockHeader}>
             <PieChart size={18} color="#059669" />
             <Text style={styles.chartBlockTitle}>Category Breakdown</Text>
           </View>
 
-          {categoryBreakdown.length === 0 ? (
-            <Text style={styles.emptyChartNotice}>No expense categories recorded yet.</Text>
+          {filteredCategoryBreakdown.length === 0 ? (
+            <Text style={styles.emptyChartNotice}>No expense categories recorded for this period.</Text>
           ) : (
-            categoryBreakdown.map((item) => (
-              <View key={item.category} style={styles.breakdownRow}>
-                <CategoryIcon category={item.category} size={36} />
-                <View style={styles.breakdownMiddle}>
-                  <View style={styles.breakdownLabelRow}>
-                    <Text style={styles.breakdownCategoryName}>{item.category}</Text>
-                    <Text style={styles.breakdownAmountText}>{formatCurrency(item.total)}</Text>
-                  </View>
-                  <View style={styles.progressBarTrack}>
-                    <View
-                      style={[
-                        styles.progressBarFill,
-                        { width: `${Math.min(100, Math.max(3, item.percentage))}%` },
-                      ]}
-                    />
-                  </View>
-                  <View style={styles.breakdownSubRow}>
-                    <Text style={styles.breakdownCountText}>
-                      {item.count} {item.count === 1 ? 'expense' : 'expenses'}
-                    </Text>
-                    <Text style={styles.breakdownPercentText}>{item.percentage.toFixed(0)}%</Text>
+            <>
+              {/* Native SVG Donut Chart with touch slice selection & center callout */}
+              <View style={{ alignItems: 'center', marginVertical: 12 }}>
+                <SpendingDonutChart
+                  data={filteredCategoryBreakdown}
+                  totalAmount={filteredTotalExpensesAmount}
+                  size={210}
+                />
+              </View>
+
+              {/* Category Breakdown Rows */}
+              {filteredCategoryBreakdown.map((item) => (
+                <View key={item.category} style={styles.breakdownRow}>
+                  <CategoryIcon category={item.category} size={36} />
+                  <View style={styles.breakdownMiddle}>
+                    <View style={styles.breakdownLabelRow}>
+                      <Text style={styles.breakdownCategoryName}>{item.category}</Text>
+                      <Text style={styles.breakdownAmountText}>{formatCurrency(item.total)}</Text>
+                    </View>
+                    <View style={styles.progressBarTrack}>
+                      <View
+                        style={[
+                          styles.progressBarFill,
+                          {
+                            width: `${Math.min(100, Math.max(3, item.percentage))}%`,
+                            backgroundColor: item.color,
+                          },
+                        ]}
+                      />
+                    </View>
+                    <View style={styles.breakdownSubRow}>
+                      <Text style={styles.breakdownCountText}>
+                        {item.count} {item.count === 1 ? 'expense' : 'expenses'}
+                      </Text>
+                      <Text style={styles.breakdownPercentText}>{item.percentage.toFixed(0)}%</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
-            ))
+              ))}
+            </>
           )}
         </View>
 
-        {/* Member-Wise Spending */}
+        {/* 6-Month Spending Trends Bar Chart */}
+        <View style={styles.chartBlockCard}>
+          <View style={styles.chartBlockHeader}>
+            <TrendingUp size={18} color="#059669" />
+            <Text style={styles.chartBlockTitle}>6-Month Spending Trends</Text>
+          </View>
+          <View style={{ marginVertical: 8 }}>
+            <MonthlyTrendsChart data={monthlyTrendsData} height={170} />
+          </View>
+        </View>
+
+        {/* Member-Wise Spending & Contribution (Amount Paid vs Fair Share) */}
         <View style={styles.chartBlockCard}>
           <View style={styles.chartBlockHeader}>
             <Users size={18} color="#059669" />
             <Text style={styles.chartBlockTitle}>Member Spending & Contribution</Text>
           </View>
 
-          {memberBalances.map((m) => (
-            <View key={m.userId} style={styles.memberSpendingRow}>
-              <MemberAvatar name={m.userName} imageUrl={m.imageUrl} size={38} />
-              <View style={styles.memberSpendingRight}>
-                <View style={styles.breakdownLabelRow}>
-                  <Text style={styles.memberSpendingName}>
-                    {m.userName} {m.isMe ? '(You)' : ''}
-                  </Text>
-                  <Text style={styles.memberPaidAmount}>{formatCurrency(m.totalPaid)}</Text>
-                </View>
+          {filteredMemberSpending.map((m) => {
+            const isOverpaid = m.net > 0.01;
+            const isUnderpaid = m.net < -0.01;
 
-                <View style={styles.progressBarTrack}>
-                  <View
-                    style={[
-                      styles.progressBarFill,
-                      {
-                        width: `${Math.min(100, Math.max(3, m.percentage))}%`,
-                        backgroundColor: m.isMe ? '#059669' : '#3B82F6',
-                      },
-                    ]}
-                  />
-                </View>
+            return (
+              <View key={m.userId} style={styles.memberSpendingRow}>
+                <MemberAvatar name={m.userName} imageUrl={m.imageUrl} size={38} />
+                <View style={styles.memberSpendingRight}>
+                  <View style={styles.breakdownLabelRow}>
+                    <Text style={styles.memberSpendingName}>
+                      {m.userName} {m.isMe ? '(You)' : ''}
+                    </Text>
+                    <Text style={styles.memberPaidAmount}>{formatCurrency(m.totalPaid)}</Text>
+                  </View>
 
-                <View style={styles.memberSpendingSubRow}>
-                  <Text style={styles.memberShareText}>Fair share: {formatCurrency(m.totalShare)}</Text>
-                  <Text style={styles.memberPercentText}>{m.percentage.toFixed(0)}% paid</Text>
+                  <View style={styles.progressBarTrack}>
+                    <View
+                      style={[
+                        styles.progressBarFill,
+                        {
+                          width: `${Math.min(100, Math.max(3, m.percentage))}%`,
+                          backgroundColor: m.isMe ? '#059669' : '#3B82F6',
+                        },
+                      ]}
+                    />
+                  </View>
+
+                  <View style={styles.memberSpendingSubRow}>
+                    <Text style={styles.memberShareText}>
+                      Fair share: {formatCurrency(m.totalShare)}
+                    </Text>
+                    {isOverpaid ? (
+                      <View style={styles.memberNetBadgeGreen}>
+                        <Text style={styles.memberNetBadgeGreenText}>
+                          +{formatCurrency(m.net)} overpaid
+                        </Text>
+                      </View>
+                    ) : isUnderpaid ? (
+                      <View style={styles.memberNetBadgeRed}>
+                        <Text style={styles.memberNetBadgeRedText}>
+                          -{formatCurrency(Math.abs(m.net))} underpaid
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.memberPercentText}>{m.percentage.toFixed(0)}% paid</Text>
+                    )}
+                  </View>
                 </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       </ScrollView>
     );
@@ -821,9 +1058,17 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
         style={{ width: screenWidth }}
         contentContainerStyle={[
           styles.pageScrollContent,
-          { paddingBottom: Math.max(insets.bottom + 90, 110) },
+          {
+            paddingTop: TOTAL_HEADER_HEIGHT,
+            paddingBottom: Math.max(insets.bottom + 90, 110),
+          },
         ]}
         showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -931,9 +1176,17 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
         style={{ width: screenWidth }}
         contentContainerStyle={[
           styles.pageScrollContent,
-          { paddingBottom: Math.max(insets.bottom + 90, 110) },
+          {
+            paddingTop: TOTAL_HEADER_HEIGHT,
+            paddingBottom: Math.max(insets.bottom + 90, 110),
+          },
         ]}
         showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -1017,110 +1270,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      {/* Top Banner Card (Dark Emerald Green like screenshot) */}
-      <View style={[styles.emeraldBanner, { paddingTop: insets.top + 8 }]}>
-        <View style={styles.bannerNavRow}>
-          <TouchableOpacity
-            style={styles.bannerCircleBtn}
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.8}
-            accessibilityLabel="Back"
-            accessibilityRole="button"
-          >
-            <ArrowLeft size={18} color="#064E3B" strokeWidth={2.5} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.bannerCircleBtn}
-            onPress={() => navigation.navigate('GroupSettings', { groupId })}
-            activeOpacity={0.8}
-            accessibilityLabel="Settings"
-            accessibilityRole="button"
-          >
-            <Settings size={18} color="#064E3B" strokeWidth={2.5} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Group Title */}
-        <Text style={styles.bannerGroupTitle} numberOfLines={1}>
-          {group?.name || initialGroupName}
-        </Text>
-
-        {/* Action Pills in Banner */}
-        <View style={styles.bannerPillsRow}>
-          <TouchableOpacity
-            style={styles.bannerActionPill}
-            onPress={() => openQuickSettle()}
-            activeOpacity={0.8}
-          >
-            <Calendar size={14} color="#FFFFFF" strokeWidth={2} />
-            <Text style={styles.bannerActionPillText}>Settle up</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.bannerActionPill}
-            onPress={handleShareCode}
-            activeOpacity={0.8}
-          >
-            <Users size={14} color="#FFFFFF" strokeWidth={2} />
-            <Text style={styles.bannerActionPillText}>Add members</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Balance Summary Alert Strip */}
-      <View style={styles.statusAlertStrip}>
-        <Text style={styles.statusAlertText}>
-          {isSettled
-            ? '🎉 You are all settled up in this group.'
-            : netBalance > 0
-            ? `🟢 You are owed ${formatCurrency(netBalance)} in this group.`
-            : `🔴 You owe ${formatCurrency(Math.abs(netBalance))} in this group.`}
-        </Text>
-      </View>
-
-      {/* Horizontal Pill Navigation Tabs */}
-      <View style={styles.pillTabsContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.pillTabsScrollContent}
-        >
-          {TABS.map((tab, idx) => {
-            const isActive = activeTabIndex === idx;
-            return (
-              <TouchableOpacity
-                key={tab.key}
-                style={[
-                  styles.navPill,
-                  isActive ? styles.navPillActive : styles.navPillInactive,
-                ]}
-                onPress={() => handleTabPress(idx)}
-                activeOpacity={0.7}
-              >
-                {tab.hasSparkle && (
-                  <Sparkles
-                    size={14}
-                    color={isActive ? '#FFFFFF' : '#7C3AED'}
-                    strokeWidth={2.5}
-                    style={{ marginRight: 5 }}
-                  />
-                )}
-                <Text
-                  style={[
-                    styles.navPillText,
-                    isActive ? styles.navPillTextActive : styles.navPillTextInactive,
-                  ]}
-                >
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
-
-      {/* Pager / Swipeable Content */}
+      {/* Pager / Swipeable Content (Scrolls Smoothly Behind Floating Header) */}
       {isLoading ? (
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color="#059669" />
@@ -1141,6 +1291,74 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
           {renderTotalSection()}
         </ScrollView>
       )}
+
+      {/* Floating Animated Collapsible Header (Cover Photo + Nav + Tabs) */}
+      <Animated.View
+        style={[
+          styles.stickyHeaderWrapper,
+          { transform: [{ translateY: headerTranslateY }] },
+        ]}
+      >
+        <GroupCoverHeader
+          group={group}
+          initialGroupName={initialGroupName}
+          memberCount={members.length}
+          netBalance={netBalance}
+          settlements={settlements}
+          currentUserId={user?.uid || ''}
+          onBack={() => navigation.goBack()}
+          onSettings={() => navigation.navigate('GroupSettings', { groupId })}
+          onEditCover={() => setCoverModalVisible(true)}
+          scrollY={scrollY}
+        />
+
+        {/* Horizontal Pill Navigation Tabs */}
+        <View style={styles.pillTabsContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.pillTabsScrollContent}
+          >
+            {TABS.map((tab, idx) => {
+              const isActive = activeTabIndex === idx;
+              const isSettleTab = tab.key === 'settle';
+
+              return (
+                <TouchableOpacity
+                  key={tab.key}
+                  style={[
+                    styles.navPill,
+                    isActive
+                      ? isSettleTab
+                        ? styles.navPillSettleActive
+                        : styles.navPillActive
+                      : styles.navPillInactive,
+                  ]}
+                  onPress={() => handleTabPress(idx)}
+                  activeOpacity={0.7}
+                >
+                  {tab.hasSparkle && (
+                    <Gem
+                      size={13}
+                      color={isActive ? '#FFFFFF' : '#7C3AED'}
+                      strokeWidth={2.5}
+                      style={{ marginRight: 5 }}
+                    />
+                  )}
+                  <Text
+                    style={[
+                      styles.navPillText,
+                      isActive ? styles.navPillTextActive : styles.navPillTextInactive,
+                    ]}
+                  >
+                    {tab.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </Animated.View>
 
       {/* Floating Action Button (Screenshot-style Green Pill) */}
       <TouchableOpacity
@@ -1173,6 +1391,27 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
         }}
       />
 
+      {/* Group Cover Photo Selection & Management Modal */}
+      <GroupCoverPhotoModal
+        visible={coverModalVisible}
+        group={group}
+        currentUserId={user?.uid || ''}
+        onClose={() => setCoverModalVisible(false)}
+        onSuccess={(updatedCover) => {
+          setGroup((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  coverPhoto: updatedCover || undefined,
+                  bannerUrl: updatedCover?.imageUrl || undefined,
+                }
+              : null
+          );
+          fetchGroupData();
+          loadLocalData();
+        }}
+      />
+
       {/* Full-Screen Expense Detail Screen (Matching Reference Design) */}
       {selectedExpense && (
         <Modal
@@ -1185,7 +1424,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
             style={{ flex: 1, backgroundColor: '#FFFFFF' }}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           >
-            {/* Top Mint Header Bar */}
+            {/* Top Mint Header Bar (Splitwise Screenshot Design) */}
             <View style={[styles.expDetailTopBar, { paddingTop: insets.top + 8 }]}>
               <View style={styles.expDetailNavRow}>
                 <TouchableOpacity
@@ -1217,7 +1456,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                     activeOpacity={0.7}
                     accessibilityLabel="Receipt photo"
                   >
-                    <ImagePlus size={22} color="#374151" strokeWidth={2.2} />
+                    <ImagePlus size={22} color="#1F2937" strokeWidth={2.2} />
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -1226,7 +1465,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                     activeOpacity={0.7}
                     accessibilityLabel="Delete expense"
                   >
-                    <Trash2 size={22} color="#374151" strokeWidth={2.2} />
+                    <Trash2 size={22} color="#1F2937" strokeWidth={2.2} />
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -1235,9 +1474,18 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                     activeOpacity={0.7}
                     accessibilityLabel="Edit expense"
                   >
-                    <Pencil size={22} color="#374151" strokeWidth={2.2} />
+                    <Pencil size={22} color="#1F2937" strokeWidth={2.2} />
                   </TouchableOpacity>
                 </View>
+              </View>
+
+              {/* Category Icon Placed Inside Mint Header Bar */}
+              <View style={styles.expDetailHeaderIconRow}>
+                <CategoryIcon
+                  description={selectedExpense.description}
+                  tags={selectedExpense.tags}
+                  size={46}
+                />
               </View>
             </View>
 
@@ -1249,15 +1497,8 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
               ]}
               showsVerticalScrollIndicator={false}
             >
-              {/* Category Icon, Title, Amount & Date */}
+              {/* Title, Amount & Date */}
               <View style={styles.expDetailHeroSection}>
-                <View style={styles.expDetailCategoryIconWrapper}>
-                  <CategoryIcon
-                    description={selectedExpense.description}
-                    tags={selectedExpense.tags}
-                    size={52}
-                  />
-                </View>
                 <Text style={styles.expDetailTitleText}>{selectedExpense.description}</Text>
                 <Text style={styles.expDetailAmountText}>
                   {formatCurrency(selectedExpense.amount)}
@@ -1353,7 +1594,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                   }}
                   activeOpacity={0.85}
                 >
-                  <Sparkles size={16} color="#FFFFFF" strokeWidth={2.2} style={{ marginRight: 8 }} />
+                  <Gem size={15} color="#FFFFFF" strokeWidth={2.2} style={{ marginRight: 8 }} />
                   <Text style={styles.viewMoreChartsBtnText}>View more charts</Text>
                 </TouchableOpacity>
               </View>
@@ -1590,9 +1831,22 @@ const styles = StyleSheet.create({
   },
 
   // Horizontal Navigation Pill Tabs
+  stickyHeaderWrapper: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    backgroundColor: '#FFFFFF',
+    elevation: 4,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 3,
+  },
   pillTabsContainer: {
     backgroundColor: '#FFFFFF',
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
@@ -1610,6 +1864,9 @@ const styles = StyleSheet.create({
   },
   navPillActive: {
     backgroundColor: '#059669',
+  },
+  navPillSettleActive: {
+    backgroundColor: '#EA580C',
   },
   navPillInactive: {
     backgroundColor: '#F3F4F6',
@@ -2358,11 +2615,65 @@ const styles = StyleSheet.create({
     color: '#374151',
   },
 
+  // Chart Timeframe Filter & Badges
+  chartFilterPillsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  chartFilterPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  chartFilterPillActive: {
+    backgroundColor: '#059669',
+    borderColor: '#059669',
+  },
+  chartFilterPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4B5563',
+  },
+  chartFilterPillTextActive: {
+    color: '#FFFFFF',
+  },
+  memberNetBadgeGreen: {
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  memberNetBadgeGreenText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  memberNetBadgeRed: {
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  memberNetBadgeRedText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
+
   // Full-Screen Expense Detail Screen Styles (Reference Matching)
   expDetailTopBar: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: '#DCEDE2',
     paddingHorizontal: 16,
-    paddingBottom: 14,
+    paddingBottom: 16,
   },
   expDetailNavRow: {
     flexDirection: 'row',
@@ -2378,15 +2689,20 @@ const styles = StyleSheet.create({
   expDetailRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
+  },
+  expDetailHeaderIconRow: {
+    paddingTop: 12,
+    paddingHorizontal: 4,
   },
   expDetailScrollContent: {
     paddingBottom: 24,
   },
   expDetailHeroSection: {
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 18,
     paddingBottom: 20,
+    backgroundColor: '#FFFFFF',
   },
   expDetailCategoryIconWrapper: {
     marginBottom: 8,
@@ -2514,13 +2830,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#7C3AED',
+    backgroundColor: '#6D28D9',
     paddingVertical: 11,
     paddingHorizontal: 22,
-    borderRadius: 24,
+    borderRadius: 8,
     alignSelf: 'center',
     marginTop: 20,
-    shadowColor: '#7C3AED',
+    shadowColor: '#6D28D9',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,

@@ -30,6 +30,15 @@ export interface GroupMember {
   imageUrl?: string;
 }
 
+export interface GroupCoverPhoto {
+  type: 'preset' | 'custom';
+  imageUrl: string;
+  storagePath?: string;
+  presetId?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
 export interface Group {
   id: string;
   name: string;
@@ -39,6 +48,7 @@ export interface Group {
   createdAt: Date;
   imageUrl?: string;
   bannerUrl?: string;
+  coverPhoto?: GroupCoverPhoto;
   icon?: string;
   memberIds: string[];
   updatedAt?: Date;

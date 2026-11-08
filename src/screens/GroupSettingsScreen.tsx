@@ -10,12 +10,14 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Platform,
+  Image,
 } from 'react-native';
 import {
   Share2,
   Camera,
   Trash2,
   LogOut,
+  ImageIcon,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,6 +41,8 @@ import { useAuth } from '../context/AuthContext';
 import { AppHeader } from '../components/common/AppHeader';
 import { MemberAvatar } from '../components/common/MemberAvatar';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
+import { GroupCoverPhotoModal } from '../components/common/GroupCoverPhotoModal';
+import { getDefaultCoverPhoto } from '../constants/presetCovers';
 import { Group, GroupMember } from '../types';
 
 const GroupSettingsScreen = ({ route, navigation }: any) => {
@@ -52,6 +56,7 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
   const [group, setGroup] = useState<Group | null>(null);
   const [name, setName] = useState('');
   const [pickedImage, setPickedImage] = useState<{ uri: string; base64?: string | null } | null>(null);
+  const [coverModalVisible, setCoverModalVisible] = useState(false);
 
   // Dialog states
   const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
@@ -290,6 +295,47 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Group Cover Photo Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>GROUP COVER PHOTO</Text>
+          <View style={styles.boxContainer}>
+            <View style={styles.coverPreviewCard}>
+              <Image
+                source={{
+                  uri:
+                    group?.coverPhoto?.imageUrl ||
+                    group?.bannerUrl ||
+                    getDefaultCoverPhoto(groupId, group?.icon, group?.name).imageUrl,
+                }}
+                style={StyleSheet.absoluteFill}
+                resizeMode="cover"
+              />
+              <View style={styles.coverPreviewScrim} />
+              <View style={styles.coverPreviewContent}>
+                <Text style={styles.coverPreviewTitle} numberOfLines={1}>
+                  {group?.name || 'Group Cover'}
+                </Text>
+                <Text style={styles.coverPreviewType}>
+                  {group?.coverPhoto?.type === 'custom'
+                    ? 'Custom Uploaded Photo'
+                    : 'Preset Cover Photo'}
+                </Text>
+              </View>
+            </View>
+
+            {isAdmin && (
+              <TouchableOpacity
+                style={styles.changeCoverBtn}
+                onPress={() => setCoverModalVisible(true)}
+                activeOpacity={0.85}
+              >
+                <Camera size={16} color="#059669" strokeWidth={2.2} />
+                <Text style={styles.changeCoverBtnText}>Change Cover Photo</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
         {/* Group Edit Section */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>GROUP DETAILS</Text>
@@ -483,6 +529,26 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
         isLoading={isDialogLoading}
         icon="trash"
       />
+
+      {/* Group Cover Photo Modal */}
+      <GroupCoverPhotoModal
+        visible={coverModalVisible}
+        group={group}
+        currentUserId={user?.uid || ''}
+        onClose={() => setCoverModalVisible(false)}
+        onSuccess={(updatedCover) => {
+          setGroup((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  coverPhoto: updatedCover || undefined,
+                  bannerUrl: updatedCover?.imageUrl || undefined,
+                }
+              : null
+          );
+          load();
+        }}
+      />
     </View>
   );
 };
@@ -658,6 +724,51 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#E74C3C',
+  },
+  coverPreviewCard: {
+    height: 120,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#1E293B',
+    justifyContent: 'flex-end',
+    marginBottom: 12,
+  },
+  coverPreviewScrim: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+  },
+  coverPreviewContent: {
+    padding: 12,
+    zIndex: 2,
+  },
+  coverPreviewTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowRadius: 3,
+  },
+  coverPreviewType: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.85)',
+    marginTop: 2,
+  },
+  changeCoverBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 11,
+    borderRadius: 10,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  changeCoverBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#059669',
   },
 });
 

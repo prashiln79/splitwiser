@@ -1,6 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import { getDatabase } from '../db/sqlite';
-import { Group, GroupMember, MemberRole } from '../types';
+import { Group, GroupMember, MemberRole, GroupCoverPhoto } from '../types';
 import { syncQueue } from '../sync/syncQueue';
 
 export interface LocalGroupRow {
@@ -36,6 +36,19 @@ function rowToGroup(row: LocalGroupRow): Group {
     memberIds = [];
   }
 
+  let coverPhoto = undefined;
+  if (row.banner_url) {
+    if (row.banner_url.startsWith('{')) {
+      try {
+        coverPhoto = JSON.parse(row.banner_url);
+      } catch {
+        coverPhoto = { type: 'preset' as const, imageUrl: row.banner_url };
+      }
+    } else {
+      coverPhoto = { type: 'preset' as const, imageUrl: row.banner_url };
+    }
+  }
+
   return {
     id: row.id,
     name: row.name,
@@ -44,7 +57,8 @@ function rowToGroup(row: LocalGroupRow): Group {
     createdBy: row.created_by,
     createdAt: new Date(row.created_at),
     imageUrl: row.image_url ?? undefined,
-    bannerUrl: row.banner_url ?? undefined,
+    bannerUrl: coverPhoto?.imageUrl || row.banner_url || undefined,
+    coverPhoto,
     icon: row.icon ?? undefined,
     memberIds,
     updatedAt: new Date(row.updated_at),
@@ -112,7 +126,8 @@ export async function createGroupLocal(
   creatorName: string,
   currency = 'INR',
   imageUrl?: string,
-  icon?: string
+  icon?: string,
+  coverPhoto?: GroupCoverPhoto
 ): Promise<Group> {
   const database = await getDatabase();
   const id = Crypto.randomUUID();
@@ -127,6 +142,8 @@ export async function createGroupLocal(
     createdBy: creatorUid,
     createdAt: new Date(now),
     imageUrl: imageUrl || undefined,
+    bannerUrl: coverPhoto?.imageUrl || undefined,
+    coverPhoto,
     icon: icon || undefined,
     memberIds: [creatorUid],
     updatedAt: new Date(now),
@@ -136,8 +153,8 @@ export async function createGroupLocal(
 
   await database.runAsync(
     `INSERT INTO local_groups (
-      id, name, currency, join_code, created_by, created_at, image_url, icon, member_ids_json, updated_at, sync_status, is_deleted
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0)`,
+      id, name, currency, join_code, created_by, created_at, image_url, banner_url, icon, member_ids_json, updated_at, sync_status, is_deleted
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0)`,
     [
       id,
       name.trim(),
@@ -146,6 +163,7 @@ export async function createGroupLocal(
       creatorUid,
       now,
       imageUrl ?? null,
+      coverPhoto?.imageUrl ?? null,
       icon ?? null,
       JSON.stringify([creatorUid]),
       now,
@@ -180,7 +198,7 @@ export async function createGroupLocal(
  */
 export async function updateGroupLocal(
   groupId: string,
-  updates: Partial<Pick<Group, 'name' | 'imageUrl' | 'bannerUrl' | 'icon'>>
+  updates: Partial<Pick<Group, 'name' | 'imageUrl' | 'bannerUrl' | 'coverPhoto' | 'icon'>>
 ): Promise<void> {
   const database = await getDatabase();
   const fields: string[] = [];
@@ -194,7 +212,10 @@ export async function updateGroupLocal(
     fields.push('image_url = ?');
     params.push(updates.imageUrl);
   }
-  if (updates.bannerUrl !== undefined) {
+  if (updates.coverPhoto !== undefined) {
+    fields.push('banner_url = ?');
+    params.push(updates.coverPhoto?.imageUrl || null);
+  } else if (updates.bannerUrl !== undefined) {
     fields.push('banner_url = ?');
     params.push(updates.bannerUrl);
   }
