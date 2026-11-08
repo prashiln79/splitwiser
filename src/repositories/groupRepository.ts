@@ -376,6 +376,33 @@ export async function upsertRemoteGroups(remoteGroups: Group[], userId?: string)
 }
 
 /**
+ * Updates a user's name and image across all local group memberships in SQLite.
+ */
+export async function updateLocalMemberProfile(
+  userId: string,
+  newName?: string,
+  newImageUrl?: string
+): Promise<void> {
+  const database = await getDatabase();
+  if (newName && newImageUrl !== undefined) {
+    await database.runAsync(
+      `UPDATE local_group_members SET user_name = ?, image_url = ? WHERE user_id = ?`,
+      [newName, newImageUrl, userId]
+    );
+  } else if (newName) {
+    await database.runAsync(
+      `UPDATE local_group_members SET user_name = ? WHERE user_id = ?`,
+      [newName, userId]
+    );
+  } else if (newImageUrl !== undefined) {
+    await database.runAsync(
+      `UPDATE local_group_members SET image_url = ? WHERE user_id = ?`,
+      [newImageUrl, userId]
+    );
+  }
+}
+
+/**
  * Saves remote group members into SQLite cache.
  */
 export async function upsertRemoteMembers(groupId: string, members: GroupMember[]): Promise<void> {

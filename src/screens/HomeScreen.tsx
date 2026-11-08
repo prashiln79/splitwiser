@@ -101,6 +101,12 @@ const HomeScreen = ({ navigation }: any) => {
               expenses = remE;
             }
 
+            if (user?.uid && user?.name) {
+              members = members.map((m) =>
+                m.userId === user.uid ? { ...m, userName: user.name } : m
+              );
+            }
+
             const settlements = getOptimizedSettlements(expenses, members, recordedSets);
             const myOwesSettlements = settlements.filter((s) => s.fromUserId === user.uid && s.amount > 0.01);
             const myOwedSettlements = settlements.filter((s) => s.toUserId === user.uid && s.amount > 0.01);

@@ -242,6 +242,32 @@ export async function leaveGroup(groupId: string, uid: string): Promise<void> {
 
 // ─── Real-time Listeners ──────────────────────────────────────────────────────
 
+/**
+ * Updates a member's display name and photo across all groups they belong to in Firestore.
+ */
+export async function updateUserAcrossGroups(
+  uid: string,
+  newName?: string,
+  imageUrl?: string
+): Promise<void> {
+  if (!newName && !imageUrl) return;
+  try {
+    const q = query(groupsCol(), where('memberIds', 'array-contains', uid));
+    const snap = await getDocs(q);
+    const updates: Record<string, any> = {};
+    if (newName) updates.userName = newName;
+    if (imageUrl !== undefined) updates.imageUrl = imageUrl;
+
+    const promises = snap.docs.map((docSnap) => {
+      const memberRef = memberDoc(docSnap.id, uid);
+      return setDoc(memberRef, updates, { merge: true });
+    });
+    await Promise.all(promises);
+  } catch (e: any) {
+    console.warn('[updateUserAcrossGroups] Error updating member in groups:', e.message);
+  }
+}
+
 export function subscribeToGroups(
   uid: string,
   callback: (groups: Group[]) => void

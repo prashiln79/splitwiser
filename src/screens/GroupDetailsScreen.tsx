@@ -85,7 +85,12 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
         getGroupSettlementsLocal(groupId),
       ]);
       if (localG) setGroup(localG);
-      if (localM && localM.length > 0) setMembers(localM);
+      if (localM && localM.length > 0) {
+        const normalized = user?.uid && user?.name
+          ? localM.map((m) => (m.userId === user.uid ? { ...m, userName: user.name } : m))
+          : localM;
+        setMembers(normalized);
+      }
       if (localExp) setExpenses(localExp);
       if (localSet) setRecordedSettlements(localSet);
       setIsLoading(false);
@@ -102,7 +107,12 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
         getGroupMembers(groupId),
       ]);
       if (g) setGroup(g);
-      if (m && m.length > 0) setMembers(m);
+      if (m && m.length > 0) {
+        const normalized = user?.uid && user?.name
+          ? m.map((item) => (item.userId === user.uid ? { ...item, userName: user.name } : item))
+          : m;
+        setMembers(normalized);
+      }
     } catch (e) {
       console.error('[GroupDetails] error loading group:', e);
     }
@@ -199,10 +209,16 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
   const memberMap = useMemo(() => {
     const map = new Map<string, string>();
     members.forEach((m) => map.set(m.userId, m.userName));
+    if (user?.uid && user?.name) {
+      map.set(user.uid, user.name);
+    }
     return map;
-  }, [members]);
+  }, [members, user]);
 
-  const getMemberName = (uid: string) => memberMap.get(uid) || 'Member';
+  const getMemberName = (uid: string) => {
+    if (uid === user?.uid && user?.name) return user.name;
+    return memberMap.get(uid) || 'Member';
+  };
 
   // Current user's net balance in this group
   const { netBalance } = useMemo(() => {

@@ -73,7 +73,10 @@ export const FriendsScreen = ({ navigation }: any) => {
             getGroupExpensesLocal(group.id),
             getGroupSettlementsLocal(group.id),
           ]);
-          return { groupId: group.id, groupName: group.name, expenses, members, settlements };
+          const normalizedMembers = user?.uid && user?.name
+            ? members.map((m) => (m.userId === user.uid ? { ...m, userName: user.name } : m))
+            : members;
+          return { groupId: group.id, groupName: group.name, expenses, members: normalizedMembers, settlements };
         })
       );
 
@@ -118,11 +121,14 @@ export const FriendsScreen = ({ navigation }: any) => {
               getGroupExpenses(group.id),
               getGroupSettlementsLocal(group.id),
             ]);
+            const normalizedMembers = user?.uid && user?.name
+              ? members.map((m) => (m.userId === user.uid ? { ...m, userName: user.name } : m))
+              : members;
             return {
               groupId: group.id,
               groupName: group.name,
               expenses,
-              members,
+              members: normalizedMembers,
               settlements: localSettlements,
             };
           })

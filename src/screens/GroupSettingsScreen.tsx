@@ -76,7 +76,10 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
         setName(localG.name);
       }
       if (localM && localM.length > 0) {
-        setMembers(localM);
+        const normalized = user?.uid && user?.name
+          ? localM.map((item) => (item.userId === user.uid ? { ...item, userName: user.name } : item))
+          : localM;
+        setMembers(normalized);
       }
       setLoading(false);
 
@@ -91,7 +94,10 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
           setName(g.name);
         }
         if (m && m.length > 0) {
-          setMembers(m);
+          const normalized = user?.uid && user?.name
+            ? m.map((item) => (item.userId === user.uid ? { ...item, userName: user.name } : item))
+            : m;
+          setMembers(normalized);
         }
       }
     } catch (e) {
@@ -385,10 +391,10 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
                   style={[styles.memberRow, isLast && styles.lastRow]}
                 >
                   <View style={styles.memberLeft}>
-                    <MemberAvatar name={m.userName} size={40} />
+                    <MemberAvatar name={isCurrentUser && user?.name ? user.name : m.userName} size={40} />
                     <View style={styles.memberMeta}>
                       <Text style={styles.memberName} numberOfLines={1}>
-                        {m.userName} {isCurrentUser ? '(You)' : ''}
+                        {isCurrentUser && user?.name ? user.name : m.userName} {isCurrentUser ? '(You)' : ''}
                       </Text>
                       <Text style={styles.memberRoleText}>
                         {isMemberAdmin ? 'Group Admin' : 'Member'}

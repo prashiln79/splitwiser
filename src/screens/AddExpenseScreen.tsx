@@ -103,7 +103,10 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
     if (!user) return;
 
     const initMemberList = (memberList: GroupMember[]) => {
-      setMembers(memberList);
+      const normalizedList = user?.uid && user?.name
+        ? memberList.map((m) => (m.userId === user.uid ? { ...m, userName: user.name } : m))
+        : memberList;
+      setMembers(normalizedList);
 
       const numMembers = memberList.length;
       if (numMembers === 0) return;

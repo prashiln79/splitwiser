@@ -25,6 +25,9 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { AppUser } from '../types';
+import { updateLocalMemberProfile } from '../repositories/groupRepository';
+import { updateUserAcrossGroups } from './groups';
+import { syncQueue } from '../sync/syncQueue';
 
 // ─── Root path ────────────────────────────────────────────────────────────────
 // All Splitwiser data is nested under /splitwiser/data/...
@@ -82,20 +85,44 @@ export async function loadUserProfile(uid: string): Promise<AppUser | null> {
 }
 
 /**
- * Update display name / imageUrl in Firestore user profile.
+ * Update display name / imageUrl in Firestore user profile, SQLite groups, and Firestore groups.
  */
 export async function updateUserProfile(
   uid: string,
   updates: Partial<AppUser>
 ): Promise<void> {
-  await setDoc(
-    usersPath(uid),
-    {
-      ...updates,
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  // 1. Update user document in Firestore
+  try {
+    await setDoc(
+      usersPath(uid),
+      {
+        ...updates,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (e: any) {
+    console.warn('[updateUserProfile] Firestore user doc update warning:', e?.message);
+  }
+
+  // 2. Immediately update local SQLite group memberships so all local views show the new name
+  if (updates.name || updates.imageUrl !== undefined) {
+    await updateLocalMemberProfile(uid, updates.name, updates.imageUrl);
+  }
+
+  // 3. Update all groups in Firestore where this user is a member
+  if (updates.name || updates.imageUrl !== undefined) {
+    try {
+      await updateUserAcrossGroups(uid, updates.name, updates.imageUrl);
+    } catch {
+      // If offline, enqueue sync operation to sync when back online
+      await syncQueue.enqueue('user', uid, 'UPDATE_USER_PROFILE', {
+        uid,
+        name: updates.name,
+        imageUrl: updates.imageUrl,
+      });
+    }
+  }
 }
 
 /**
@@ -145,6 +172,16 @@ export async function linkGoogleCredential(
   }
   if (linkedFirebaseUser.displayName) {
     updates.name = linkedFirebaseUser.displayName;
+    await updateLocalMemberProfile(
+      linkedFirebaseUser.uid,
+      linkedFirebaseUser.displayName,
+      linkedFirebaseUser.photoURL || undefined
+    );
+    await updateUserAcrossGroups(
+      linkedFirebaseUser.uid,
+      linkedFirebaseUser.displayName,
+      linkedFirebaseUser.photoURL || undefined
+    ).catch(() => {});
   }
 
   await setDoc(usersPath(linkedFirebaseUser.uid), updates, { merge: true });

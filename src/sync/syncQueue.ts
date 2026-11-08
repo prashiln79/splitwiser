@@ -13,7 +13,8 @@ export type QueueOperation =
   | 'DELETE_GROUP'
   | 'LEAVE_GROUP'
   | 'CREATE_FRIENDSHIP'
-  | 'DELETE_FRIENDSHIP';
+  | 'DELETE_FRIENDSHIP'
+  | 'UPDATE_USER_PROFILE';
 
 export interface QueueItem {
   id: string;
@@ -67,7 +68,7 @@ class SyncQueue {
    * Enqueues an operation into the durable SQLite queue.
    */
   public async enqueue(
-    entityType: 'expense' | 'settlement' | 'group' | 'friendship',
+    entityType: 'expense' | 'settlement' | 'group' | 'friendship' | 'user',
     entityId: string,
     operation: QueueOperation,
     payload: Record<string, any>
@@ -309,12 +310,20 @@ class SyncQueue {
         break;
       }
 
+      case 'UPDATE_USER_PROFILE': {
+        const { uid, name, imageUrl } = payload;
+        const { updateUserAcrossGroups } = await import('../services/groups');
+        await updateUserAcrossGroups(uid, name, imageUrl);
+        break;
+      }
+
       default:
         throw new Error(`Unknown queue operation: ${item.operation}`);
     }
   }
 
   private async markEntitySynced(entityType: string, entityId: string): Promise<void> {
+    if (entityType === 'user') return;
     const database = await getDatabase();
     if (entityType === 'expense') {
       await database.runAsync(
