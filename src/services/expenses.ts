@@ -43,6 +43,9 @@ export async function createExpense(
   input: ExpenseCreateInput
 ): Promise<Expense> {
   const now = serverTimestamp();
+  const createdAtTimestamp = input.createdAt
+    ? (input.createdAt instanceof Date ? input.createdAt : new Date(Number(input.createdAt)))
+    : null;
   const cleanTags = (input.tags ?? []).filter((t: string) => !t.startsWith('receipt:'));
   const ref = await addDoc(expensesCol(groupId), {
     groupId,
@@ -54,7 +57,7 @@ export async function createExpense(
     splitType: input.splitType,
     currency: 'INR',
     tags: cleanTags,
-    createdAt: now,
+    createdAt: createdAtTimestamp ?? now,
     updatedAt: now,
   });
 

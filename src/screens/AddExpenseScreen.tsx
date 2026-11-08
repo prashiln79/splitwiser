@@ -26,6 +26,8 @@ import {
   Percent,
   Hash,
   Receipt,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -80,6 +82,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
 
   // Additional details (date, receipt photo, notes)
   const [expenseDate, setExpenseDate] = useState<Date>(new Date());
+  const [calendarViewDate, setCalendarViewDate] = useState<Date>(new Date());
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
 
@@ -330,6 +333,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         splitType: finalSplitType,
         splits,
         tags,
+        createdAt: expenseDate,
       });
 
       if (Platform.OS !== 'web') {
@@ -342,14 +346,6 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
       setIsSubmitting(false);
     }
   };
-
-  if (isLoading) {
-    return (
-      <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#059669" />
-      </View>
-    );
-  }
 
   const payerMember = members.find((m) => m.userId === payerId);
   const payerDisplayName = payerMember
@@ -365,10 +361,88 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
       ? 'unequally'
       : 'by percentages';
 
-  const formattedDate =
-    expenseDate.toDateString() === new Date().toDateString()
-      ? 'Today'
-      : expenseDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const isToday = useMemo(() => {
+    const today = new Date();
+    return (
+      expenseDate.getDate() === today.getDate() &&
+      expenseDate.getMonth() === today.getMonth() &&
+      expenseDate.getFullYear() === today.getFullYear()
+    );
+  }, [expenseDate]);
+
+  const isYesterday = useMemo(() => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return (
+      expenseDate.getDate() === yesterday.getDate() &&
+      expenseDate.getMonth() === yesterday.getMonth() &&
+      expenseDate.getFullYear() === yesterday.getFullYear()
+    );
+  }, [expenseDate]);
+
+  const formattedDate = useMemo(() => {
+    if (isToday) return 'Today';
+    if (isYesterday) return 'Yesterday';
+    return expenseDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: expenseDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
+    });
+  }, [isToday, isYesterday, expenseDate]);
+
+  const openDateModal = () => {
+    setCalendarViewDate(new Date(expenseDate));
+    setDateModalVisible(true);
+  };
+
+  const goToPreviousMonth = () => {
+    setCalendarViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const goToNextMonth = () => {
+    setCalendarViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  const calendarMonthTitle = useMemo(() => {
+    return calendarViewDate.toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    });
+  }, [calendarViewDate]);
+
+  const calendarDays = useMemo(() => {
+    const year = calendarViewDate.getFullYear();
+    const month = calendarViewDate.getMonth();
+
+    const firstDayIndex = new Date(year, month, 1).getDay(); // 0 (Sun) to 6 (Sat)
+    const totalDaysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const days: (number | null)[] = [];
+    for (let i = 0; i < firstDayIndex; i++) {
+      days.push(null);
+    }
+    for (let d = 1; d <= totalDaysInMonth; d++) {
+      days.push(d);
+    }
+    return days;
+  }, [calendarViewDate]);
+
+  const handleSelectCalendarDay = (day: number) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    const newDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth(), day);
+    setExpenseDate(newDate);
+    setDateModalVisible(false);
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" color="#059669" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -704,12 +778,19 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
             <View style={styles.toolbarRight}>
               {/* Date */}
               <TouchableOpacity
-                style={styles.toolbarActionBtn}
-                onPress={() => setDateModalVisible(true)}
+                style={[
+                  styles.toolbarActionBtn,
+                  !isToday && styles.toolbarActionBtnActive,
+                ]}
+                onPress={openDateModal}
                 accessibilityLabel={`Date: ${formattedDate}`}
                 accessibilityRole="button"
               >
-                <Calendar size={20} color="#6B7280" strokeWidth={2} />
+                <Calendar
+                  size={20}
+                  color={!isToday ? '#059669' : '#6B7280'}
+                  strokeWidth={2}
+                />
               </TouchableOpacity>
 
               {/* Camera / Receipt */}
@@ -751,9 +832,22 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
             </View>
           </View>
 
-          {/* Active Attachments Preview (Receipt Image or Notes) */}
-          {(receiptImage || notes.trim().length > 0) && (
+          {/* Active Attachments & Metadata Preview (Date, Receipt Image or Notes) */}
+          {(!isToday || receiptImage || notes.trim().length > 0) && (
             <View style={styles.attachmentPreviewRow}>
+              {!isToday && (
+                <View style={styles.attachmentBadge}>
+                  <Calendar size={13} color="#059669" style={{ marginRight: 4 }} />
+                  <Text style={styles.attachmentBadgeText}>{formattedDate}</Text>
+                  <TouchableOpacity
+                    onPress={() => setExpenseDate(new Date())}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel="Reset to Today"
+                  >
+                    <X size={14} color="#6B7280" style={{ marginLeft: 6 }} />
+                  </TouchableOpacity>
+                </View>
+              )}
               {receiptImage && (
                 <View style={styles.attachmentBadge}>
                   <Camera size={13} color="#059669" style={{ marginRight: 4 }} />
@@ -1104,35 +1198,60 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         animationType="fade"
         onRequestClose={() => setDateModalVisible(false)}
       >
-        <TouchableOpacity
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setDateModalVisible(false)}
         >
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setDateModalVisible(false)}
+          />
           <View style={styles.selectionDialog}>
             <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Expense date</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Calendar size={20} color="#059669" />
+                <Text style={styles.modalTitle}>Expense date</Text>
+              </View>
               <TouchableOpacity
                 onPress={() => setDateModalVisible(false)}
                 style={styles.modalCloseBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Close date modal"
               >
                 <X size={20} color="#6B7280" />
               </TouchableOpacity>
             </View>
 
+            {/* Quick Option 1: Today */}
             <TouchableOpacity
-              style={styles.selectionOptionRow}
+              style={[
+                styles.selectionOptionRow,
+                isToday && styles.selectionOptionRowSelected,
+              ]}
               onPress={() => {
                 setExpenseDate(new Date());
                 setDateModalVisible(false);
               }}
               activeOpacity={0.7}
             >
-              <Text style={styles.selectionOptionText}>Today ({new Date().toLocaleDateString()})</Text>
+              <View>
+                <Text style={[styles.selectionOptionText, isToday && { fontWeight: '700', color: '#059669' }]}>
+                  Today
+                </Text>
+                <Text style={styles.dateSubtext}>
+                  {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                </Text>
+              </View>
+              {isToday && <Check size={18} color="#059669" strokeWidth={2.5} />}
             </TouchableOpacity>
 
+            {/* Quick Option 2: Yesterday */}
             <TouchableOpacity
-              style={styles.selectionOptionRow}
+              style={[
+                styles.selectionOptionRow,
+                isYesterday && styles.selectionOptionRowSelected,
+              ]}
               onPress={() => {
                 const y = new Date();
                 y.setDate(y.getDate() - 1);
@@ -1141,10 +1260,110 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
               }}
               activeOpacity={0.7}
             >
-              <Text style={styles.selectionOptionText}>Yesterday</Text>
+              <View>
+                <Text style={[styles.selectionOptionText, isYesterday && { fontWeight: '700', color: '#059669' }]}>
+                  Yesterday
+                </Text>
+                <Text style={styles.dateSubtext}>
+                  {(() => {
+                    const y = new Date();
+                    y.setDate(y.getDate() - 1);
+                    return y.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                  })()}
+                </Text>
+              </View>
+              {isYesterday && <Check size={18} color="#059669" strokeWidth={2.5} />}
             </TouchableOpacity>
+
+            {/* Divider */}
+            <View style={styles.dateDividerRow}>
+              <View style={styles.dateDividerLine} />
+              <Text style={styles.dateDividerText}>OR CHOOSE FROM CALENDAR</Text>
+              <View style={styles.dateDividerLine} />
+            </View>
+
+            {/* Interactive Calendar */}
+            <View style={styles.calendarContainer}>
+              {/* Calendar Month & Navigation */}
+              <View style={styles.calendarHeader}>
+                <TouchableOpacity
+                  style={styles.calendarNavBtn}
+                  onPress={goToPreviousMonth}
+                  accessibilityLabel="Previous month"
+                >
+                  <ChevronLeft size={18} color="#374151" />
+                </TouchableOpacity>
+
+                <Text style={styles.calendarMonthText}>{calendarMonthTitle}</Text>
+
+                <TouchableOpacity
+                  style={styles.calendarNavBtn}
+                  onPress={goToNextMonth}
+                  accessibilityLabel="Next month"
+                >
+                  <ChevronRight size={18} color="#374151" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Weekday Labels (S M T W T F S) */}
+              <View style={styles.weekDaysRow}>
+                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((w, idx) => (
+                  <Text key={idx} style={styles.weekDayText}>
+                    {w}
+                  </Text>
+                ))}
+              </View>
+
+              {/* Days Grid */}
+              <View style={styles.daysGrid}>
+                {calendarDays.map((dayNum, idx) => {
+                  if (dayNum === null) {
+                    return <View key={`empty-${idx}`} style={styles.dayCell} />;
+                  }
+
+                  const isSelected =
+                    expenseDate.getDate() === dayNum &&
+                    expenseDate.getMonth() === calendarViewDate.getMonth() &&
+                    expenseDate.getFullYear() === calendarViewDate.getFullYear();
+
+                  const isTodayCell =
+                    new Date().getDate() === dayNum &&
+                    new Date().getMonth() === calendarViewDate.getMonth() &&
+                    new Date().getFullYear() === calendarViewDate.getFullYear();
+
+                  return (
+                    <TouchableOpacity
+                      key={`day-${dayNum}`}
+                      style={styles.dayCell}
+                      onPress={() => handleSelectCalendarDay(dayNum)}
+                      activeOpacity={0.7}
+                      accessibilityLabel={`Day ${dayNum}`}
+                      accessibilityRole="button"
+                    >
+                      <View
+                        style={[
+                          styles.dayCellInner,
+                          isSelected && styles.dayCellSelected,
+                          isTodayCell && !isSelected && styles.dayCellToday,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.dayText,
+                            isSelected && styles.dayTextSelected,
+                            isTodayCell && !isSelected && styles.dayTextToday,
+                          ]}
+                        >
+                          {dayNum}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
           </View>
-        </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Contextual Modal 6: Notes ──────────────────────────────────────── */}
@@ -1717,6 +1936,107 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  dateSubtext: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  dateDividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 14,
+    gap: 8,
+  },
+  dateDividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E5E7EB',
+  },
+  dateDividerText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#9CA3AF',
+    letterSpacing: 0.5,
+  },
+  calendarContainer: {
+    backgroundColor: '#FAFAFA',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    paddingHorizontal: 4,
+  },
+  calendarNavBtn: {
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  calendarMonthText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  weekDaysRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E7EB',
+    paddingBottom: 6,
+  },
+  weekDayText: {
+    width: 38,
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  daysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  dayCell: {
+    width: `${100 / 7}%`,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 2,
+  },
+  dayCellInner: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayCellSelected: {
+    backgroundColor: '#059669',
+  },
+  dayCellToday: {
+    borderWidth: 1.5,
+    borderColor: '#059669',
+  },
+  dayText: {
+    fontSize: 14,
+    color: '#1F2937',
+    fontWeight: '500',
+  },
+  dayTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  dayTextToday: {
+    color: '#059669',
+    fontWeight: '700',
   },
 });
 

@@ -79,6 +79,7 @@ export interface ExpenseCreateInput {
   splitType: SplitType;
   splits: ExpenseSplit[];
   tags?: string[];
+  createdAt?: Date | number;
 }
 
 // ─── Settlement ───────────────────────────────────────────────────────────────

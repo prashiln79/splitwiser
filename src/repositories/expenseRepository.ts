@@ -66,6 +66,9 @@ export async function createExpenseLocal(
   const database = await getDatabase();
   const id = Crypto.randomUUID();
   const now = Date.now();
+  const createdAtMs = input.createdAt
+    ? (input.createdAt instanceof Date ? input.createdAt.getTime() : Number(input.createdAt))
+    : now;
 
   const expense: Expense = {
     id,
@@ -78,7 +81,7 @@ export async function createExpenseLocal(
     splitType: input.splitType,
     currency: 'INR',
     tags: input.tags ?? [],
-    createdAt: new Date(now),
+    createdAt: new Date(createdAtMs),
     updatedAt: new Date(now),
     syncStatus: 'pending',
     isDeleted: false,
@@ -99,7 +102,7 @@ export async function createExpenseLocal(
       JSON.stringify(input.splits),
       'INR',
       JSON.stringify(input.tags ?? []),
-      now,
+      createdAtMs,
       now,
     ]
   );
@@ -117,7 +120,7 @@ export async function createExpenseLocal(
     splitType: input.splitType,
     currency: 'INR',
     tags: cloudTags,
-    createdAt: now,
+    createdAt: createdAtMs,
     updatedAt: now,
   });
 
