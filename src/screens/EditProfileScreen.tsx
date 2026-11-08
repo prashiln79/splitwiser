@@ -23,6 +23,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../context/AuthContext';
+import { GoogleIcon } from '../components/common/GoogleIcon';
+import { ConnectGoogleModal } from '../components/common/ConnectGoogleModal';
 
 const TIMEZONES = [
   '(GMT+05:30) Chennai, Kolkata, Mumbai, New Delhi',
@@ -80,6 +82,9 @@ export const EditProfileScreen = ({ navigation }: any) => {
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
   const [blocklistModalVisible, setBlocklistModalVisible] = useState(false);
+  const [connectModalVisible, setConnectModalVisible] = useState(false);
+
+  const isGoogleLinked = !user?.isAnonymous && user?.authProvider === 'google';
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -316,6 +321,26 @@ export const EditProfileScreen = ({ navigation }: any) => {
           </Text>
         </View>
 
+        {/* Google Link Banner (for Guest users) */}
+        {!isGoogleLinked && (
+          <View style={styles.guestBanner}>
+            <View style={styles.guestBannerHeader}>
+              <GoogleIcon size={18} />
+              <Text style={styles.guestBannerTitle}>Sync across devices</Text>
+            </View>
+            <Text style={styles.guestBannerSub}>
+              Link your Google Account so your expenses and friendships are saved securely.
+            </Text>
+            <TouchableOpacity
+              style={styles.guestBannerBtn}
+              onPress={() => setConnectModalVisible(true)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.guestBannerBtnText}>Connect with Google</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* 9. Save Changes Button (Splitwise coral/orange button) */}
         <TouchableOpacity
           style={styles.saveChangesBtn}
@@ -524,6 +549,12 @@ export const EditProfileScreen = ({ navigation }: any) => {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* ── Connect Google Modal ────────────────────────────────────────── */}
+      <ConnectGoogleModal
+        visible={connectModalVisible}
+        onDismiss={() => setConnectModalVisible(false)}
+      />
     </View>
   );
 };
@@ -786,6 +817,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  // Guest Account Banner
+  guestBanner: {
+    backgroundColor: '#F9FAFB',
+    marginBottom: 20,
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  guestBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  guestBannerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  guestBannerSub: {
+    fontSize: 13,
+    color: '#6B7280',
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  guestBannerBtn: {
+    backgroundColor: '#059669',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guestBannerBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
 

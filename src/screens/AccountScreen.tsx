@@ -17,7 +17,6 @@ import {
   Lock,
   Palette,
   QrCode,
-  Gem,
   CircleQuestionMark,
   MessageSquare,
   Search,
@@ -36,20 +35,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../context/AuthContext';
 import { MemberAvatar } from '../components/common/MemberAvatar';
-import { GoogleIcon } from '../components/common/GoogleIcon';
-import { ConnectGoogleModal } from '../components/common/ConnectGoogleModal';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 
 export const AccountScreen = ({ navigation }: any) => {
   const { user, signOut, updateProfile } = useAuth();
   const insets = useSafeAreaInsets();
 
-  const [connectModalVisible, setConnectModalVisible] = useState(false);
   const [confirmSignOutVisible, setConfirmSignOutVisible] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
-
-  // Splitwise Pro Modal
-  const [proModalVisible, setProModalVisible] = useState(false);
 
   // Scan / QR Code Modal
   const [qrModalVisible, setQrModalVisible] = useState(false);
@@ -210,45 +203,16 @@ export const AccountScreen = ({ navigation }: any) => {
           </TouchableOpacity>
         </View>
 
-        {/* Splitwise Pro Promotional Card */}
-        <View style={styles.proCard}>
-          <View style={styles.proCardIconWrap}>
-            <Gem size={28} color="#7C3AED" strokeWidth={2} />
-          </View>
-          <Text style={styles.proCardTitle}>Do more with Splitwise Pro.</Text>
-          <TouchableOpacity
-            style={styles.proCardCta}
-            onPress={() => setProModalVisible(true)}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel="Get Splitwise Pro"
-          >
-            <Text style={styles.proCardCtaText}>Get Splitwise Pro</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Top Quick Actions */}
         <View style={styles.quickActionsContainer}>
           <TouchableOpacity
-            style={styles.quickActionRow}
+            style={[styles.quickActionRow, { borderBottomWidth: 0 }]}
             onPress={() => setQrModalVisible(true)}
             activeOpacity={0.7}
           >
             <View style={styles.quickActionLeft}>
               <QrCode size={20} color="#111827" strokeWidth={2} style={styles.rowIcon} />
               <Text style={styles.quickActionText}>Scan code</Text>
-            </View>
-            <ChevronRight size={18} color="#9CA3AF" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.quickActionRow, { borderBottomWidth: 0 }]}
-            onPress={() => setProModalVisible(true)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.quickActionLeft}>
-              <Gem size={20} color="#7C3AED" strokeWidth={2} style={styles.rowIcon} />
-              <Text style={styles.quickActionText}>Splitwise Pro</Text>
             </View>
             <ChevronRight size={18} color="#9CA3AF" />
           </TouchableOpacity>
@@ -342,25 +306,6 @@ export const AccountScreen = ({ navigation }: any) => {
           </View>
         </View>
 
-        {/* Google Link Banner (for Guest users) */}
-        {!isGoogleLinked && (
-          <View style={styles.guestBanner}>
-            <View style={styles.guestBannerHeader}>
-              <GoogleIcon size={18} />
-              <Text style={styles.guestBannerTitle}>Sync across devices</Text>
-            </View>
-            <Text style={styles.guestBannerSub}>
-              Link your Google Account so your expenses and friendships are saved securely.
-            </Text>
-            <TouchableOpacity
-              style={styles.guestBannerBtn}
-              onPress={() => setConnectModalVisible(true)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.guestBannerBtnText}>Connect with Google</Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
         {/* Log Out Button */}
         {isGoogleLinked && (
@@ -379,69 +324,6 @@ export const AccountScreen = ({ navigation }: any) => {
         {/* App Version */}
         <Text style={styles.versionText}>Splitwiser v2.0.1</Text>
       </ScrollView>
-
-      {/* ── Splitwise Pro Modal ────────────────────────────────────────────── */}
-      <Modal
-        visible={proModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setProModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setProModalVisible(false)}
-        >
-          <View style={styles.dialogCard}>
-            <View style={styles.proModalHeader}>
-              <View style={styles.proIconLarge}>
-                <Gem size={32} color="#7C3AED" strokeWidth={2} />
-              </View>
-              <Text style={styles.dialogTitle}>Splitwise Pro</Text>
-              <Text style={styles.dialogSub}>
-                Supercharge your expense tracking with powerful premium features.
-              </Text>
-            </View>
-
-            <View style={styles.proFeatureList}>
-              <View style={styles.proFeatureItem}>
-                <Check size={16} color="#059669" strokeWidth={2.5} style={{ marginRight: 10 }} />
-                <Text style={styles.proFeatureText}>OCR Receipt scanning & automatic itemization</Text>
-              </View>
-              <View style={styles.proFeatureItem}>
-                <Check size={16} color="#059669" strokeWidth={2.5} style={{ marginRight: 10 }} />
-                <Text style={styles.proFeatureText}>Live currency conversion across 100+ currencies</Text>
-              </View>
-              <View style={styles.proFeatureItem}>
-                <Check size={16} color="#059669" strokeWidth={2.5} style={{ marginRight: 10 }} />
-                <Text style={styles.proFeatureText}>Advanced category charts & monthly spending analytics</Text>
-              </View>
-              <View style={styles.proFeatureItem}>
-                <Check size={16} color="#059669" strokeWidth={2.5} style={{ marginRight: 10 }} />
-                <Text style={styles.proFeatureText}>Full offline sync & high-resolution receipt storage</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={styles.dialogPrimaryBtn}
-              onPress={() => {
-                setProModalVisible(false);
-                Alert.alert('Splitwise Pro', 'Thank you! Pro subscriptions will be available in the upcoming release.');
-              }}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.dialogPrimaryBtnText}>Start 30-Day Free Trial</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.dialogCancelBtn}
-              onPress={() => setProModalVisible(false)}
-            >
-              <Text style={styles.dialogCancelBtnText}>Maybe Later</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
 
       {/* ── Scan Code / QR Modal ───────────────────────────────────────────── */}
       <Modal
@@ -786,11 +668,6 @@ export const AccountScreen = ({ navigation }: any) => {
         </TouchableOpacity>
       </Modal>
 
-      {/* Google Connect Modal */}
-      <ConnectGoogleModal
-        visible={connectModalVisible}
-        onDismiss={() => setConnectModalVisible(false)}
-      />
 
       {/* Confirmation Sign Out Dialog */}
       <ConfirmationDialog
@@ -901,51 +778,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#059669',
   },
-  // Pro Card
-  proCard: {
-    backgroundColor: '#F5F3FF',
-    borderRadius: 16,
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 16,
-    padding: 20,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#EDE9FE',
-  },
-  proCardIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  proCardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 14,
-    textAlign: 'center',
-  },
-  proCardCta: {
-    backgroundColor: '#6D28D9',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 28,
-  },
-  proCardCtaText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  // Quick Actions (Scan code, Splitwise Pro)
+  // Quick Actions (Scan code)
   quickActionsContainer: {
     backgroundColor: '#FFFFFF',
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -1010,45 +843,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     color: '#111827',
-  },
-  // Guest Account Banner
-  guestBanner: {
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginBottom: 20,
-    padding: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  guestBannerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
-  },
-  guestBannerTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  guestBannerSub: {
-    fontSize: 13,
-    color: '#6B7280',
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  guestBannerBtn: {
-    backgroundColor: '#059669',
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  guestBannerBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
   },
   // Log Out
   logOutBtn: {
@@ -1129,34 +923,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     fontWeight: '600',
-  },
-  // Pro Modal specifics
-  proModalHeader: {
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  proIconLarge: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#F5F3FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  proFeatureList: {
-    gap: 10,
-    marginVertical: 10,
-  },
-  proFeatureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  proFeatureText: {
-    fontSize: 13,
-    color: '#374151',
-    flex: 1,
-    lineHeight: 18,
   },
   // QR modal
   qrCodeBox: {
