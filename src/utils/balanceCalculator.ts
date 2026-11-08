@@ -18,6 +18,22 @@ export function computeNetBalances(
 
   expenses.forEach((expense) => {
     if (expense.isDeleted) return;
+
+    // Check if multiple payers are encoded in tags (e.g. payer:userId:amount)
+    const payerTags = expense.tags?.filter((t) => t.startsWith('payer:')) || [];
+    if (payerTags.length > 0) {
+      payerTags.forEach((pt) => {
+        const parts = pt.split(':');
+        const pUid = parts[1];
+        const pAmt = parseFloat(parts[2]) || 0;
+        balances.set(pUid, (balances.get(pUid) ?? 0) + pAmt);
+      });
+      expense.splits.forEach((split) => {
+        balances.set(split.userId, (balances.get(split.userId) ?? 0) - split.amount);
+      });
+      return;
+    }
+
     const payerId = expense.paidBy || expense.createdBy;
     if (!payerId) return;
 
@@ -161,6 +177,42 @@ export function computeDetailedFriendBalance(
   // 1. Process Direct Expenses
   directExpenses.forEach((exp) => {
     if (exp.isDeleted) return;
+
+    const payerTags = exp.tags?.filter((t) => t.startsWith('payer:')) || [];
+    if (payerTags.length > 0) {
+      let myPaid = 0;
+      let friendPaid = 0;
+      payerTags.forEach((pt) => {
+        const parts = pt.split(':');
+        if (parts[1] === currentUserId) myPaid = parseFloat(parts[2]) || 0;
+        if (parts[1] === friendId) friendPaid = parseFloat(parts[2]) || 0;
+      });
+
+      let myShare = 0;
+      let friendShare = 0;
+      exp.splits.forEach((s) => {
+        if (s.userId === currentUserId) myShare = s.amount;
+        if (s.userId === friendId) friendShare = s.amount;
+      });
+
+      const impact = myPaid - myShare;
+      directBalance += impact;
+      netBalance += impact;
+
+      transactions.push({
+        id: exp.id,
+        type: 'expense',
+        description: exp.description,
+        amount: exp.amount,
+        paidBy: currentUserId,
+        payerName: 'Multiple people',
+        date: exp.createdAt instanceof Date ? exp.createdAt : new Date(exp.createdAt),
+        groupId: null,
+        balanceImpact: impact,
+      });
+      return;
+    }
+
     const payerId = exp.paidBy || exp.createdBy;
     const payerIsMe = payerId === currentUserId;
     const payerIsFriend = payerId === friendId;
@@ -238,6 +290,48 @@ export function computeDetailedFriendBalance(
     // Group Expenses
     expenses.forEach((exp) => {
       if (exp.isDeleted) return;
+
+      const payerTags = exp.tags?.filter((t) => t.startsWith('payer:')) || [];
+      if (payerTags.length > 0) {
+        let myPaid = 0;
+        let friendPaid = 0;
+        payerTags.forEach((pt) => {
+          const parts = pt.split(':');
+          if (parts[1] === currentUserId) myPaid = parseFloat(parts[2]) || 0;
+          if (parts[1] === friendId) friendPaid = parseFloat(parts[2]) || 0;
+        });
+
+        let myShare = 0;
+        let friendShare = 0;
+        exp.splits.forEach((s) => {
+          if (s.userId === currentUserId) myShare = s.amount;
+          if (s.userId === friendId) friendShare = s.amount;
+        });
+
+        // In bilateral group context, net delta between me and friend
+        const impact = myPaid > 0 && friendShare > 0 ? (myPaid / exp.amount) * friendShare : 0;
+        const reverseImpact = friendPaid > 0 && myShare > 0 ? (friendPaid / exp.amount) * myShare : 0;
+        const netGroupImpact = impact - reverseImpact;
+
+        if (Math.abs(netGroupImpact) > 0.001) {
+          groupBilateralBalance += netGroupImpact;
+          netBalance += netGroupImpact;
+          transactions.push({
+            id: exp.id,
+            type: 'expense',
+            description: exp.description,
+            amount: exp.amount,
+            paidBy: currentUserId,
+            payerName: 'Multiple people',
+            date: exp.createdAt instanceof Date ? exp.createdAt : new Date(exp.createdAt),
+            groupId,
+            groupName,
+            balanceImpact: netGroupImpact,
+          });
+        }
+        return;
+      }
+
       const payerId = exp.paidBy || exp.createdBy;
       const payerIsMe = payerId === currentUserId;
       const payerIsFriend = payerId === friendId;

@@ -366,6 +366,30 @@ function runTests() {
     assert(res.netBalance === 0, 'Scenario 9: 3rd party payer does not create bilateral debt between other 2 members');
   }
 
+  // Scenario 10: Multiple payers in a single expense
+  {
+    const expMultiPayer: Expense = {
+      id: 'e10_multi',
+      groupId: 'direct_me_rahul',
+      createdBy: 'user_me',
+      paidBy: '__MULTIPLE__',
+      description: 'Shared Dinner',
+      amount: 1000,
+      splits: [
+        { userId: 'user_me', amount: 500, type: 'equal' },
+        { userId: 'user_rahul', amount: 500, type: 'equal' },
+      ],
+      splitType: 'equal',
+      currency: 'INR',
+      tags: ['payer:user_me:600', 'payer:user_rahul:400'],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const res = computeDetailedFriendBalance('user_me', 'user_rahul', 'Rahul', [], [expMultiPayer], []);
+    assert(res.netBalance === 100, 'Scenario 10: Multi-payer (Me paid ₹600, Rahul paid ₹400, split ₹500 each) -> Me net +₹100');
+  }
+
   console.log(`\nRESULTS: ${passed} passed, ${failed} failed.`);
   if (failed > 0) {
     process.exit(1);

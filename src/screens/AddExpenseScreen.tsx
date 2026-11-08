@@ -28,6 +28,7 @@ import {
   Receipt,
   ChevronLeft,
   ChevronRight,
+  Scale,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -97,6 +98,8 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
   const [payerId, setPayerId] = useState<string | null>(
     expenseToEdit?.paidBy || expenseToEdit?.createdBy || null
   );
+  const [payerMode, setPayerMode] = useState<'single' | 'multiple'>('single');
+  const [payerAmounts, setPayerAmounts] = useState<Record<string, string>>({});
   const [percentages, setPercentages] = useState<Record<string, string>>({});
   const [shares, setShares] = useState<Record<string, string>>({});
   const [exactAmounts, setExactAmounts] = useState<Record<string, string>>({});
@@ -144,6 +147,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
       const initPercentages: Record<string, string> = {};
       const initExactAmounts: Record<string, string> = {};
       const initSelected: Record<string, boolean> = {};
+      const initPayerAmounts: Record<string, string> = {};
 
       normalizedList.forEach((m, index) => {
         initShares[m.userId] = '1';
@@ -152,13 +156,19 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         ).toString();
         initExactAmounts[m.userId] = '0.00';
         initSelected[m.userId] = true;
+        initPayerAmounts[m.userId] = '0.00';
       });
 
-      // If editing an existing expense, prefill splits
+      // If editing an existing expense, prefill splits & payers
       if (expenseToEdit && expenseToEdit.splits && expenseToEdit.splits.length > 0) {
         if (expenseToEdit.splitType === 'equal') {
           normalizedList.forEach((m) => {
             initSelected[m.userId] = expenseToEdit.splits.some((s: any) => s.userId === m.userId);
+          });
+        } else if (expenseToEdit.splitType === 'shares') {
+          normalizedList.forEach((m) => {
+            const found = expenseToEdit.splits.find((s: any) => s.userId === m.userId);
+            initShares[m.userId] = found ? '1' : '0';
           });
         } else if (expenseToEdit.splitType === 'unequal') {
           normalizedList.forEach((m) => {
@@ -177,16 +187,30 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         }
       }
 
+      // Check for multi-payer tags
+      const payerTags = expenseToEdit?.tags?.filter((t: string) => t.startsWith('payer:')) || [];
+      if (payerTags.length > 0) {
+        setPayerMode('multiple');
+        setPayerId('__MULTIPLE__');
+        payerTags.forEach((pt: string) => {
+          const parts = pt.split(':');
+          if (parts[1]) initPayerAmounts[parts[1]] = parts[2] || '0.00';
+        });
+      }
+
       setShares(initShares);
       setPercentages(initPercentages);
       setExactAmounts(initExactAmounts);
       setSelectedMembers(initSelected);
+      setPayerAmounts(initPayerAmounts);
 
-      if (expenseToEdit?.paidBy || expenseToEdit?.createdBy) {
-        setPayerId(expenseToEdit.paidBy || expenseToEdit.createdBy);
-      } else {
-        const myMembership = normalizedList.find((m) => m.userId === user?.uid);
-        setPayerId(myMembership ? user!.uid : normalizedList[0]?.userId ?? null);
+      if (payerTags.length === 0) {
+        if (expenseToEdit?.paidBy || expenseToEdit?.createdBy) {
+          setPayerId(expenseToEdit.paidBy || expenseToEdit.createdBy);
+        } else {
+          const myMembership = normalizedList.find((m) => m.userId === user?.uid);
+          setPayerId(myMembership ? user!.uid : normalizedList[0]?.userId ?? null);
+        }
       }
     };
 
@@ -257,6 +281,20 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
       0
     );
   }, [percentages]);
+
+  const sharesTotal = useMemo(() => {
+    return Object.values(shares).reduce(
+      (sum, val) => sum + (parseInt(val || '0', 10) || 0),
+      0
+    );
+  }, [shares]);
+
+  const totalPaidAmount = useMemo(() => {
+    return Object.values(payerAmounts).reduce(
+      (sum, val) => sum + (parseFloat(val || '0') || 0),
+      0
+    );
+  }, [payerAmounts]);
 
   const handleAmountChange = (text: string) => {
     const cleaned = text.replace(/[^0-9.]/g, '');
@@ -330,6 +368,15 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
       Alert.alert('Payer Required', 'Please select who paid for this expense.');
       return;
     }
+    if (payerId === '__MULTIPLE__') {
+      if (Math.abs(totalPaidAmount - numericAmount) > 0.05) {
+        Alert.alert(
+          'Payer Total Mismatch',
+          `The amounts entered for each payer sum to ${currency}${totalPaidAmount.toFixed(2)}, but total expense is ${currency}${numericAmount.toFixed(2)}.`
+        );
+        return;
+      }
+    }
 
     setIsSubmitting(true);
     try {
@@ -340,15 +387,57 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         const included = Object.keys(selectedMembers).filter((uid) => selectedMembers[uid]);
         if (included.length === 0) throw new Error('Please select at least one member to split with.');
 
-        const splitAmount = Math.round((numericAmount / included.length) * 100) / 100;
-        const totalSplit = splitAmount * included.length;
-        const remainder = Math.round((numericAmount - totalSplit) * 100) / 100;
+        const count = included.length;
+        const totalCents = Math.round(numericAmount * 100);
+        const baseCents = Math.floor(totalCents / count);
+        let remainderCents = totalCents - baseCents * count;
 
-        splits = included.map((uid, i) => ({
-          userId: uid,
-          amount: i === 0 ? splitAmount + remainder : splitAmount,
-          type: 'equal',
-        }));
+        splits = included.map((uid, i) => {
+          let cents = baseCents;
+          if (i < remainderCents) {
+            cents += 1;
+          }
+          return {
+            userId: uid,
+            amount: cents / 100,
+            type: 'equal',
+          };
+        });
+      } else if (splitMethod === 'shares') {
+        if (sharesTotal <= 0) {
+          throw new Error('Please allocate at least one share.');
+        }
+
+        const calculatedSplits = members
+          .map((m) => {
+            const sCount = parseInt(shares[m.userId] || '0', 10);
+            if (sCount <= 0) return null;
+            const raw = (numericAmount * sCount) / sharesTotal;
+            return {
+              userId: m.userId,
+              raw,
+              amount: Math.floor(raw * 100) / 100,
+              type: 'shares' as SplitType,
+            };
+          })
+          .filter(Boolean) as { userId: string; raw: number; amount: number; type: SplitType }[];
+
+        const currentSum = calculatedSplits.reduce((acc, s) => acc + s.amount, 0);
+        let remainderCents = Math.round((numericAmount - currentSum) * 100);
+
+        splits = calculatedSplits.map((s) => {
+          let adjusted = s.amount;
+          if (remainderCents > 0) {
+            adjusted = Math.round((adjusted + 0.01) * 100) / 100;
+            remainderCents -= 1;
+          }
+          return {
+            userId: s.userId,
+            amount: adjusted,
+            type: 'shares',
+          };
+        });
+        finalSplitType = 'shares';
       } else if (splitMethod === 'unequal') {
         if (Math.abs(exactTotal - numericAmount) > 0.05) {
           throw new Error(
@@ -381,6 +470,16 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
       const tags: string[] = [activeCategory];
       if (notes.trim()) tags.push(`note:${notes.trim()}`);
       if (receiptImage) tags.push(`receipt:${receiptImage}`);
+
+      // Encode multiple payer tags if multiple people paid
+      if (payerId === '__MULTIPLE__') {
+        Object.entries(payerAmounts).forEach(([uid, val]) => {
+          const amt = parseFloat(val || '0');
+          if (amt > 0) {
+            tags.push(`payer:${uid}:${amt.toFixed(2)}`);
+          }
+        });
+      }
 
       if (isEditing && expenseToEdit) {
         await updateExpenseLocal(groupId, expenseToEdit.id, {
@@ -416,18 +515,21 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
   };
 
   const payerMember = members.find((m) => m.userId === payerId);
-  const payerDisplayName = payerMember
-    ? payerMember.userId === user?.uid
-      ? 'you'
-      : payerMember.userName
-    : 'you';
+  const payerDisplayName = useMemo(() => {
+    if (payerId === '__MULTIPLE__') return 'multiple people';
+    return payerMember
+      ? payerMember.userId === user?.uid
+        ? 'you'
+        : payerMember.userName
+      : 'you';
+  }, [payerId, payerMember, user]);
 
-  const splitLabel =
-    splitMethod === 'equal'
-      ? 'equally'
-      : splitMethod === 'unequal'
-      ? 'unequally'
-      : 'by percentages';
+  const splitLabel = useMemo(() => {
+    if (splitMethod === 'equal') return 'equally';
+    if (splitMethod === 'shares') return 'by shares';
+    if (splitMethod === 'unequal') return 'unequally';
+    return 'by percentages';
+  }, [splitMethod]);
 
   const isToday = useMemo(() => {
     const today = new Date();
@@ -677,6 +779,24 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
             {/* Equal Split Member Checklist */}
             {splitMethod === 'equal' && (
               <View>
+                <View style={styles.equalSelectAllRow}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      const allSelected = members.every((m) => selectedMembers[m.userId]);
+                      const updated: Record<string, boolean> = {};
+                      members.forEach((m) => {
+                        updated[m.userId] = !allSelected;
+                      });
+                      setSelectedMembers(updated);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.selectAllBtnText}>
+                      {members.every((m) => selectedMembers[m.userId]) ? 'Deselect all' : 'Select all'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
                 {members.map((m) => {
                   const isChecked = !!selectedMembers[m.userId];
                   return (
@@ -826,6 +946,84 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                           placeholderTextColor="#9CA3AF"
                         />
                         <Text style={styles.pctSuffix}>%</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* Shares Split */}
+            {splitMethod === 'shares' && (
+              <View>
+                <View style={styles.validationRow}>
+                  <Text style={styles.validationText}>
+                    {sharesTotal} {sharesTotal === 1 ? 'total share' : 'total shares'}
+                  </Text>
+                  {sharesTotal > 0 ? (
+                    <View style={[styles.validPill, { backgroundColor: '#ECFDF5' }]}>
+                      <Check size={12} color="#059669" strokeWidth={2.5} />
+                      <Text style={[styles.validPillText, { color: '#059669' }]}>
+                        {sharesTotal} active
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.validPill, { backgroundColor: '#FEF2F2' }]}>
+                      <AlertCircle size={12} color="#E11D48" strokeWidth={2.5} />
+                      <Text style={[styles.validPillText, { color: '#E11D48' }]}>
+                        0 shares
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {members.map((m) => {
+                  const sCount = parseInt(shares[m.userId] || '0', 10);
+                  const calculatedShare =
+                    sharesTotal > 0 && sCount > 0 ? (numericAmount * sCount) / sharesTotal : 0;
+
+                  return (
+                    <View key={m.userId} style={styles.memberCheckRow}>
+                      <View style={styles.memberCheckLeft}>
+                        <MemberAvatar name={m.userName} size={36} />
+                        <View>
+                          <Text style={styles.memberName}>
+                            {m.userId === user?.uid ? `${m.userName} (You)` : m.userName}
+                          </Text>
+                          <Text style={styles.calcShareText}>
+                            {currency}{calculatedShare.toFixed(2)}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Stepper controls */}
+                      <View style={styles.stepperWrapper}>
+                        <TouchableOpacity
+                          style={styles.stepperBtn}
+                          onPress={() => {
+                            const cur = parseInt(shares[m.userId] || '0', 10);
+                            const next = Math.max(0, cur - 1);
+                            setShares((prev) => ({ ...prev, [m.userId]: String(next) }));
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.stepperBtnText}>−</Text>
+                        </TouchableOpacity>
+
+                        <Text style={styles.stepperValText}>
+                          {sCount} {sCount === 1 ? 'share' : 'shares'}
+                        </Text>
+
+                        <TouchableOpacity
+                          style={styles.stepperBtn}
+                          onPress={() => {
+                            const cur = parseInt(shares[m.userId] || '0', 10);
+                            setShares((prev) => ({ ...prev, [m.userId]: String(cur + 1) }));
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.stepperBtnText}>+</Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
                   );
@@ -1036,7 +1234,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         </TouchableOpacity>
       </Modal>
 
-      {/* ── Contextual Modal 2: Payer Selector ──────────────────────────────── */}
+      {/* ── Contextual Modal 2: Payer Selector (Single & Multiple) ────────── */}
       <Modal
         visible={payerModalVisible}
         transparent
@@ -1059,44 +1257,161 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
-              {members.map((m) => {
-                const isSelected = m.userId === payerId;
-                const isMe = m.userId === user?.uid;
-                return (
-                  <TouchableOpacity
-                    key={m.userId}
-                    style={[
-                      styles.selectionOptionRow,
-                      isSelected && styles.selectionOptionRowSelected,
-                    ]}
-                    onPress={() => {
-                      if (Platform.OS !== 'web') {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                      }
-                      setPayerId(m.userId);
-                      setPayerModalVisible(false);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.selectionOptionLeft}>
-                      <MemberAvatar name={m.userName} size={36} />
-                      <Text
-                        style={[
-                          styles.selectionOptionText,
-                          isSelected && styles.selectionOptionTextSelected,
-                        ]}
-                      >
-                        {isMe ? `${m.userName} (You)` : m.userName}
+            {/* Segmented Control: Single person vs Multiple people */}
+            <View style={styles.segmentedControl}>
+              <TouchableOpacity
+                style={[
+                  styles.segmentedBtn,
+                  payerMode === 'single' && styles.segmentedBtnActive,
+                ]}
+                onPress={() => setPayerMode('single')}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.segmentedBtnText,
+                    payerMode === 'single' && styles.segmentedBtnTextActive,
+                  ]}
+                >
+                  Single person
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.segmentedBtn,
+                  payerMode === 'multiple' && styles.segmentedBtnActive,
+                ]}
+                onPress={() => setPayerMode('multiple')}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.segmentedBtnText,
+                    payerMode === 'multiple' && styles.segmentedBtnTextActive,
+                  ]}
+                >
+                  Multiple people
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {payerMode === 'single' ? (
+              <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+                {members.map((m) => {
+                  const isSelected = m.userId === payerId;
+                  const isMe = m.userId === user?.uid;
+                  return (
+                    <TouchableOpacity
+                      key={m.userId}
+                      style={[
+                        styles.selectionOptionRow,
+                        isSelected && styles.selectionOptionRowSelected,
+                      ]}
+                      onPress={() => {
+                        if (Platform.OS !== 'web') {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                        }
+                        setPayerId(m.userId);
+                        setPayerModalVisible(false);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.selectionOptionLeft}>
+                        <MemberAvatar name={m.userName} size={36} />
+                        <Text
+                          style={[
+                            styles.selectionOptionText,
+                            isSelected && styles.selectionOptionTextSelected,
+                          ]}
+                        >
+                          {isMe ? `${m.userName} (You)` : m.userName}
+                        </Text>
+                      </View>
+                      {isSelected && (
+                        <Check size={20} color="#059669" strokeWidth={2.5} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            ) : (
+              <View>
+                {/* Live Validation for Multiple Payers */}
+                <View style={[styles.validationRow, { marginHorizontal: 0, marginTop: 4, marginBottom: 10 }]}>
+                  <Text style={styles.validationText}>
+                    {currency}{totalPaidAmount.toFixed(2)} of {currency}{numericAmount.toFixed(2)}
+                  </Text>
+                  {Math.abs(totalPaidAmount - numericAmount) < 0.05 ? (
+                    <View style={[styles.validPill, { backgroundColor: '#ECFDF5' }]}>
+                      <Check size={12} color="#059669" strokeWidth={2.5} />
+                      <Text style={[styles.validPillText, { color: '#059669' }]}>
+                        Balanced
                       </Text>
                     </View>
-                    {isSelected && (
-                      <Check size={20} color="#059669" strokeWidth={2.5} />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                  ) : (
+                    <View style={[styles.validPill, { backgroundColor: '#FEF2F2' }]}>
+                      <AlertCircle size={12} color="#E11D48" strokeWidth={2.5} />
+                      <Text style={[styles.validPillText, { color: '#E11D48' }]}>
+                        {totalPaidAmount < numericAmount
+                          ? `${currency}${(numericAmount - totalPaidAmount).toFixed(2)} left`
+                          : `${currency}${(totalPaidAmount - numericAmount).toFixed(2)} over`}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false}>
+                  {members.map((m) => (
+                    <View key={`payer-${m.userId}`} style={styles.memberCheckRow}>
+                      <View style={styles.memberCheckLeft}>
+                        <MemberAvatar name={m.userName} size={34} />
+                        <Text style={styles.memberName}>
+                          {m.userId === user?.uid ? `${m.userName} (You)` : m.userName}
+                        </Text>
+                      </View>
+                      <View style={styles.inputWrapper}>
+                        <Text style={styles.currencyPrefix}>{currency}</Text>
+                        <TextInput
+                          style={styles.exactInput}
+                          value={payerAmounts[m.userId] || ''}
+                          onChangeText={(val) =>
+                            setPayerAmounts((prev) => ({ ...prev, [m.userId]: val }))
+                          }
+                          keyboardType="decimal-pad"
+                          placeholder="0.00"
+                          placeholderTextColor="#9CA3AF"
+                        />
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+
+                <TouchableOpacity
+                  style={[
+                    styles.primaryModalBtn,
+                    Math.abs(totalPaidAmount - numericAmount) >= 0.05 && { opacity: 0.6 },
+                  ]}
+                  onPress={() => {
+                    if (Math.abs(totalPaidAmount - numericAmount) >= 0.05) {
+                      Alert.alert(
+                        'Amounts Do Not Match',
+                        `Total paid is ${currency}${totalPaidAmount.toFixed(2)}, but expense is ${currency}${numericAmount.toFixed(2)}.`
+                      );
+                      return;
+                    }
+                    if (Platform.OS !== 'web') {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                    }
+                    setPayerId('__MULTIPLE__');
+                    setPayerModalVisible(false);
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.primaryModalBtnText}>Confirm Multiple Payers</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -1149,6 +1464,35 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                 </Text>
               </View>
               {splitMethod === 'equal' && (
+                <Check size={20} color="#059669" strokeWidth={2.5} />
+              )}
+            </TouchableOpacity>
+
+            {/* Split by Shares */}
+            <TouchableOpacity
+              style={[
+                styles.splitMethodOption,
+                splitMethod === 'shares' && styles.splitMethodOptionSelected,
+              ]}
+              onPress={() => {
+                if (Platform.OS !== 'web') {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                }
+                setSplitMethod('shares');
+                setSplitModalVisible(false);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.splitMethodIconCircle}>
+                <Scale size={20} color="#059669" strokeWidth={2.2} />
+              </View>
+              <View style={styles.splitMethodTextCol}>
+                <Text style={styles.splitMethodTitle}>Split by shares</Text>
+                <Text style={styles.splitMethodSub}>
+                  Allocate proportional shares (e.g. 1 share, 2 shares)
+                </Text>
+              </View>
+              {splitMethod === 'shares' && (
                 <Check size={20} color="#059669" strokeWidth={2.5} />
               )}
             </TouchableOpacity>
@@ -2106,6 +2450,96 @@ const styles = StyleSheet.create({
   dayTextToday: {
     color: '#059669',
     fontWeight: '700',
+  },
+  // Splitwise Payer & Shares controls
+  equalSelectAllRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    marginBottom: 4,
+  },
+  selectAllBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#059669',
+  },
+  stepperWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    padding: 3,
+    gap: 6,
+  },
+  stepperBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  stepperBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  stepperValText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111827',
+    minWidth: 54,
+    textAlign: 'center',
+  },
+  segmentedControl: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+    padding: 3,
+    marginBottom: 12,
+  },
+  segmentedBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentedBtnActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  segmentedBtnText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  segmentedBtnTextActive: {
+    color: '#111827',
+    fontWeight: '700',
+  },
+  primaryModalBtn: {
+    backgroundColor: '#059669',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+  },
+  primaryModalBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
 

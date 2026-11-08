@@ -47,7 +47,7 @@ export interface Group {
 }
 
 // ─── Expense ─────────────────────────────────────────────────────────────────
-export type SplitType = 'equal' | 'unequal' | 'percentage';
+export type SplitType = 'equal' | 'unequal' | 'percentage' | 'shares';
 
 export interface ExpenseSplit {
   userId: string;
