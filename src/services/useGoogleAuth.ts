@@ -1,10 +1,8 @@
 import { useEffect, useCallback, useRef } from 'react';
-import { Platform } from 'react-native';
-import {
-  GoogleSignin,
-  statusCodes,
-  isSuccessResponse,
-  isCancelledResponse,
+import { Platform, NativeModules, TurboModuleRegistry } from 'react-native';
+import type {
+  GoogleSignin as GoogleSigninType,
+  statusCodes as statusCodesType,
 } from '@react-native-google-signin/google-signin';
 import { googleAuthConfig } from '../config/firebase';
 
@@ -18,6 +16,41 @@ export type GoogleSignInResult =
   | { type: 'cancel' }
   | { type: 'error'; error: Error };
 
+/**
+ * Check if the native Google Sign-In module (RNGoogleSignin) is linked in the running binary.
+ * In Expo Go, this returns false because Expo Go does not include custom native modules.
+ * In custom development builds (EAS build / pre-built APK), this returns true.
+ */
+export function isGoogleSigninSupported(): boolean {
+  if (Platform.OS === 'web') return false;
+  try {
+    const turbo =
+      typeof TurboModuleRegistry !== 'undefined' && TurboModuleRegistry.get
+        ? TurboModuleRegistry.get('RNGoogleSignin')
+        : null;
+    return Boolean(turbo || NativeModules?.RNGoogleSignin);
+  } catch {
+    return false;
+  }
+}
+
+let googleSigninModule: any = null;
+
+function getGoogleSigninModule(): any | null {
+  if (!isGoogleSigninSupported()) {
+    return null;
+  }
+  if (!googleSigninModule) {
+    try {
+      googleSigninModule = require('@react-native-google-signin/google-signin');
+    } catch (err) {
+      console.warn('[GoogleSignIn] Could not load @react-native-google-signin/google-signin:', err);
+      googleSigninModule = null;
+    }
+  }
+  return googleSigninModule;
+}
+
 let isConfigured = false;
 
 /**
@@ -25,8 +58,11 @@ let isConfigured = false;
  */
 export function configureGoogleSignIn(): void {
   if (isConfigured || Platform.OS === 'web') return;
+  const mod = getGoogleSigninModule();
+  if (!mod?.GoogleSignin) return;
+
   try {
-    GoogleSignin.configure({
+    mod.GoogleSignin.configure({
       webClientId: googleAuthConfig.webClientId,
       scopes: ['profile', 'email'],
       offlineAccess: false,
@@ -37,8 +73,8 @@ export function configureGoogleSignIn(): void {
   }
 }
 
-// Pre-configure on module load
-if (Platform.OS !== 'web') {
+// Pre-configure on module load if supported in this environment
+if (Platform.OS !== 'web' && isGoogleSigninSupported()) {
   configureGoogleSignIn();
 }
 
@@ -47,11 +83,13 @@ if (Platform.OS !== 'web') {
  */
 export async function signOutNativeGoogle(): Promise<void> {
   if (Platform.OS === 'web') return;
+  const mod = getGoogleSigninModule();
+  if (!mod?.GoogleSignin) return;
+
   try {
     configureGoogleSignIn();
-    await GoogleSignin.signOut();
+    await mod.GoogleSignin.signOut();
   } catch (err) {
-    // Non-fatal if already signed out
     console.warn('[GoogleSignIn] signOutNativeGoogle notice:', err);
   }
 }
@@ -67,6 +105,19 @@ export async function signInWithNativeGoogle(): Promise<GoogleSignInResult> {
       error: new Error('Google Sign-In is only available on native Android/iOS.'),
     };
   }
+
+  const mod = getGoogleSigninModule();
+  if (!mod?.GoogleSignin) {
+    return {
+      type: 'error',
+      error: new Error(
+        'Google Sign-In uses native Google Play Services, which requires a custom development build or APK because custom native modules are not bundled in Expo Go. Please sign in with Email & Password or use the installed APK.'
+      ),
+    };
+  }
+
+  const { GoogleSignin, statusCodes, isSuccessResponse, isCancelledResponse } = mod;
+
   try {
     configureGoogleSignIn();
 
@@ -79,11 +130,11 @@ export async function signInWithNativeGoogle(): Promise<GoogleSignInResult> {
     // 3. Initiate native Google Play Services bottom-sheet prompt
     const response = await GoogleSignin.signIn();
 
-    if (isCancelledResponse(response)) {
+    if (isCancelledResponse && isCancelledResponse(response)) {
       return { type: 'cancel' };
     }
 
-    if (isSuccessResponse(response)) {
+    if (!isSuccessResponse || isSuccessResponse(response)) {
       let idToken = response.data?.idToken;
       let accessToken: string | undefined = undefined;
 
@@ -117,7 +168,7 @@ export async function signInWithNativeGoogle(): Promise<GoogleSignInResult> {
   } catch (err: any) {
     // 1. User cancellation
     const isCancelled =
-      err?.code === statusCodes.SIGN_IN_CANCELLED ||
+      err?.code === statusCodes?.SIGN_IN_CANCELLED ||
       err?.code === '12501' ||
       err?.code === 'SIGN_IN_CANCELLED' ||
       String(err?.code) === '12501' ||
@@ -129,7 +180,7 @@ export async function signInWithNativeGoogle(): Promise<GoogleSignInResult> {
 
     // 2. Sign-in already in progress
     if (
-      err?.code === statusCodes.IN_PROGRESS ||
+      err?.code === statusCodes?.IN_PROGRESS ||
       err?.code === 'ASYNC_OP_IN_PROGRESS' ||
       err?.code === '12502'
     ) {
@@ -149,7 +200,7 @@ export async function signInWithNativeGoogle(): Promise<GoogleSignInResult> {
       friendlyMessage =
         'Google Sign-In configuration error (DEVELOPER_ERROR 10). The app signing certificate (SHA-1) is not registered in Firebase Console. Add your production or debug SHA-1 key to Firebase project settings.';
     } else if (
-      err?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE ||
+      err?.code === statusCodes?.PLAY_SERVICES_NOT_AVAILABLE ||
       errorCode === 'PLAY_SERVICES_NOT_AVAILABLE'
     ) {
       friendlyMessage =
@@ -215,6 +266,6 @@ export function useGoogleAuth(
 
   return {
     promptAsync,
-    isReady: true,
+    isReady: isGoogleSigninSupported(),
   };
 }
