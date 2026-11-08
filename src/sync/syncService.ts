@@ -225,6 +225,7 @@ class SyncService {
       async (snap) => {
         const remoteGroups: Group[] = snap.docs.map((d) => {
           const data = d.data();
+          const coverPhoto = data.coverPhoto || (data.bannerUrl ? { type: 'preset', imageUrl: data.bannerUrl } : undefined);
           return {
             id: d.id,
             name: data.name,
@@ -233,7 +234,8 @@ class SyncService {
             createdBy: data.createdBy,
             createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
             imageUrl: data.imageUrl,
-            bannerUrl: data.bannerUrl,
+            bannerUrl: coverPhoto?.imageUrl || data.bannerUrl,
+            coverPhoto,
             icon: data.icon,
             memberIds: data.memberIds ?? [],
             updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(),
@@ -270,6 +272,7 @@ class SyncService {
 
       const remoteGroups: Group[] = snap.docs.map((d) => {
         const data = d.data();
+        const coverPhoto = data.coverPhoto || (data.bannerUrl ? { type: 'preset', imageUrl: data.bannerUrl } : undefined);
         return {
           id: d.id,
           name: data.name,
@@ -278,7 +281,8 @@ class SyncService {
           createdBy: data.createdBy,
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
           imageUrl: data.imageUrl,
-          bannerUrl: data.bannerUrl,
+          bannerUrl: coverPhoto?.imageUrl || data.bannerUrl,
+          coverPhoto,
           icon: data.icon,
           memberIds: data.memberIds ?? [],
           updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(),

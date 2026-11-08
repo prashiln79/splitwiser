@@ -62,7 +62,14 @@ import { ExpenseListItem } from '../components/common/ExpenseListItem';
 import { CategoryIcon, detectCategory, CATEGORIES_CONFIG } from '../components/common/CategoryIcon';
 import { SpendingDonutChart } from '../components/common/SpendingDonutChart';
 import { MonthlyTrendsChart, MonthTrendItem } from '../components/common/MonthlyTrendsChart';
-import { GroupCoverHeader, COVER_SCROLL_DISTANCE } from '../components/common/GroupCoverHeader';
+import {
+  GroupCoverHeader,
+  GroupTopBar,
+  GroupPillTabs,
+  COVER_SCROLL_DISTANCE,
+  TABS,
+  TabKey,
+} from '../components/common/GroupCoverHeader';
 import { GroupCoverPhotoModal } from '../components/common/GroupCoverPhotoModal';
 import { SettleUpModal } from '../components/common/SettleUpModal';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
@@ -71,22 +78,6 @@ import { Expense, Group, GroupMember, OptimizedSettlement, Settlement } from '..
 import { formatCurrency } from '../utils/currency';
 import { useIsFocused } from '@react-navigation/native';
 
-type TabKey = 'expenses' | 'settle' | 'charts' | 'balances' | 'total';
-
-interface TabItem {
-  key: TabKey;
-  label: string;
-  hasSparkle?: boolean;
-}
-
-const TABS: TabItem[] = [
-  { key: 'expenses', label: 'Expenses' },
-  { key: 'settle', label: 'Settle up' },
-  { key: 'charts', label: 'Charts', hasSparkle: true },
-  { key: 'balances', label: 'Balances' },
-  { key: 'total', label: 'Total' },
-];
-
 export const GroupDetailsScreen = ({ route, navigation }: any) => {
   const { groupId, groupName: initialGroupName } = route?.params || {};
   const { user } = useAuth();
@@ -94,20 +85,28 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
   const isFocused = useIsFocused();
   const { width: screenWidth } = useWindowDimensions();
 
-  const pagerRef = useRef<any>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
   const useNativeDriver = false;
   const [activeTabIndex, setActiveTabIndex] = useState<number>(0);
   const [showSettledExpenses, setShowSettledExpenses] = useState<boolean>(false);
   const [chartTimeframe, setChartTimeframe] = useState<'1M' | '3M' | 'ALL'>('ALL');
+  const [isStickyActive, setIsStickyActive] = useState<boolean>(false);
 
-  const headerTranslateY = scrollY.interpolate({
-    inputRange: [0, COVER_SCROLL_DISTANCE],
-    outputRange: [0, -COVER_SCROLL_DISTANCE],
+  useEffect(() => {
+    const listenerId = scrollY.addListener(({ value }) => {
+      const shouldBeSticky = value >= COVER_SCROLL_DISTANCE;
+      setIsStickyActive((prev) => (prev !== shouldBeSticky ? shouldBeSticky : prev));
+    });
+    return () => {
+      scrollY.removeListener(listenerId);
+    };
+  }, [scrollY]);
+
+  const stickyTabsOpacity = scrollY.interpolate({
+    inputRange: [COVER_SCROLL_DISTANCE - 15, COVER_SCROLL_DISTANCE],
+    outputRange: [0, 1],
     extrapolate: 'clamp',
   });
-
-  const TOTAL_HEADER_HEIGHT = insets.top + 44 + COVER_SCROLL_DISTANCE + 48;
 
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
@@ -557,31 +556,33 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
     });
   }, [members, chartFilteredExpenses, filteredTotalExpensesAmount, user]);
 
+  const hasCover = Boolean(group?.coverPhoto?.imageUrl?.trim() || group?.bannerUrl?.trim());
+
+  // Shared scrollable cover header with inline navigation pill tabs
+  const renderSharedHeader = () => (
+    <GroupCoverHeader
+      group={group}
+      initialGroupName={initialGroupName}
+      memberCount={members.length}
+      netBalance={netBalance}
+      settlements={settlements}
+      currentUserId={user?.uid || ''}
+    >
+      <GroupPillTabs
+        activeTabIndex={activeTabIndex}
+        onTabPress={handleTabPress}
+        hasCover={hasCover}
+      />
+    </GroupCoverHeader>
+  );
+
   // Page navigation handling
   const handleTabPress = (index: number) => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
     setActiveTabIndex(index);
-    pagerRef.current?.scrollTo({ x: index * screenWidth, animated: true });
-    Animated.timing(scrollY, {
-      toValue: 0,
-      duration: 150,
-      useNativeDriver,
-    }).start();
-  };
-
-  const handleScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const offsetX = e.nativeEvent.contentOffset.x;
-    const index = Math.round(offsetX / screenWidth);
-    if (index !== activeTabIndex && index >= 0 && index < TABS.length) {
-      setActiveTabIndex(index);
-      Animated.timing(scrollY, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver,
-      }).start();
-    }
+    scrollY.setValue(0);
   };
 
   const openQuickSettle = (toUserId?: string, amount?: number) => {
@@ -593,13 +594,13 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
   const renderExpensesSection = () => {
     return (
       <FlatList
-        style={{ width: screenWidth }}
+        style={{ flex: 1 }}
         data={expenses}
         keyExtractor={(item) => item.id}
+        ListHeaderComponent={renderSharedHeader}
         contentContainerStyle={[
           styles.pageScrollContent,
           {
-            paddingTop: TOTAL_HEADER_HEIGHT,
             paddingBottom: Math.max(insets.bottom + 90, 110),
           },
         ]}
@@ -669,11 +670,10 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
 
     return (
       <ScrollView
-        style={{ width: screenWidth }}
+        style={{ flex: 1 }}
         contentContainerStyle={[
           styles.pageScrollContent,
           {
-            paddingTop: TOTAL_HEADER_HEIGHT,
             paddingBottom: Math.max(insets.bottom + 90, 110),
           },
         ]}
@@ -692,7 +692,9 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
           />
         }
       >
-        {isSettled ? (
+        {renderSharedHeader()}
+        <View style={styles.tabBodyContent}>
+          {isSettled ? (
           <View style={styles.settledCelebrationCard}>
             <Text style={styles.settledTitle}>You are all settled up</Text>
 
@@ -828,6 +830,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
             )}
           </View>
         )}
+        </View>
       </ScrollView>
     );
   };
@@ -836,11 +839,10 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
   const renderChartsSection = () => {
     return (
       <ScrollView
-        style={{ width: screenWidth }}
+        style={{ flex: 1 }}
         contentContainerStyle={[
           styles.pageScrollContent,
           {
-            paddingTop: TOTAL_HEADER_HEIGHT,
             paddingBottom: Math.max(insets.bottom + 90, 110),
           },
         ]}
@@ -859,7 +861,9 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
           />
         }
       >
-        {/* Timeframe Filter Selector */}
+        {renderSharedHeader()}
+        <View style={styles.tabBodyContent}>
+          {/* Timeframe Filter Selector */}
         <View style={styles.chartFilterPillsRow}>
           {(['1M', '3M', 'ALL'] as const).map((tf) => {
             const isSelected = chartTimeframe === tf;
@@ -1048,6 +1052,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
             );
           })}
         </View>
+        </View>
       </ScrollView>
     );
   };
@@ -1056,11 +1061,10 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
   const renderBalancesSection = () => {
     return (
       <ScrollView
-        style={{ width: screenWidth }}
+        style={{ flex: 1 }}
         contentContainerStyle={[
           styles.pageScrollContent,
           {
-            paddingTop: TOTAL_HEADER_HEIGHT,
             paddingBottom: Math.max(insets.bottom + 90, 110),
           },
         ]}
@@ -1079,7 +1083,9 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
           />
         }
       >
-        {/* Individual Member Balances */}
+        {renderSharedHeader()}
+        <View style={styles.tabBodyContent}>
+          {/* Individual Member Balances */}
         <View style={styles.chartBlockCard}>
           <View style={styles.chartBlockHeader}>
             <Scale size={18} color="#059669" />
@@ -1166,6 +1172,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
             })
           )}
         </View>
+        </View>
       </ScrollView>
     );
   };
@@ -1174,11 +1181,10 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
   const renderTotalSection = () => {
     return (
       <ScrollView
-        style={{ width: screenWidth }}
+        style={{ flex: 1 }}
         contentContainerStyle={[
           styles.pageScrollContent,
           {
-            paddingTop: TOTAL_HEADER_HEIGHT,
             paddingBottom: Math.max(insets.bottom + 90, 110),
           },
         ]}
@@ -1197,7 +1203,9 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
           />
         }
       >
-        <View style={styles.totalHeaderContainer}>
+        {renderSharedHeader()}
+        <View style={styles.tabBodyContent}>
+          <View style={styles.totalHeaderContainer}>
           {/* 4-Card Summary Grid */}
           <View style={styles.grid2x2}>
             <View style={styles.gridCard}>
@@ -1265,100 +1273,56 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
             </View>
           ))}
         </View>
+        </View>
       </ScrollView>
     );
   };
 
   return (
     <View style={styles.container}>
-      {/* Pager / Swipeable Content (Scrolls Smoothly Behind Floating Header) */}
+      {/* Active Tab Scroll Content */}
       {isLoading ? (
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color="#059669" />
         </View>
       ) : (
-        <ScrollView
-          ref={pagerRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={handleScrollEnd}
-          style={styles.pagerContainer}
-        >
-          {renderExpensesSection()}
-          {renderSettleUpSection()}
-          {renderChartsSection()}
-          {renderBalancesSection()}
-          {renderTotalSection()}
-        </ScrollView>
+        <View style={{ flex: 1 }}>
+          {activeTabIndex === 0 && renderExpensesSection()}
+          {activeTabIndex === 1 && renderSettleUpSection()}
+          {activeTabIndex === 2 && renderBalancesSection()}
+          {activeTabIndex === 3 && renderTotalSection()}
+          {activeTabIndex === 4 && renderChartsSection()}
+        </View>
       )}
 
-      {/* Floating Animated Collapsible Header (Cover Photo + Nav + Tabs) */}
+      {/* Pinned Top Navigation Bar (Back, Mini Title, Settings, Add Cover) */}
+      <GroupTopBar
+        group={group}
+        initialGroupName={initialGroupName}
+        hasCover={hasCover}
+        onBack={() => navigation.goBack()}
+        onSettings={() => navigation.navigate('GroupSettings', { groupId })}
+        onEditCover={() => setCoverModalVisible(true)}
+        scrollY={scrollY}
+      />
+
+      {/* Sticky Pill Navigation Tabs (Docked directly below Top Bar when scrolled) */}
       <Animated.View
         style={[
-          styles.stickyHeaderWrapper,
-          { transform: [{ translateY: headerTranslateY }] },
+          styles.stickyTabsWrapper,
+          {
+            top: insets.top + 44,
+            opacity: stickyTabsOpacity,
+          },
         ]}
+        pointerEvents={isStickyActive ? 'auto' : 'none'}
       >
-        <GroupCoverHeader
-          group={group}
-          initialGroupName={initialGroupName}
-          memberCount={members.length}
-          netBalance={netBalance}
-          settlements={settlements}
-          currentUserId={user?.uid || ''}
-          onBack={() => navigation.goBack()}
-          onSettings={() => navigation.navigate('GroupSettings', { groupId })}
-          onEditCover={() => setCoverModalVisible(true)}
-          scrollY={scrollY}
+        <GroupPillTabs
+          activeTabIndex={activeTabIndex}
+          onTabPress={handleTabPress}
+          hasCover={hasCover}
+          isSticky
         />
-
-        {/* Horizontal Pill Navigation Tabs */}
-        <View style={styles.pillTabsContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.pillTabsScrollContent}
-          >
-            {TABS.map((tab, idx) => {
-              const isActive = activeTabIndex === idx;
-              const isSettleTab = tab.key === 'settle';
-
-              return (
-                <TouchableOpacity
-                  key={tab.key}
-                  style={[
-                    styles.navPill,
-                    isActive
-                      ? isSettleTab
-                        ? styles.navPillSettleActive
-                        : styles.navPillActive
-                      : styles.navPillInactive,
-                  ]}
-                  onPress={() => handleTabPress(idx)}
-                  activeOpacity={0.7}
-                >
-                  {tab.hasSparkle && (
-                    <Gem
-                      size={13}
-                      color={isActive ? '#FFFFFF' : '#7C3AED'}
-                      strokeWidth={2.5}
-                      style={{ marginRight: 5 }}
-                    />
-                  )}
-                  <Text
-                    style={[
-                      styles.navPillText,
-                      isActive ? styles.navPillTextActive : styles.navPillTextInactive,
-                    ]}
-                  >
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
       </Animated.View>
 
       {/* Floating Action Button (Screenshot-style Green Pill) */}
@@ -1831,7 +1795,13 @@ const styles = StyleSheet.create({
     color: '#1F2937',
   },
 
-  // Horizontal Navigation Pill Tabs
+  // Sticky Pill Navigation Tabs
+  stickyTabsWrapper: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 90,
+  },
   stickyHeaderWrapper: {
     position: 'absolute',
     top: 0,
@@ -1890,8 +1860,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   pageScrollContent: {
+    paddingHorizontal: 0,
+    paddingTop: 0,
+  },
+  tabBodyContent: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 14,
   },
 
   // Section 1: Settle Up
@@ -2391,15 +2365,16 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   monthHeaderContainer: {
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    backgroundColor: '#EDF0F4',
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E2E8F0',
   },
   monthHeaderText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#4B5563',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: '#374151',
   },
 
   // Floating Action Button (Bottom Right)

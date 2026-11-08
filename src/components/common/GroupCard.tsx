@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import { Home, Plane, Utensils, Heart, Briefcase, Users } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -66,6 +66,13 @@ export const GroupCard: React.FC<GroupCardProps> = ({
 }) => {
   const [imageError, setImageError] = useState(false);
 
+  // Priority: Group Cover Photo (makes group visually identifiable on Home) or group avatar
+  const rawImage = group.coverPhoto?.imageUrl || group.bannerUrl || group.imageUrl;
+
+  useEffect(() => {
+    setImageError(false);
+  }, [rawImage]);
+
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     onPress();
@@ -73,8 +80,8 @@ export const GroupCard: React.FC<GroupCardProps> = ({
 
   // Normalize and validate group image URI (supports https, data:image, file, content)
   let imageUri: string | null = null;
-  if (group.imageUrl) {
-    const raw = group.imageUrl.trim();
+  if (rawImage) {
+    const raw = rawImage.trim();
     if (/^(https?:|data:image|file:|content:)/i.test(raw)) {
       imageUri = raw;
     } else if (raw.startsWith('/') || raw.startsWith('file:')) {

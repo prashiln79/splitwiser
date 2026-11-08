@@ -1,4 +1,8 @@
-import { getDefaultCoverPhoto, PRESET_COVERS } from '../src/constants/presetCovers';
+import {
+  getDefaultCoverPhoto,
+  getSuggestedPresetCategory,
+  PRESET_COVERS,
+} from '../src/constants/presetCovers';
 
 console.log('--- STARTING GROUP COVER PHOTO UNIT TESTS ---');
 
@@ -40,6 +44,22 @@ if (PRESET_COVERS.length >= 20) {
   console.log(`✅ [PASS] Presets catalog populated with ${PRESET_COVERS.length} curated covers across 8 categories`);
 } else {
   console.error('❌ [FAIL] Insufficient presets count:', PRESET_COVERS.length);
+}
+
+// Test 6: Suggested Preset Category detection for Gallery
+const catHome = getSuggestedPresetCategory('home', 'Flat 402 Rent');
+const catTrip = getSuggestedPresetCategory('trip', 'Manali Road Trip');
+const catFood = getSuggestedPresetCategory('other', 'Friday Night Dinner');
+const catBeach = getSuggestedPresetCategory('other', 'Goa Summer Beach');
+if (
+  catHome === 'Home' &&
+  catTrip === 'Travel' &&
+  catFood === 'Food' &&
+  catBeach === 'Beach'
+) {
+  console.log('✅ [PASS] getSuggestedPresetCategory accurately selects matching gallery categories');
+} else {
+  console.error('❌ [FAIL] Unexpected categories:', { catHome, catTrip, catFood, catBeach });
 }
 
 console.log('ALL COVER PHOTO TESTS PASSED');

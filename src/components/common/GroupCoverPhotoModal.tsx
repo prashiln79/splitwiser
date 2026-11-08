@@ -29,7 +29,7 @@ import {
   PRESET_COVERS,
   PresetCategory,
   PresetCoverItem,
-  getDefaultCoverPhoto,
+  getSuggestedPresetCategory,
 } from '../../constants/presetCovers';
 import { GroupCoverService } from '../../services/groupCoverService';
 import { MemberAvatar } from './MemberAvatar';
@@ -52,8 +52,21 @@ export const GroupCoverPhotoModal: React.FC<GroupCoverPhotoModalProps> = ({
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
 
-  // Active Category Filter for Presets
-  const [selectedCategory, setSelectedCategory] = useState<PresetCategory>('All');
+  // Automatically detect the most appropriate preset category for this group
+  const suggestedCategory = useMemo(() => {
+    return getSuggestedPresetCategory(group?.icon, group?.name);
+  }, [group?.icon, group?.name]);
+
+  // Active Category Filter for Presets (initialized to suggested category)
+  const [selectedCategory, setSelectedCategory] = useState<PresetCategory>(suggestedCategory);
+
+  // Sync category filter when modal opens
+  React.useEffect(() => {
+    if (visible) {
+      setSelectedCategory(getSuggestedPresetCategory(group?.icon, group?.name));
+      setCandidateCover(null);
+    }
+  }, [visible, group?.icon, group?.name]);
 
   // Currently selected candidate cover (either preset or newly picked custom)
   const [candidateCover, setCandidateCover] = useState<{
@@ -66,17 +79,15 @@ export const GroupCoverPhotoModal: React.FC<GroupCoverPhotoModalProps> = ({
 
   const [isSaving, setIsSaving] = useState(false);
 
-  // Active cover currently used
+  // Active cover currently used (no default cover if none set)
   const activeCoverUrl = useMemo(() => {
     if (candidateCover) {
-      if (candidateCover.isRemoved) {
-        return getDefaultCoverPhoto(group?.id || 'default', group?.icon, group?.name).imageUrl;
-      }
+      if (candidateCover.isRemoved) return null;
       return candidateCover.imageUrl;
     }
-    if (group?.coverPhoto?.imageUrl) return group.coverPhoto.imageUrl;
-    if (group?.bannerUrl) return group.bannerUrl;
-    return getDefaultCoverPhoto(group?.id || 'default', group?.icon, group?.name).imageUrl;
+    if (group?.coverPhoto?.imageUrl?.trim()) return group.coverPhoto.imageUrl.trim();
+    if (group?.bannerUrl?.trim()) return group.bannerUrl.trim();
+    return null; // No default cover photo
   }, [candidateCover, group]);
 
   // Filter presets by category
@@ -260,12 +271,18 @@ export const GroupCoverPhotoModal: React.FC<GroupCoverPhotoModalProps> = ({
           <View style={styles.previewSection}>
             <Text style={styles.sectionHeading}>PREVIEW</Text>
             <View style={styles.previewCard}>
-              <Image
-                source={{ uri: activeCoverUrl }}
-                style={StyleSheet.absoluteFill}
-                resizeMode="cover"
-              />
-              <View style={styles.previewScrim} />
+              {activeCoverUrl ? (
+                <>
+                  <Image
+                    source={{ uri: activeCoverUrl }}
+                    style={StyleSheet.absoluteFill}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.previewScrim} />
+                </>
+              ) : (
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0F172A' }]} />
+              )}
 
               <View style={styles.previewInnerContent}>
                 <View style={styles.previewAvatarBorder}>
@@ -278,7 +295,11 @@ export const GroupCoverPhotoModal: React.FC<GroupCoverPhotoModalProps> = ({
                 <Text style={styles.previewGroupName} numberOfLines={1}>
                   {group?.name || 'Group'}
                 </Text>
-                <Text style={styles.previewSubtitle}>Splitwise Group Header</Text>
+                {activeCoverUrl ? (
+                  <Text style={styles.previewSubtitle}>Splitwise Group Header</Text>
+                ) : (
+                  <Text style={styles.previewSubtitleEmpty}>No cover photo selected</Text>
+                )}
               </View>
             </View>
           </View>
@@ -325,7 +346,10 @@ export const GroupCoverPhotoModal: React.FC<GroupCoverPhotoModalProps> = ({
           <View style={styles.presetSection}>
             <View style={styles.presetHeaderRow}>
               <Sparkles size={16} color="#059669" strokeWidth={2.4} />
-              <Text style={styles.sectionHeading}>PRESET COVERS GALLERY</Text>
+              <Text style={styles.sectionHeading}>
+                PRESET COVERS GALLERY
+                {suggestedCategory !== 'All' ? ` • ${suggestedCategory.toUpperCase()} RECOMMENDED` : ''}
+              </Text>
             </View>
 
             {/* Category Filter Pills */}
@@ -336,6 +360,8 @@ export const GroupCoverPhotoModal: React.FC<GroupCoverPhotoModalProps> = ({
             >
               {PRESET_CATEGORIES.map((cat) => {
                 const isSelected = selectedCategory === cat;
+                const isSuggested = suggestedCategory === cat && cat !== 'All';
+
                 return (
                   <TouchableOpacity
                     key={cat}
@@ -352,7 +378,7 @@ export const GroupCoverPhotoModal: React.FC<GroupCoverPhotoModalProps> = ({
                         isSelected && styles.categoryPillTextActive,
                       ]}
                     >
-                      {cat}
+                      {cat} {isSuggested ? '★' : ''}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -506,6 +532,11 @@ const styles = StyleSheet.create({
   previewSubtitle: {
     fontSize: 11,
     color: 'rgba(255, 255, 255, 0.85)',
+    marginTop: 2,
+  },
+  previewSubtitleEmpty: {
+    fontSize: 11,
+    color: '#94A3B8',
     marginTop: 2,
   },
   actionButtonsRow: {

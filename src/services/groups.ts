@@ -4,6 +4,7 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   getDoc,
   getDocs,
   onSnapshot,
@@ -128,8 +129,25 @@ export async function updateGroup(
   groupId: string,
   updates: Partial<Pick<Group, 'name' | 'imageUrl' | 'bannerUrl' | 'coverPhoto' | 'icon'>>
 ): Promise<void> {
+  // 1. Immediately update SQLite so local UI updates with zero latency
   await updateGroupLocal(groupId, updates);
-  await updateDoc(groupDoc(groupId), updates);
+
+  // 2. Persist to Firestore if online
+  if (networkMonitor.isCurrentlyOnline()) {
+    try {
+      const firestoreUpdates: Record<string, any> = {};
+      for (const [k, v] of Object.entries(updates)) {
+        if (v !== undefined && v !== null) {
+          firestoreUpdates[k] = v;
+        } else {
+          firestoreUpdates[k] = deleteField();
+        }
+      }
+      await updateDoc(groupDoc(groupId), firestoreUpdates);
+    } catch (e: any) {
+      console.warn('[updateGroup] remote update skipped/failed:', e?.message);
+    }
+  }
 }
 
 export async function deleteGroup(groupId: string): Promise<void> {

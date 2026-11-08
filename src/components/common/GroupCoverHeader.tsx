@@ -7,28 +7,41 @@ import {
   TouchableOpacity,
   Platform,
   Animated,
+  ScrollView,
 } from 'react-native';
-import { ArrowLeft, Settings, Camera } from 'lucide-react-native';
+import { ArrowLeft, Settings, Camera, Gem } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Group, OptimizedSettlement } from '../../types';
 import { MemberAvatar } from './MemberAvatar';
-import { getDefaultCoverPhoto } from '../../constants/presetCovers';
 import { formatCurrency } from '../../utils/currency';
 
-export const COVER_SCROLL_DISTANCE = 86; // Distance the cover content collapses when scrolled
+export const COVER_SCROLL_DISTANCE = 150; // Scroll distance after which the cover body completely collapses
 
-interface GroupCoverHeaderProps {
+export type TabKey = 'expenses' | 'settle' | 'balances' | 'total' | 'charts';
+
+export interface TabItem {
+  key: TabKey;
+  label: string;
+  hasSparkle?: boolean;
+}
+
+export const TABS: TabItem[] = [
+  { key: 'expenses', label: 'Expenses' },
+  { key: 'settle', label: 'Settle up' },
+  { key: 'balances', label: 'Balances' },
+  { key: 'total', label: 'Totals' },
+  { key: 'charts', label: 'Charts', hasSparkle: true },
+];
+
+export interface GroupCoverHeaderProps {
   group: Group | null;
   initialGroupName?: string;
   memberCount: number;
   netBalance: number;
   settlements?: OptimizedSettlement[];
   currentUserId?: string;
-  onBack: () => void;
-  onSettings: () => void;
-  onEditCover?: () => void;
-  scrollY?: Animated.Value;
+  children?: React.ReactNode;
 }
 
 export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
@@ -38,24 +51,18 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
   netBalance,
   settlements = [],
   currentUserId = '',
-  onBack,
-  onSettings,
-  onEditCover,
-  scrollY,
+  children,
 }) => {
   const insets = useSafeAreaInsets();
 
-  // Resolved cover image URL: custom coverPhoto -> bannerUrl -> deterministic fallback
+  // Resolved cover image URL: only if explicitly set via coverPhoto or bannerUrl (no default)
   const coverImageUrl = useMemo(() => {
     if (group?.coverPhoto?.imageUrl?.trim()) return group.coverPhoto.imageUrl.trim();
     if (group?.bannerUrl?.trim()) return group.bannerUrl.trim();
-    const defaultCover = getDefaultCoverPhoto(
-      group?.id || 'default',
-      group?.icon,
-      group?.name || initialGroupName
-    );
-    return defaultCover?.imageUrl || 'https://images.unsplash.com/photo-1518780664697-55e3ad937233?auto=format&fit=crop&w=1200&q=80';
-  }, [group, initialGroupName]);
+    return null;
+  }, [group?.coverPhoto?.imageUrl, group?.bannerUrl]);
+
+  const hasCover = Boolean(coverImageUrl);
 
   // Formatted creation date (e.g., "Jul 2019" matching Splitwise screenshot)
   const createdDateStr = useMemo(() => {
@@ -72,7 +79,7 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
     if (isSettled) {
       return {
         text: 'All settled up',
-        isBold: false,
+        isSettled: true,
       };
     }
 
@@ -119,89 +126,240 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
 
   const groupDisplayName = group?.name || initialGroupName || 'Group';
 
-  // Smooth scroll-driven animation values
-  const coverContentTranslateY = scrollY
-    ? scrollY.interpolate({
-        inputRange: [0, COVER_SCROLL_DISTANCE],
-        outputRange: [0, -COVER_SCROLL_DISTANCE],
-        extrapolate: 'clamp',
-      })
-    : 0;
-
-  const coverContentOpacity = scrollY
-    ? scrollY.interpolate({
-        inputRange: [0, COVER_SCROLL_DISTANCE * 0.65],
-        outputRange: [1, 0],
-        extrapolate: 'clamp',
-      })
-    : 1;
-
-  const miniTitleOpacity = scrollY
-    ? scrollY.interpolate({
-        inputRange: [COVER_SCROLL_DISTANCE * 0.45, COVER_SCROLL_DISTANCE],
-        outputRange: [0, 1],
-        extrapolate: 'clamp',
-      })
-    : 0;
-
-  const totalHeaderHeight = insets.top + 44 + COVER_SCROLL_DISTANCE;
-
   return (
-    <View style={[styles.headerContainer, { height: totalHeaderHeight }]}>
-      {/* Landscape Cover Photo Background */}
-      {coverImageUrl ? (
-        <Image
-          source={{ uri: coverImageUrl }}
-          style={styles.coverImage}
-          resizeMode="cover"
-        />
-      ) : (
-        <View style={[styles.coverImage, { backgroundColor: '#1E293B' }]} />
+    <View
+      style={[
+        styles.coverContainer,
+        {
+          backgroundColor: hasCover ? '#1E293B' : '#FFFFFF',
+          paddingTop: insets.top + 50,
+        },
+      ]}
+    >
+      {/* Landscape Cover Photo Background with Scrim Overlays */}
+      {hasCover && (
+        <>
+          <Image
+            source={{ uri: coverImageUrl! }}
+            style={styles.coverImageBackground}
+            resizeMode="cover"
+          />
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: 'rgba(0, 0, 0, 0.42)' },
+            ]}
+          />
+          <View
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: insets.top + 56,
+              backgroundColor: 'rgba(0, 0, 0, 0.28)',
+            }}
+          />
+          <View
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 70,
+              backgroundColor: 'rgba(0, 0, 0, 0.45)',
+            }}
+          />
+        </>
       )}
 
-      {/* Dark Translucent Scrim Overlays for Contrast & Text Legibility */}
-      <View
+      {/* Cover Header Body Content */}
+      <View style={styles.coverBodyContent}>
+        {/* Circular Group Avatar with Border & Subtle Shadow */}
+        <View style={styles.avatarWrapper}>
+          <View
+            style={[
+              styles.avatarRing,
+              hasCover ? styles.avatarRingDark : styles.avatarRingLight,
+            ]}
+          >
+            <MemberAvatar
+              name={groupDisplayName}
+              imageUrl={group?.imageUrl}
+              size={54}
+            />
+          </View>
+        </View>
+
+        {/* Group Name Title (Centered, Splitwise Typography) */}
+        <Text
+          style={[
+            styles.groupTitleText,
+            hasCover ? styles.groupTitleDark : styles.groupTitleLight,
+          ]}
+          numberOfLines={2}
+        >
+          {groupDisplayName}
+        </Text>
+
+        {/* Member Count & Creation Date (Centered) */}
+        <View style={styles.metaRow}>
+          <Text
+            style={[
+              styles.metaText,
+              hasCover ? styles.metaTextDark : styles.metaTextLight,
+            ]}
+          >
+            {memberCount} {memberCount === 1 ? 'person' : 'people'}
+            {createdDateStr ? ` • Created ${createdDateStr}` : ''}
+          </Text>
+        </View>
+
+        {/* Current Balance Summary Sentence */}
+        <View style={styles.balanceRow}>
+          {balanceSummary.text ? (
+            <Text
+              style={[
+                styles.balanceText,
+                hasCover
+                  ? styles.balanceTextDark
+                  : styles.balanceSettledLight,
+              ]}
+            >
+              {balanceSummary.text}
+            </Text>
+          ) : (
+            <Text
+              style={[
+                styles.balanceText,
+                hasCover ? styles.balanceTextDark : styles.balancePrefixLight,
+              ]}
+            >
+              {balanceSummary.prefix}
+              <Text
+                style={[
+                  styles.balanceAmountText,
+                  hasCover
+                    ? styles.balanceAmountDark
+                    : balanceSummary.isPositive
+                    ? styles.balanceAmountPositiveLight
+                    : styles.balanceAmountNegativeLight,
+                ]}
+              >
+                {balanceSummary.amount}
+              </Text>
+            </Text>
+          )}
+        </View>
+      </View>
+
+      {/* Optional Children (Inline Navigation Pill Tabs) */}
+      {children}
+    </View>
+  );
+};
+
+export interface GroupTopBarProps {
+  group: Group | null;
+  initialGroupName?: string;
+  hasCover: boolean;
+  onBack: () => void;
+  onSettings: () => void;
+  onEditCover?: () => void;
+  scrollY: Animated.Value;
+}
+
+export const GroupTopBar: React.FC<GroupTopBarProps> = ({
+  group,
+  initialGroupName,
+  hasCover,
+  onBack,
+  onSettings,
+  onEditCover,
+  scrollY,
+}) => {
+  const insets = useSafeAreaInsets();
+  const groupDisplayName = group?.name || initialGroupName || 'Group';
+
+  // Smooth background fade-in as user scrolls down
+  const bgOpacity = scrollY.interpolate({
+    inputRange: [40, 110],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+
+  // Border fade-in
+  const borderOpacity = scrollY.interpolate({
+    inputRange: [70, 110],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+
+  // Mini title fade-in
+  const miniTitleOpacity = scrollY.interpolate({
+    inputRange: [60, 110],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+
+  // Icon backdrop opacity (fades out as header background becomes solid)
+  const iconBgOpacity = scrollY.interpolate({
+    inputRange: [40, 90],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
+  return (
+    <View
+      style={[
+        styles.topBarContainer,
+        {
+          height: insets.top + 44,
+          paddingTop: insets.top,
+        },
+      ]}
+      pointerEvents="box-none"
+    >
+      {/* Solid background layer that fades in smoothly */}
+      <Animated.View
         style={[
           StyleSheet.absoluteFill,
-          { backgroundColor: 'rgba(0, 0, 0, 0.44)' },
+          {
+            backgroundColor: '#FFFFFF',
+            opacity: bgOpacity,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: 'rgba(229, 231, 235, 0.9)',
+          },
         ]}
       />
-      <View
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: insets.top + 46,
-          backgroundColor: 'rgba(0, 0, 0, 0.28)',
-        }}
-      />
-      <View
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 64,
-          backgroundColor: 'rgba(0, 0, 0, 0.40)',
-        }}
-      />
 
-      {/* Sticky Top Navigation Bar (Always Pinned at insets.top) */}
-      <View style={[styles.navBarRow, { paddingTop: insets.top + 4 }]}>
+      <View style={styles.topBarContent}>
+        {/* Back Button */}
         <TouchableOpacity
-          style={styles.navCircleBtn}
+          style={styles.topBarBtn}
           onPress={onBack}
-          activeOpacity={0.8}
+          activeOpacity={0.7}
           accessibilityLabel="Back"
           accessibilityRole="button"
         >
-          <ArrowLeft size={20} color="#FFFFFF" strokeWidth={2.4} />
+          {hasCover && (
+            <Animated.View
+              style={[
+                styles.navBtnBackdrop,
+                { opacity: iconBgOpacity },
+              ]}
+            />
+          )}
+          <ArrowLeft
+            size={22}
+            color={hasCover ? '#FFFFFF' : '#1F2937'}
+            strokeWidth={2.4}
+          />
         </TouchableOpacity>
 
-        {/* Compact Title (fades in as cover scrolls up) */}
+        {/* Compact Title (Smoothly appears when cover scrolls off-screen) */}
         <Animated.View
-          style={[styles.miniTitleContainer, { opacity: miniTitleOpacity }]}
+          style={[styles.miniTitleWrapper, { opacity: miniTitleOpacity }]}
           pointerEvents="none"
         >
           <Text style={styles.miniTitleText} numberOfLines={1}>
@@ -209,180 +367,414 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
           </Text>
         </Animated.View>
 
-        <View style={styles.topRightActions}>
+        {/* Right Action Buttons */}
+        <View style={styles.topBarRightActions}>
           {onEditCover && (
             <TouchableOpacity
-              style={styles.navCircleBtn}
+              style={hasCover ? styles.topBarBtn : styles.addCoverPillBtnLight}
               onPress={() => {
                 if (Platform.OS !== 'web') {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                 }
                 onEditCover();
               }}
-              activeOpacity={0.8}
-              accessibilityLabel="Change cover photo"
+              activeOpacity={0.75}
+              accessibilityLabel={hasCover ? 'Change cover photo' : 'Add cover photo'}
               accessibilityRole="button"
             >
-              <Camera size={16} color="#FFFFFF" strokeWidth={2.2} />
+              {hasCover && (
+                <Animated.View
+                  style={[
+                    styles.navBtnBackdrop,
+                    { opacity: iconBgOpacity },
+                  ]}
+                />
+              )}
+              <Camera
+                size={hasCover ? 18 : 14}
+                color={hasCover ? '#FFFFFF' : '#059669'}
+                strokeWidth={2.2}
+              />
+              {!hasCover && (
+                <Text style={styles.addCoverPillTextLight}>Add cover</Text>
+              )}
             </TouchableOpacity>
           )}
 
           <TouchableOpacity
-            style={styles.navCircleBtn}
+            style={styles.topBarBtn}
             onPress={onSettings}
-            activeOpacity={0.8}
+            activeOpacity={0.7}
             accessibilityLabel="Group settings"
             accessibilityRole="button"
           >
-            <Settings size={18} color="#FFFFFF" strokeWidth={2.2} />
+            {hasCover && (
+              <Animated.View
+                style={[
+                  styles.navBtnBackdrop,
+                  { opacity: iconBgOpacity },
+                ]}
+              />
+            )}
+            <Settings
+              size={20}
+              color={hasCover ? '#FFFFFF' : '#1F2937'}
+              strokeWidth={2.2}
+            />
           </TouchableOpacity>
         </View>
       </View>
+    </View>
+  );
+};
 
-      {/* Collapsible Content: Avatar, Title, Metadata & Balance */}
-      <Animated.View
-        style={[
-          styles.collapsibleContent,
-          {
-            opacity: coverContentOpacity,
-            transform: [{ translateY: coverContentTranslateY }],
-          },
-        ]}
+export interface GroupPillTabsProps {
+  activeTabIndex: number;
+  onTabPress: (index: number) => void;
+  hasCover?: boolean;
+  isSticky?: boolean;
+}
+
+export const GroupPillTabs: React.FC<GroupPillTabsProps> = ({
+  activeTabIndex,
+  onTabPress,
+  hasCover = false,
+  isSticky = false,
+}) => {
+  return (
+    <View
+      style={[
+        styles.pillTabsContainer,
+        isSticky && styles.pillTabsContainerSticky,
+      ]}
+    >
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.pillTabsScrollContent}
       >
-        <View style={styles.avatarCenterWrapper}>
-          <View style={styles.avatarCircleBorder}>
-            <MemberAvatar
-              name={groupDisplayName}
-              imageUrl={group?.imageUrl}
-              size={42}
-            />
-          </View>
-        </View>
+        {TABS.map((tab, idx) => {
+          const isActive = activeTabIndex === idx;
+          const isSettleTab = tab.key === 'settle';
 
-        <Text style={styles.groupNameText} numberOfLines={1}>
-          {groupDisplayName}
-        </Text>
+          let pillBgStyle: any;
+          let textColor: string;
 
-        <View style={styles.metaRow}>
-          <Text style={styles.groupMetadataText}>
-            {memberCount} {memberCount === 1 ? 'person' : 'people'}
-            {createdDateStr ? ` • ${createdDateStr}` : ''}
-          </Text>
-          {balanceSummary.text ? (
-            <Text style={styles.balanceSummaryText}> • {balanceSummary.text}</Text>
-          ) : (
-            <Text style={styles.balanceSummaryText}>
-              {' • '}
-              {balanceSummary.prefix}
-              <Text style={styles.balanceSummaryAmount}>{balanceSummary.amount}</Text>
-            </Text>
-          )}
-        </View>
-      </Animated.View>
+          if (isActive) {
+            if (isSettleTab) {
+              pillBgStyle = styles.pillSettleActive;
+              textColor = '#FFFFFF';
+            } else if (tab.key === 'expenses') {
+              pillBgStyle = styles.pillExpensesActive;
+              textColor = '#FFFFFF';
+            } else if (tab.key === 'charts') {
+              pillBgStyle = styles.pillChartsActive;
+              textColor = '#FFFFFF';
+            } else {
+              pillBgStyle = styles.pillActiveDefault;
+              textColor = '#FFFFFF';
+            }
+          } else {
+            if (isSettleTab) {
+              pillBgStyle = styles.pillSettleInactive;
+              textColor = '#FFFFFF';
+            } else if (hasCover && !isSticky) {
+              pillBgStyle = styles.pillCoverInactive;
+              textColor = '#111827';
+            } else {
+              pillBgStyle = styles.pillLightInactive;
+              textColor = '#374151';
+            }
+          }
+
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.pillBase, pillBgStyle]}
+              onPress={() => onTabPress(idx)}
+              activeOpacity={0.75}
+            >
+              {tab.hasSparkle && (
+                <Gem
+                  size={13}
+                  color={isActive ? '#FFFFFF' : '#7C3AED'}
+                  strokeWidth={2.5}
+                  style={{ marginRight: 5 }}
+                />
+              )}
+              <Text style={[styles.pillText, { color: textColor }]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  headerContainer: {
+  coverContainer: {
     width: '100%',
     position: 'relative',
     overflow: 'hidden',
-    backgroundColor: '#1E293B',
   },
-  coverImage: {
+  coverImageBackground: {
     ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
   },
-  navBarRow: {
-    height: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    zIndex: 10,
-  },
-  miniTitleContainer: {
-    flex: 1,
+  coverBodyContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 10,
-  },
-  miniTitleText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  topRightActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  navCircleBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  collapsibleContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    marginTop: 2,
+    paddingHorizontal: 20,
     zIndex: 5,
   },
-  avatarCenterWrapper: {
+  avatarWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 8,
   },
-  avatarCircleBorder: {
-    borderRadius: 24,
-    borderWidth: 2,
+  avatarRing: {
+    borderRadius: 30,
+    padding: 2,
+  },
+  avatarRingDark: {
+    borderWidth: 2.5,
     borderColor: '#FFFFFF',
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.35,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowRadius: 5,
+    elevation: 5,
   },
-  groupNameText: {
-    fontSize: 18,
+  avatarRingLight: {
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  groupTitleText: {
+    fontSize: 22,
     fontWeight: '800',
-    color: '#FFFFFF',
     textAlign: 'center',
-    letterSpacing: -0.2,
-    marginTop: 4,
+    letterSpacing: -0.3,
+    marginBottom: 4,
+  },
+  groupTitleDark: {
+    color: '#FFFFFF',
     textShadowColor: 'rgba(0, 0, 0, 0.65)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    textShadowOffset: { width: 0, height: 1.5 },
+    textShadowRadius: 3.5,
+  },
+  groupTitleLight: {
+    color: '#111827',
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    flexWrap: 'wrap',
-    marginTop: 2,
+    marginBottom: 6,
   },
-  groupMetadataText: {
-    fontSize: 12,
+  metaText: {
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  metaTextDark: {
     color: 'rgba(255, 255, 255, 0.90)',
-    fontWeight: '400',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowRadius: 2,
+    textShadowColor: 'rgba(0, 0, 0, 0.55)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2.5,
   },
-  balanceSummaryText: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.95)',
+  metaTextLight: {
+    color: '#6B7280',
+  },
+  balanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  balanceText: {
+    fontSize: 14.5,
+    textAlign: 'center',
+  },
+  balanceTextDark: {
+    color: '#FFFFFF',
     fontWeight: '500',
     textShadowColor: 'rgba(0, 0, 0, 0.6)',
-    textShadowRadius: 2,
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2.5,
   },
-  balanceSummaryAmount: {
+  balancePrefixLight: {
+    color: '#4B5563',
+    fontWeight: '500',
+  },
+  balanceSettledLight: {
+    color: '#059669',
+    fontWeight: '600',
+  },
+  balanceAmountText: {
     fontWeight: '700',
+  },
+  balanceAmountDark: {
     color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  balanceAmountPositiveLight: {
+    color: '#059669',
+  },
+  balanceAmountNegativeLight: {
+    color: '#DC2626',
+  },
+
+  // Top Bar Styles
+  topBarContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+  },
+  topBarContent: {
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+  },
+  topBarBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  navBtnBackdrop: {
+    ...StyleSheet.absoluteFill,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0, 0, 0, 0.38)',
+  },
+  miniTitleWrapper: {
+    flex: 1,
+    marginHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  miniTitleText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    textAlign: 'center',
+  },
+  topBarRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  addCoverPillBtnLight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    marginRight: 4,
+  },
+  addCoverPillTextLight: {
+    color: '#065F46',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+
+  // Pill Tabs
+  pillTabsContainer: {
+    paddingVertical: 10,
+    zIndex: 5,
+  },
+  pillTabsContainerSticky: {
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 3,
+    paddingVertical: 8,
+  },
+  pillTabsScrollContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+    alignItems: 'center',
+  },
+  pillBase: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 18,
+  },
+  pillText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  pillSettleActive: {
+    backgroundColor: '#FF5033', // Splitwise signature red-orange
+    shadowColor: '#FF5033',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  pillSettleInactive: {
+    backgroundColor: '#FF5033',
+    opacity: 0.9,
+  },
+  pillExpensesActive: {
+    backgroundColor: '#059669', // Emerald
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  pillChartsActive: {
+    backgroundColor: '#7C3AED', // Purple
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  pillActiveDefault: {
+    backgroundColor: '#1E293B',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  pillCoverInactive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1.5 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  pillLightInactive: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
 });

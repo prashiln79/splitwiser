@@ -161,12 +161,21 @@ const HomeScreen = ({ navigation }: any) => {
     }
   }, [user, refreshSettlements]);
 
-  // Focus effect: reload groups whenever returning to HomeScreen (e.g. after deleting a group)
+  // Focus effect: reload groups whenever returning to HomeScreen (e.g. after updating cover or deleting a group)
   useEffect(() => {
     if (isFocused && user) {
       loadGroups();
     }
   }, [isFocused, user, loadGroups]);
+
+  useEffect(() => {
+    const unsubscribe = navigation?.addListener?.('focus', () => {
+      if (user) {
+        loadGroups();
+      }
+    });
+    return unsubscribe;
+  }, [navigation, user, loadGroups]);
 
   useEffect(() => {
     if (!user) return;

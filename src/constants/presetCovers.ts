@@ -311,6 +311,41 @@ export const PRESET_COVERS: PresetCoverItem[] = [
 ];
 
 /**
+ * Returns the most appropriate preset category for a group based on its icon or keywords in its name.
+ * Used to automatically focus the Preset Covers Gallery to the best matching category.
+ */
+export function getSuggestedPresetCategory(
+  groupType?: string,
+  groupName?: string
+): PresetCategory {
+  const normName = (groupName || '').toLowerCase();
+  const normType = (groupType || '').toLowerCase();
+
+  if (normType === 'home' || /home|flat|apt|apartment|house|roommate|rent|villa|cottage|cabin/.test(normName)) {
+    return 'Home';
+  }
+  if (/beach|sea|island|ocean|summer|resort|surf|sand/.test(normName)) {
+    return 'Beach';
+  }
+  if (normType === 'trip' || /trip|travel|tour|vacation|flight|trek|holiday|tuscany|paris|italy|europe|road/.test(normName)) {
+    return 'Travel';
+  }
+  if (/food|dinner|lunch|cafe|drinks|party|bar|brunch|groceries|restaurant|beer|bbq/.test(normName)) {
+    return 'Food';
+  }
+  if (/beach|sea|island|ocean|summer|resort|surf|sand/.test(normName)) {
+    return 'Beach';
+  }
+  if (/nature|camp|mountain|forest|lake|hike|camping|alps|hills/.test(normName)) {
+    return 'Nature';
+  }
+  if (normType === 'couple' || /couple|love|anniversary|date|friends|buddies|crew|roomies|gang/.test(normName)) {
+    return 'Friends';
+  }
+  return 'All';
+}
+
+/**
  * Returns a stable, deterministic default cover photo for a group.
  * If groupType matches 'home', 'trip', 'couple' or a keyword, uses the appropriate theme.
  * Otherwise hashes groupId to guarantee the same group always has the same cover.
