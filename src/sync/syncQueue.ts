@@ -171,6 +171,8 @@ class SyncQueue {
     switch (item.operation) {
       case 'CREATE_EXPENSE': {
         const { id, groupId, createdBy, paidBy, description, amount, splits, splitType, currency, tags, createdAt, updatedAt } = payload;
+        // Ensure local receipt tags never leak to cloud Firestore
+        const cleanTags = Array.isArray(tags) ? tags.filter((t: string) => !t.startsWith('receipt:')) : [];
         const ref = doc(db, 'splitwiser', 'data', 'groups', groupId, 'expenses', id);
         await setDoc(ref, {
           groupId,
@@ -181,7 +183,7 @@ class SyncQueue {
           splits,
           splitType,
           currency: currency || 'INR',
-          tags: tags || [],
+          tags: cleanTags,
           createdAt: createdAt ? Timestamp.fromMillis(createdAt) : serverTimestamp(),
           updatedAt: updatedAt ? Timestamp.fromMillis(updatedAt) : serverTimestamp(),
         });
@@ -189,10 +191,14 @@ class SyncQueue {
       }
 
       case 'UPDATE_EXPENSE': {
-        const { id, groupId, ...updates } = payload;
+        const { id, groupId, tags, ...updates } = payload;
+        const cleanUpdates: Record<string, any> = { ...updates };
+        if (tags !== undefined) {
+          cleanUpdates.tags = Array.isArray(tags) ? tags.filter((t: string) => !t.startsWith('receipt:')) : [];
+        }
         const ref = doc(db, 'splitwiser', 'data', 'groups', groupId, 'expenses', id);
         await setDoc(ref, {
-          ...updates,
+          ...cleanUpdates,
           updatedAt: serverTimestamp(),
         }, { merge: true });
         break;

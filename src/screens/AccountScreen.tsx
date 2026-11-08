@@ -10,6 +10,7 @@ import {
   Modal,
   Switch,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import {
   Mail,
@@ -37,6 +38,7 @@ import { useAuth } from '../context/AuthContext';
 import { MemberAvatar } from '../components/common/MemberAvatar';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 import { QrCodeModal } from '../components/common/QrCodeModal';
+import { submitSupportTicket } from '../services/support';
 
 export const AccountScreen = ({ navigation }: any) => {
   const { user, signOut, updateProfile } = useAuth();
@@ -74,6 +76,39 @@ export const AccountScreen = ({ navigation }: any) => {
 
   const [selectedTheme, setSelectedTheme] = useState<'system' | 'light' | 'dark'>('system');
   const [feedbackText, setFeedbackText] = useState('');
+  const [isSendingFeedback, setIsSendingFeedback] = useState(false);
+
+  const handleSendFeedback = async () => {
+    if (!feedbackText.trim()) {
+      Alert.alert('Message Required', 'Please enter your message or question before sending.');
+      return;
+    }
+
+    setIsSendingFeedback(true);
+    try {
+      await submitSupportTicket({
+        userId: user?.uid || 'anonymous',
+        userName: user?.name || 'User',
+        userEmail: user?.email,
+        message: feedbackText.trim(),
+      });
+
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
+
+      setSupportModalVisible(false);
+      setFeedbackText('');
+      Alert.alert(
+        'Ticket Submitted',
+        'Thank you for reaching out! Your support ticket has been received and our team will review it shortly.'
+      );
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to submit ticket. Please try again.');
+    } finally {
+      setIsSendingFeedback(false);
+    }
+  };
 
   const isGoogleLinked = !user?.isAnonymous && user?.authProvider === 'google';
 
@@ -615,17 +650,30 @@ export const AccountScreen = ({ navigation }: any) => {
               onChangeText={setFeedbackText}
               multiline
               numberOfLines={4}
+              editable={!isSendingFeedback}
             />
 
             <TouchableOpacity
-              style={styles.dialogPrimaryBtn}
-              onPress={() => {
-                setSupportModalVisible(false);
-                setFeedbackText('');
-                Alert.alert('Message Sent', 'Thank you for your feedback! Our team will review it shortly.');
-              }}
+              style={[styles.dialogPrimaryBtn, isSendingFeedback && { opacity: 0.7 }]}
+              onPress={handleSendFeedback}
+              disabled={isSendingFeedback}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Send message"
             >
-              <Text style={styles.dialogPrimaryBtnText}>Send Message</Text>
+              {isSendingFeedback ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.dialogPrimaryBtnText}>Send Message</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.dialogCancelBtn}
+              onPress={() => setSupportModalVisible(false)}
+              disabled={isSendingFeedback}
+            >
+              <Text style={styles.dialogCancelBtnText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>

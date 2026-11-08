@@ -12,6 +12,7 @@ import {
   Platform,
   Modal,
   ScrollView,
+  Image,
 } from 'react-native';
 import {
   Plus,
@@ -22,6 +23,7 @@ import {
   Receipt,
   X,
   Trash2,
+  Camera,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -65,6 +67,13 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [isDeletingExpense, setIsDeletingExpense] = useState(false);
   const [confirmDeleteExpenseVisible, setConfirmDeleteExpenseVisible] = useState(false);
+  const [viewReceiptModalVisible, setViewReceiptModalVisible] = useState(false);
+
+  const selectedExpenseReceiptUri = useMemo(() => {
+    if (!selectedExpense?.tags) return null;
+    const tag = selectedExpense.tags.find((t) => t.startsWith('receipt:'));
+    return tag ? tag.replace(/^receipt:/, '') : null;
+  }, [selectedExpense]);
 
   // Load from local SQLite immediately
   const loadLocalData = async () => {
@@ -583,6 +592,60 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
                   })}
                 </ScrollView>
               </View>
+
+              {/* Local Receipt Preview Button */}
+              {selectedExpenseReceiptUri && (
+                <TouchableOpacity
+                  style={styles.receiptPreviewBtn}
+                  onPress={() => setViewReceiptModalVisible(true)}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="View attached receipt"
+                >
+                  <Camera size={16} color="#059669" />
+                  <Text style={styles.receiptPreviewBtnText}>View Receipt (Stored Locally)</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Full-Screen Local Receipt Viewer Modal */}
+      {selectedExpenseReceiptUri && (
+        <Modal
+          visible={viewReceiptModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setViewReceiptModalVisible(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={[styles.modalDialog, { maxHeight: '85%' }]}>
+              <View style={styles.modalHeaderRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Camera size={20} color="#059669" />
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }}>
+                    Receipt Photo
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setViewReceiptModalVisible(false)}
+                  style={styles.closeBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close receipt photo"
+                >
+                  <X size={20} color="#6B6B6B" />
+                </TouchableOpacity>
+              </View>
+
+              <Image
+                source={{ uri: selectedExpenseReceiptUri }}
+                style={styles.receiptFullImage}
+                resizeMode="contain"
+              />
+              <Text style={styles.receiptLocalNotice}>
+                Stored locally on this device only (not uploaded to cloud)
+              </Text>
             </View>
           </View>
         </Modal>
@@ -944,6 +1007,37 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#059669',
+  },
+  receiptPreviewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#ECFDF5',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  receiptPreviewBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#059669',
+  },
+  receiptFullImage: {
+    width: '100%',
+    height: 320,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    marginVertical: 12,
+  },
+  receiptLocalNotice: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 4,
   },
 });
 

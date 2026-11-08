@@ -211,18 +211,51 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
-    try {
-      const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        quality: 0.8,
-      });
-      if (!res.canceled && res.assets && res.assets.length > 0) {
-        setReceiptImage(res.assets[0].uri);
-      }
-    } catch {
-      // Ignored
-    }
+
+    Alert.alert(
+      'Attach Receipt',
+      'Receipts are saved locally on this device only and will not be uploaded to the cloud.',
+      [
+        {
+          text: 'Take Photo',
+          onPress: async () => {
+            try {
+              const { status } = await ImagePicker.requestCameraPermissionsAsync();
+              if (status !== 'granted') {
+                Alert.alert('Permission Required', 'Camera permission is needed to take a receipt photo.');
+                return;
+              }
+              const res = await ImagePicker.launchCameraAsync({
+                allowsEditing: true,
+                quality: 0.8,
+              });
+              if (!res.canceled && res.assets && res.assets.length > 0) {
+                setReceiptImage(res.assets[0].uri);
+              }
+            } catch {}
+          },
+        },
+        {
+          text: 'Choose from Gallery',
+          onPress: async () => {
+            try {
+              const res = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ['images'],
+                allowsEditing: true,
+                quality: 0.8,
+              });
+              if (!res.canceled && res.assets && res.assets.length > 0) {
+                setReceiptImage(res.assets[0].uri);
+              }
+            } catch {}
+          },
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
   };
 
   const handleAddExpense = async () => {
@@ -724,7 +757,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
               {receiptImage && (
                 <View style={styles.attachmentBadge}>
                   <Camera size={13} color="#059669" style={{ marginRight: 4 }} />
-                  <Text style={styles.attachmentBadgeText}>Receipt attached</Text>
+                  <Text style={styles.attachmentBadgeText}>Receipt attached (local only)</Text>
                   <TouchableOpacity
                     onPress={() => setReceiptImage(null)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}

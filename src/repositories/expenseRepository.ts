@@ -104,7 +104,8 @@ export async function createExpenseLocal(
     ]
   );
 
-  // Durable queue payload
+  // Durable queue payload (exclude local-only tags like receipt images from cloud sync)
+  const cloudTags = (input.tags ?? []).filter((t: string) => !t.startsWith('receipt:'));
   await syncQueue.enqueue('expense', id, 'CREATE_EXPENSE', {
     id,
     groupId,
@@ -115,7 +116,7 @@ export async function createExpenseLocal(
     splits: input.splits,
     splitType: input.splitType,
     currency: 'INR',
-    tags: input.tags ?? [],
+    tags: cloudTags,
     createdAt: now,
     updatedAt: now,
   });
@@ -172,6 +173,7 @@ export async function updateExpenseLocal(
     ]
   );
 
+  const cloudTags = updatedTags.filter((t: string) => !t.startsWith('receipt:'));
   await syncQueue.enqueue('expense', expenseId, 'UPDATE_EXPENSE', {
     id: expenseId,
     groupId,
@@ -180,7 +182,7 @@ export async function updateExpenseLocal(
     paidBy: updatedPaidBy,
     splitType: updatedSplitType,
     splits: updatedSplits,
-    tags: updatedTags,
+    tags: cloudTags,
     updatedAt: now,
   });
 }
@@ -248,6 +250,18 @@ export async function upsertRemoteExpenses(groupId: string, remoteExpenses: Expe
     const createdAtMs = remote.createdAt.getTime();
     const updatedAtMs = remote.updatedAt ? remote.updatedAt.getTime() : createdAtMs;
 
+    // Preserve local-only receipt tag if already present locally
+    let mergedTags = remote.tags || [];
+    if (local && local.tags_json) {
+      try {
+        const localTags: string[] = JSON.parse(local.tags_json);
+        const localReceiptTag = localTags.find((t: string) => t.startsWith('receipt:'));
+        if (localReceiptTag && !mergedTags.some((t: string) => t.startsWith('receipt:'))) {
+          mergedTags = [...mergedTags, localReceiptTag];
+        }
+      } catch {}
+    }
+
     await database.runAsync(
       `INSERT INTO local_expenses (
         id, group_id, created_by, paid_by, description, amount, split_type, splits_json, currency, tags_json, created_at, updated_at, sync_status, is_deleted
@@ -274,7 +288,7 @@ export async function upsertRemoteExpenses(groupId: string, remoteExpenses: Expe
         remote.splitType,
         JSON.stringify(remote.splits),
         remote.currency || 'INR',
-        JSON.stringify(remote.tags || []),
+        JSON.stringify(mergedTags),
         createdAtMs,
         updatedAtMs,
       ]

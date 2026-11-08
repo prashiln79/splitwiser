@@ -43,6 +43,7 @@ export async function createExpense(
   input: ExpenseCreateInput
 ): Promise<Expense> {
   const now = serverTimestamp();
+  const cleanTags = (input.tags ?? []).filter((t: string) => !t.startsWith('receipt:'));
   const ref = await addDoc(expensesCol(groupId), {
     groupId,
     createdBy,
@@ -52,7 +53,7 @@ export async function createExpense(
     splits: input.splits,
     splitType: input.splitType,
     currency: 'INR',
-    tags: input.tags ?? [],
+    tags: cleanTags,
     createdAt: now,
     updatedAt: now,
   });
