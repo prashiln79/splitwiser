@@ -243,8 +243,8 @@ export const FriendsScreen = ({ navigation }: any) => {
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(opacityAnim, { toValue: 0.9, duration: 600, useNativeDriver: true }),
-        Animated.timing(opacityAnim, { toValue: 0.3, duration: 600, useNativeDriver: true }),
+        Animated.timing(opacityAnim, { toValue: 0.9, duration: 600, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(opacityAnim, { toValue: 0.3, duration: 600, useNativeDriver: Platform.OS !== 'web' }),
       ])
     );
     loop.start();

@@ -7,6 +7,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "test": "npm run test:balances && npm run test:covers",
     "ts:check": "tsc --noEmit",
     "test:balances": "npx tsx tests/balanceCalculator.test.ts",
     "test:covers": "npx tsx tests/coverPhoto.test.ts",

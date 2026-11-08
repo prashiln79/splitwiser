@@ -96,6 +96,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
 
   const pagerRef = useRef<any>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const useNativeDriver = Platform.OS !== 'web';
   const [activeTabIndex, setActiveTabIndex] = useState<number>(0);
   const [showSettledExpenses, setShowSettledExpenses] = useState<boolean>(false);
   const [chartTimeframe, setChartTimeframe] = useState<'1M' | '3M' | 'ALL'>('ALL');
@@ -566,7 +567,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
     Animated.timing(scrollY, {
       toValue: 0,
       duration: 150,
-      useNativeDriver: true,
+      useNativeDriver,
     }).start();
   };
 
@@ -578,7 +579,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
       Animated.timing(scrollY, {
         toValue: 0,
         duration: 150,
-        useNativeDriver: true,
+        useNativeDriver,
       }).start();
     }
   };
@@ -605,7 +606,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
+          { useNativeDriver }
         )}
         scrollEventThrottle={16}
         renderItem={({ item, index }) => {
@@ -679,7 +680,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
+          { useNativeDriver }
         )}
         scrollEventThrottle={16}
         refreshControl={
@@ -846,7 +847,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
+          { useNativeDriver }
         )}
         scrollEventThrottle={16}
         refreshControl={
@@ -1066,7 +1067,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
+          { useNativeDriver }
         )}
         scrollEventThrottle={16}
         refreshControl={
@@ -1184,7 +1185,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
+          { useNativeDriver }
         )}
         scrollEventThrottle={16}
         refreshControl={

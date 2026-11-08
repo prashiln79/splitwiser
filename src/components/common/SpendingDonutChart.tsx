@@ -76,35 +76,49 @@ export const SpendingDonutChart: React.FC<SpendingDonutChartProps> = ({
   // Calculate cumulative offsets for each slice
   let accumulatedPercent = 0;
 
-  return (
-    <View style={[styles.container, { width: size, height: size }]}>
-      <Svg width={size} height={size}>
-        <G rotation="-90" origin={`${center}, ${center}`}>
-          {data.map((item) => {
-            const strokeDasharray = `${(item.percentage / 100) * circumference} ${circumference}`;
-            const strokeDashoffset = -((accumulatedPercent / 100) * circumference);
-            accumulatedPercent += item.percentage;
-            const isSelected = selectedCategory === item.category;
+    const isWeb = Platform.OS === 'web';
+    const gProps: any = isWeb
+      ? { transform: `rotate(-90 ${center} ${center})` }
+      : { rotation: -90, origin: `${center}, ${center}` };
 
-            return (
-              <Circle
-                key={item.category}
-                cx={center}
-                cy={center}
-                r={radius}
-                stroke={item.color}
-                strokeWidth={isSelected ? strokeWidth + 4 : strokeWidth}
-                strokeDasharray={strokeDasharray}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="butt"
-                fill="transparent"
-                opacity={selectedCategory && !isSelected ? 0.35 : 1}
-                onPress={() => handleSlicePress(item.category)}
-              />
-            );
-          })}
-        </G>
-      </Svg>
+    return (
+      <View style={[styles.container, { width: size, height: size }]}>
+        <Svg width={size} height={size}>
+          <G {...gProps}>
+            {data.map((item) => {
+              const strokeDasharray = `${(item.percentage / 100) * circumference} ${circumference}`;
+              const strokeDashoffset = -((accumulatedPercent / 100) * circumference);
+              accumulatedPercent += item.percentage;
+              const isSelected = selectedCategory === item.category;
+
+              const touchProps: any = isWeb
+                ? {
+                    onClick: () => handleSlicePress(item.category),
+                    style: { cursor: 'pointer' },
+                  }
+                : {
+                    onPress: () => handleSlicePress(item.category),
+                  };
+
+              return (
+                <Circle
+                  key={item.category}
+                  cx={center}
+                  cy={center}
+                  r={radius}
+                  stroke={item.color}
+                  strokeWidth={isSelected ? strokeWidth + 4 : strokeWidth}
+                  strokeDasharray={strokeDasharray}
+                  strokeDashoffset={strokeDashoffset}
+                  strokeLinecap="butt"
+                  fill="transparent"
+                  opacity={selectedCategory && !isSelected ? 0.35 : 1}
+                  {...touchProps}
+                />
+              );
+            })}
+          </G>
+        </Svg>
 
       {/* Interactive Center Information */}
       <TouchableOpacity
