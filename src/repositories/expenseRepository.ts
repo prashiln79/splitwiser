@@ -152,6 +152,9 @@ export async function updateExpenseLocal(
   const updatedSplitType = updates.splitType ?? currentExpense.splitType;
   const updatedSplits = updates.splits ?? currentExpense.splits;
   const updatedTags = updates.tags ?? currentExpense.tags;
+  const updatedCreatedAt = updates.createdAt
+    ? (updates.createdAt instanceof Date ? updates.createdAt.getTime() : Number(updates.createdAt))
+    : existing.created_at;
 
   await database.runAsync(
     `UPDATE local_expenses SET
@@ -161,6 +164,7 @@ export async function updateExpenseLocal(
       split_type = ?,
       splits_json = ?,
       tags_json = ?,
+      created_at = ?,
       updated_at = ?,
       sync_status = 'pending'
     WHERE id = ?`,
@@ -171,6 +175,7 @@ export async function updateExpenseLocal(
       updatedSplitType,
       JSON.stringify(updatedSplits),
       JSON.stringify(updatedTags),
+      updatedCreatedAt,
       now,
       expenseId,
     ]
@@ -186,6 +191,7 @@ export async function updateExpenseLocal(
     splitType: updatedSplitType,
     splits: updatedSplits,
     tags: cloudTags,
+    createdAt: updatedCreatedAt,
     updatedAt: now,
   });
 }

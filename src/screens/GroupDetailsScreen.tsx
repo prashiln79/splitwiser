@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   Alert,
   FlatList,
@@ -13,6 +13,11 @@ import {
   Modal,
   ScrollView,
   Image,
+  useWindowDimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+  TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import {
   Plus,
@@ -24,6 +29,21 @@ import {
   X,
   Trash2,
   Camera,
+  Pencil,
+  ArrowLeft,
+  Sparkles,
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+  TrendingUp,
+  PieChart,
+  Scale,
+  Users,
+  ArrowRight,
+  Wallet,
+  Check,
+  SendHorizontal,
+  ImagePlus,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -35,10 +55,9 @@ import { syncService } from '../sync/syncService';
 import { syncQueue } from '../sync/syncQueue';
 import { getOptimizedSettlements } from '../utils/balanceCalculator';
 import { useAuth } from '../context/AuthContext';
-import { AppHeader } from '../components/common/AppHeader';
 import { MemberAvatar } from '../components/common/MemberAvatar';
 import { ExpenseListItem } from '../components/common/ExpenseListItem';
-import { CategoryIcon } from '../components/common/CategoryIcon';
+import { CategoryIcon, detectCategory } from '../components/common/CategoryIcon';
 import { SettleUpModal } from '../components/common/SettleUpModal';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 import { EmptyState } from '../components/common/EmptyState';
@@ -46,11 +65,32 @@ import { Expense, Group, GroupMember, OptimizedSettlement, Settlement } from '..
 import { formatCurrency } from '../utils/currency';
 import { useIsFocused } from '@react-navigation/native';
 
-const GroupDetailsScreen = ({ route, navigation }: any) => {
+type TabKey = 'expenses' | 'settle' | 'charts' | 'balances' | 'total';
+
+interface TabItem {
+  key: TabKey;
+  label: string;
+  hasSparkle?: boolean;
+}
+
+const TABS: TabItem[] = [
+  { key: 'expenses', label: 'Expenses' },
+  { key: 'settle', label: 'Settle up' },
+  { key: 'charts', label: 'Charts', hasSparkle: true },
+  { key: 'balances', label: 'Balances' },
+  { key: 'total', label: 'Total' },
+];
+
+export const GroupDetailsScreen = ({ route, navigation }: any) => {
   const { groupId, groupName: initialGroupName } = route.params;
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
+  const { width: screenWidth } = useWindowDimensions();
+
+  const pagerRef = useRef<any>(null);
+  const [activeTabIndex, setActiveTabIndex] = useState<number>(0);
+  const [showSettledExpenses, setShowSettledExpenses] = useState<boolean>(false);
 
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
@@ -59,8 +99,8 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
   const [settlements, setSettlements] = useState<OptimizedSettlement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'expenses' | 'balances'>('expenses');
   const [settleModalVisible, setSettleModalVisible] = useState(false);
+  const [settlePrefill, setSettlePrefill] = useState<{ toUserId?: string; amount?: number }>({});
   const [onlyMemberPromptVisible, setOnlyMemberPromptVisible] = useState(false);
 
   // Expense details modal state
@@ -74,6 +114,72 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
     const tag = selectedExpense.tags.find((t) => t.startsWith('receipt:'));
     return tag ? tag.replace(/^receipt:/, '') : null;
   }, [selectedExpense]);
+
+  // Comments per expense
+  const [commentText, setCommentText] = useState('');
+  const [expenseComments, setExpenseComments] = useState<
+    Record<string, Array<{ id: string; author: string; text: string; time: string }>>
+  >({});
+
+  const handleAddComment = () => {
+    if (!commentText.trim() || !selectedExpense) return;
+    const newComment = {
+      id: Date.now().toString(),
+      author: user?.name || 'You',
+      text: commentText.trim(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    setExpenseComments((prev) => ({
+      ...prev,
+      [selectedExpense.id]: [...(prev[selectedExpense.id] || []), newComment],
+    }));
+    setCommentText('');
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+  };
+
+  // Spending trends for the selected expense category (last 3 months)
+  const categoryTrends = useMemo(() => {
+    if (!selectedExpense) return { categoryName: 'General', data: [] };
+    const cat = detectCategory(selectedExpense.description, selectedExpense.tags);
+
+    const expDate = new Date(selectedExpense.createdAt);
+    const months: { monthLabel: string; year: number; monthIdx: number; total: number }[] = [];
+
+    for (let i = 2; i >= 0; i--) {
+      const d = new Date(expDate.getFullYear(), expDate.getMonth() - i, 1);
+      months.push({
+        monthLabel: d.toLocaleDateString('en-US', { month: 'short' }),
+        year: d.getFullYear(),
+        monthIdx: d.getMonth(),
+        total: 0,
+      });
+    }
+
+    expenses.forEach((e) => {
+      const eCat = detectCategory(e.description, e.tags);
+      if (eCat === cat) {
+        const d = new Date(e.createdAt);
+        const item = months.find(
+          (m) => m.monthIdx === d.getMonth() && m.year === d.getFullYear()
+        );
+        if (item) {
+          item.total += e.amount || 0;
+        }
+      }
+    });
+
+    const maxSpend = Math.max(...months.map((m) => m.total), 1);
+
+    return {
+      categoryName: cat,
+      data: months.map((m) => ({
+        ...m,
+        percentage: Math.max(0, Math.min(100, (m.total / maxSpend) * 100)),
+      })),
+    };
+  }, [selectedExpense, expenses]);
 
   // Load from local SQLite immediately
   const loadLocalData = async () => {
@@ -119,16 +225,13 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
   };
 
   useEffect(() => {
-    // 1. Initial fast local read
     loadLocalData();
     fetchGroupData();
 
-    // 2. Subscribe to remote sync for this active group
     const unsubSync = syncService.subscribeToActiveGroup(groupId, () => {
       loadLocalData();
     });
 
-    // 3. Subscribe to sync queue status changes (e.g. pending -> synced)
     const unsubQueue = syncQueue.subscribe(() => {
       loadLocalData();
     });
@@ -139,14 +242,12 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
     };
   }, [groupId]);
 
-  // Focus effect: reload group data whenever returning from settings or editing
   useEffect(() => {
     if (isFocused) {
       loadLocalData();
     }
   }, [isFocused]);
 
-  // Recompute settlements whenever expenses, members, or recorded settlements change
   useEffect(() => {
     if (members.length > 0) {
       setSettlements(getOptimizedSettlements(expenses, members, recordedSettlements));
@@ -159,6 +260,7 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
     await fetchGroupData();
+    await loadLocalData();
     setIsRefreshing(false);
   };
 
@@ -185,6 +287,16 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
     } else {
       navigation.navigate('AddExpense', { groupId });
     }
+  };
+
+  const handleEditSelectedExpense = () => {
+    if (!selectedExpense) return;
+    const exp = selectedExpense;
+    setSelectedExpense(null);
+    navigation.navigate('AddExpense', {
+      groupId,
+      expenseToEdit: exp,
+    });
   };
 
   const handleDeleteSelectedExpense = async () => {
@@ -220,7 +332,7 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
     return memberMap.get(uid) || 'Member';
   };
 
-  // Current user's net balance in this group
+  // Balance calculations
   const { netBalance } = useMemo(() => {
     if (!user) return { netBalance: 0 };
     const owes = settlements
@@ -234,396 +346,1066 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
 
   const isSettled = Math.abs(netBalance) < 0.01;
 
-  // Build balance summary text
-  const balanceSummary = useMemo(() => {
-    if (isSettled) return { text: 'no balances', color: '#9E9E9E' };
-    if (netBalance > 0) {
-      const mySettlements = settlements.filter((s) => s.toUserId === user?.uid);
-      if (mySettlements.length === 1) {
-        return {
-          text: `${mySettlements[0].fromUserName} owes you ${formatCurrency(mySettlements[0].amount)}`,
-          color: '#1CC88A',
-        };
-      }
-      return {
-        text: `you are owed ${formatCurrency(netBalance)}`,
-        color: '#1CC88A',
-      };
-    }
-    const myDebts = settlements.filter((s) => s.fromUserId === user?.uid);
-    if (myDebts.length === 1) {
-      return {
-        text: `you owe ${myDebts[0].toUserName} ${formatCurrency(myDebts[0].amount)}`,
-        color: '#E74C3C',
-      };
-    }
-    return {
-      text: `you owe ${formatCurrency(Math.abs(netBalance))}`,
-      color: '#E74C3C',
-    };
-  }, [isSettled, netBalance, settlements, user]);
+  // Total expense amounts
+  const totalExpensesAmount = useMemo(() => {
+    return expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  }, [expenses]);
 
-  // Render header
-  const renderGroupHeader = () => (
-    <View>
-      {/* Balance summary + actions */}
-      <View style={styles.summarySection}>
-        <Text style={[styles.balanceSummaryText, { color: balanceSummary.color }]}>
-          {balanceSummary.text}
-        </Text>
+  const myPaidAmount = useMemo(() => {
+    if (!user) return 0;
+    return expenses
+      .filter((e) => (e.paidBy || e.createdBy) === user.uid)
+      .reduce((sum, e) => sum + (e.amount || 0), 0);
+  }, [expenses, user]);
 
-        <View style={styles.actionButtonsRow}>
+  const myShareAmount = useMemo(() => {
+    if (!user) return 0;
+    return expenses.reduce((sum, e) => {
+      const mySplit = e.splits?.find((s) => s.userId === user.uid);
+      return sum + (mySplit ? mySplit.amount : 0);
+    }, 0);
+  }, [expenses, user]);
+
+  // Category breakdown for Charts
+  const categoryBreakdown = useMemo(() => {
+    const map = new Map<string, { total: number; count: number }>();
+    expenses.forEach((e) => {
+      const cat = detectCategory(e.description, e.tags);
+      const existing = map.get(cat) || { total: 0, count: 0 };
+      existing.total += e.amount || 0;
+      existing.count += 1;
+      map.set(cat, existing);
+    });
+
+    const list = Array.from(map.entries()).map(([category, data]) => ({
+      category,
+      total: data.total,
+      count: data.count,
+      percentage: totalExpensesAmount > 0 ? (data.total / totalExpensesAmount) * 100 : 0,
+    }));
+
+    return list.sort((a, b) => b.total - a.total);
+  }, [expenses, totalExpensesAmount]);
+
+  // Per-member breakdown & net balance calculation
+  const memberBalances = useMemo(() => {
+    const paidMap = new Map<string, number>();
+    const shareMap = new Map<string, number>();
+
+    members.forEach((m) => {
+      paidMap.set(m.userId, 0);
+      shareMap.set(m.userId, 0);
+    });
+
+    expenses.forEach((e) => {
+      const payer = e.paidBy || e.createdBy;
+      paidMap.set(payer, (paidMap.get(payer) || 0) + e.amount);
+      e.splits?.forEach((s) => {
+        shareMap.set(s.userId, (shareMap.get(s.userId) || 0) + s.amount);
+      });
+    });
+
+    const settlementNetMap = new Map<string, number>();
+    members.forEach((m) => settlementNetMap.set(m.userId, 0));
+    recordedSettlements.forEach((s) => {
+      settlementNetMap.set(s.fromUserId, (settlementNetMap.get(s.fromUserId) || 0) + s.amount);
+      settlementNetMap.set(s.toUserId, (settlementNetMap.get(s.toUserId) || 0) - s.amount);
+    });
+
+    return members.map((m) => {
+      const totalPaid = paidMap.get(m.userId) || 0;
+      const totalShare = shareMap.get(m.userId) || 0;
+      const settlementAdj = settlementNetMap.get(m.userId) || 0;
+      const net = totalPaid - totalShare + settlementAdj;
+      const percentage = totalExpensesAmount > 0 ? (totalPaid / totalExpensesAmount) * 100 : 0;
+      const isMe = m.userId === user?.uid;
+      const name = isMe && user?.name ? user.name : m.userName;
+
+      return {
+        userId: m.userId,
+        userName: name,
+        imageUrl: m.imageUrl,
+        totalPaid,
+        totalShare,
+        net,
+        percentage,
+        isMe,
+      };
+    });
+  }, [members, expenses, recordedSettlements, totalExpensesAmount, user]);
+
+  // Page navigation handling
+  const handleTabPress = (index: number) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    setActiveTabIndex(index);
+    pagerRef.current?.scrollTo({ x: index * screenWidth, animated: true });
+  };
+
+  const handleScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetX = e.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / screenWidth);
+    if (index !== activeTabIndex && index >= 0 && index < TABS.length) {
+      setActiveTabIndex(index);
+    }
+  };
+
+  const openQuickSettle = (toUserId?: string, amount?: number) => {
+    setSettlePrefill({ toUserId, amount });
+    setSettleModalVisible(true);
+  };
+
+  // Section 0: Expenses (Default)
+  const renderExpensesSection = () => {
+    return (
+      <FlatList
+        style={{ width: screenWidth }}
+        data={expenses}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={[
+          styles.pageScrollContent,
+          { paddingBottom: Math.max(insets.bottom + 90, 110) },
+        ]}
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item, index }) => {
+          const dateObj = new Date(item.createdAt);
+          const currentMonthYear = dateObj.toLocaleDateString('en-US', {
+            month: 'long',
+            year: 'numeric',
+          });
+          const prevMonthYear =
+            index > 0
+              ? new Date(expenses[index - 1].createdAt).toLocaleDateString('en-US', {
+                  month: 'long',
+                  year: 'numeric',
+                })
+              : null;
+          const showMonthHeader = currentMonthYear !== prevMonthYear;
+
+          return (
+            <View>
+              {showMonthHeader && (
+                <View style={styles.monthHeaderContainer}>
+                  <Text style={styles.monthHeaderText}>{currentMonthYear}</Text>
+                </View>
+              )}
+              <ExpenseListItem
+                expense={item}
+                currentUserId={user?.uid || ''}
+                payerName={getMemberName(item.paidBy || item.createdBy)}
+                onPress={() => setSelectedExpense(item)}
+              />
+            </View>
+          );
+        }}
+        ListEmptyComponent={
+          <EmptyState
+            icon={Receipt}
+            title="No expenses yet"
+            description="Keep track of meals, bills, or trips by adding the first expense to this group."
+            actionLabel="Add Expense"
+            onAction={handleAddExpenseClick}
+          />
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            colors={['#059669']}
+            tintColor="#059669"
+          />
+        }
+      />
+    );
+  };
+
+  // Section 1: Settle Up
+  const renderSettleUpSection = () => {
+    const myPendingDebts = settlements.filter((s) => s.fromUserId === user?.uid);
+    const myPendingCredits = settlements.filter((s) => s.toUserId === user?.uid);
+    const hasMySettlements = myPendingDebts.length > 0 || myPendingCredits.length > 0;
+
+    return (
+      <ScrollView
+        style={{ width: screenWidth }}
+        contentContainerStyle={[
+          styles.pageScrollContent,
+          { paddingBottom: Math.max(insets.bottom + 90, 110) },
+        ]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            colors={['#059669']}
+            tintColor="#059669"
+          />
+        }
+      >
+        {isSettled ? (
+          <View style={styles.settledCelebrationCard}>
+            <Text style={styles.settledTitle}>You are all settled up</Text>
+
+            <TouchableOpacity
+              style={styles.toggleSettledBtn}
+              onPress={() => setShowSettledExpenses((prev) => !prev)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.toggleSettledBtnText}>
+                {showSettledExpenses ? 'Hide settled expenses' : 'Tap to show settled expenses'}
+              </Text>
+              {showSettledExpenses ? (
+                <ChevronUp size={16} color="#4B5563" />
+              ) : (
+                <ChevronDown size={16} color="#4B5563" />
+              )}
+            </TouchableOpacity>
+
+            {/* Stylized Modern Polygon Checkmark Badge */}
+            <View style={styles.modernCheckContainer}>
+              <View style={styles.modernCheckBadge}>
+                <Check size={44} color="#7C3AED" strokeWidth={3.5} />
+              </View>
+            </View>
+
+            <Text style={styles.settledNotice}>
+              No one in this group owes you anything, and you owe no one. Great job!
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.pendingSection}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionHeading}>Pending Settlements</Text>
+              <Text style={styles.sectionSubCount}>{settlements.length} transfers needed</Text>
+            </View>
+
+            {settlements.map((s, index) => {
+              const isMePayer = s.fromUserId === user?.uid;
+              const isMeReceiver = s.toUserId === user?.uid;
+
+              return (
+                <View key={`settlement-${s.fromUserId}-${s.toUserId}-${index}`} style={styles.settlementCard}>
+                  <View style={styles.settlementCardHeader}>
+                    <View style={styles.settlementParties}>
+                      <MemberAvatar name={s.fromUserName} size={36} />
+                      <View style={styles.transferArrowWrapper}>
+                        <ArrowRight size={16} color="#059669" strokeWidth={2.5} />
+                      </View>
+                      <MemberAvatar name={s.toUserName} size={36} />
+                    </View>
+
+                    <View style={styles.settlementAmountBox}>
+                      <Text style={styles.settlementAmountText}>{formatCurrency(s.amount)}</Text>
+                      <Text style={styles.settlementSubRole}>
+                        {isMePayer ? 'You owe' : isMeReceiver ? 'Owes you' : 'Between members'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.settlementCardDetails}>
+                    <Text style={styles.settlementDetailSentence}>
+                      <Text style={{ fontWeight: '700', color: isMePayer ? '#DC2626' : '#111827' }}>
+                        {isMePayer ? 'You' : s.fromUserName}
+                      </Text>
+                      {' pays '}
+                      <Text style={{ fontWeight: '700', color: isMeReceiver ? '#059669' : '#111827' }}>
+                        {isMeReceiver ? 'you' : s.toUserName}
+                      </Text>
+                    </Text>
+
+                    {(isMePayer || isMeReceiver) && (
+                      <TouchableOpacity
+                        style={styles.cardSettleBtn}
+                        onPress={() => openQuickSettle(isMePayer ? s.toUserId : undefined, s.amount)}
+                        activeOpacity={0.8}
+                      >
+                        <Handshake size={15} color="#FFFFFF" strokeWidth={2.2} />
+                        <Text style={styles.cardSettleBtnText}>Record Payment</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+
+            <TouchableOpacity
+              style={styles.toggleSettledBtnRow}
+              onPress={() => setShowSettledExpenses((prev) => !prev)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.toggleSettledBtnText}>
+                {showSettledExpenses ? 'Hide past settled history' : 'Tap to show past settled history'}
+              </Text>
+              {showSettledExpenses ? (
+                <ChevronUp size={16} color="#4B5563" />
+              ) : (
+                <ChevronDown size={16} color="#4B5563" />
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Collapsible Settled History List */}
+        {showSettledExpenses && (
+          <View style={styles.settledHistorySection}>
+            <Text style={styles.settledHistoryHeader}>Settlement History</Text>
+            {recordedSettlements.length === 0 ? (
+              <View style={styles.emptySettledBox}>
+                <CheckCircle2 size={24} color="#9CA3AF" />
+                <Text style={styles.emptySettledText}>No past settlements recorded yet.</Text>
+              </View>
+            ) : (
+              recordedSettlements.map((rec) => (
+                <View key={rec.id} style={styles.settledHistoryItem}>
+                  <View style={styles.settledHistoryIconCircle}>
+                    <CheckCircle2 size={20} color="#059669" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.settledHistoryTitle}>
+                      {getMemberName(rec.fromUserId)} paid {getMemberName(rec.toUserId)}
+                    </Text>
+                    <Text style={styles.settledHistoryDate}>
+                      {new Date(rec.createdAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </Text>
+                  </View>
+                  <Text style={styles.settledHistoryAmount}>{formatCurrency(rec.amount)}</Text>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+      </ScrollView>
+    );
+  };
+
+  // Section 2: Charts
+  const renderChartsSection = () => {
+    return (
+      <ScrollView
+        style={{ width: screenWidth }}
+        contentContainerStyle={[
+          styles.pageScrollContent,
+          { paddingBottom: Math.max(insets.bottom + 90, 110) },
+        ]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            colors={['#059669']}
+            tintColor="#059669"
+          />
+        }
+      >
+        {/* Spending Hero Card */}
+        <View style={styles.chartsHeroCard}>
+          <View style={styles.chartsHeroHeader}>
+            <View>
+              <Text style={styles.chartsHeroLabel}>Total Group Spending</Text>
+              <Text style={styles.chartsHeroAmount}>{formatCurrency(totalExpensesAmount)}</Text>
+            </View>
+            <View style={styles.sparkleIconBadge}>
+              <Sparkles size={22} color="#059669" />
+            </View>
+          </View>
+
+          <View style={styles.chartsHeroDivider} />
+
+          <View style={styles.chartsHeroStatsRow}>
+            <View style={styles.chartsHeroStat}>
+              <Text style={styles.chartsHeroStatLabel}>Total Expenses</Text>
+              <Text style={styles.chartsHeroStatVal}>{expenses.length}</Text>
+            </View>
+            <View style={styles.chartsHeroStat}>
+              <Text style={styles.chartsHeroStatLabel}>Average / Person</Text>
+              <Text style={styles.chartsHeroStatVal}>
+                {formatCurrency(members.length > 0 ? totalExpensesAmount / members.length : 0)}
+              </Text>
+            </View>
+            <View style={styles.chartsHeroStat}>
+              <Text style={styles.chartsHeroStatLabel}>Your Fair Share</Text>
+              <Text style={styles.chartsHeroStatVal}>{formatCurrency(myShareAmount)}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Category-Wise Spending */}
+        <View style={styles.chartBlockCard}>
+          <View style={styles.chartBlockHeader}>
+            <PieChart size={18} color="#059669" />
+            <Text style={styles.chartBlockTitle}>Category Breakdown</Text>
+          </View>
+
+          {categoryBreakdown.length === 0 ? (
+            <Text style={styles.emptyChartNotice}>No expense categories recorded yet.</Text>
+          ) : (
+            categoryBreakdown.map((item) => (
+              <View key={item.category} style={styles.breakdownRow}>
+                <CategoryIcon category={item.category} size={36} />
+                <View style={styles.breakdownMiddle}>
+                  <View style={styles.breakdownLabelRow}>
+                    <Text style={styles.breakdownCategoryName}>{item.category}</Text>
+                    <Text style={styles.breakdownAmountText}>{formatCurrency(item.total)}</Text>
+                  </View>
+                  <View style={styles.progressBarTrack}>
+                    <View
+                      style={[
+                        styles.progressBarFill,
+                        { width: `${Math.min(100, Math.max(3, item.percentage))}%` },
+                      ]}
+                    />
+                  </View>
+                  <View style={styles.breakdownSubRow}>
+                    <Text style={styles.breakdownCountText}>
+                      {item.count} {item.count === 1 ? 'expense' : 'expenses'}
+                    </Text>
+                    <Text style={styles.breakdownPercentText}>{item.percentage.toFixed(0)}%</Text>
+                  </View>
+                </View>
+              </View>
+            ))
+          )}
+        </View>
+
+        {/* Member-Wise Spending */}
+        <View style={styles.chartBlockCard}>
+          <View style={styles.chartBlockHeader}>
+            <Users size={18} color="#059669" />
+            <Text style={styles.chartBlockTitle}>Member Spending & Contribution</Text>
+          </View>
+
+          {memberBalances.map((m) => (
+            <View key={m.userId} style={styles.memberSpendingRow}>
+              <MemberAvatar name={m.userName} imageUrl={m.imageUrl} size={38} />
+              <View style={styles.memberSpendingRight}>
+                <View style={styles.breakdownLabelRow}>
+                  <Text style={styles.memberSpendingName}>
+                    {m.userName} {m.isMe ? '(You)' : ''}
+                  </Text>
+                  <Text style={styles.memberPaidAmount}>{formatCurrency(m.totalPaid)}</Text>
+                </View>
+
+                <View style={styles.progressBarTrack}>
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      {
+                        width: `${Math.min(100, Math.max(3, m.percentage))}%`,
+                        backgroundColor: m.isMe ? '#059669' : '#3B82F6',
+                      },
+                    ]}
+                  />
+                </View>
+
+                <View style={styles.memberSpendingSubRow}>
+                  <Text style={styles.memberShareText}>Fair share: {formatCurrency(m.totalShare)}</Text>
+                  <Text style={styles.memberPercentText}>{m.percentage.toFixed(0)}% paid</Text>
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    );
+  };
+
+  // Section 3: Balances
+  const renderBalancesSection = () => {
+    return (
+      <ScrollView
+        style={{ width: screenWidth }}
+        contentContainerStyle={[
+          styles.pageScrollContent,
+          { paddingBottom: Math.max(insets.bottom + 90, 110) },
+        ]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            colors={['#059669']}
+            tintColor="#059669"
+          />
+        }
+      >
+        {/* Individual Member Balances */}
+        <View style={styles.chartBlockCard}>
+          <View style={styles.chartBlockHeader}>
+            <Scale size={18} color="#059669" />
+            <Text style={styles.chartBlockTitle}>Member Balances</Text>
+          </View>
+
+          {memberBalances.map((m) => {
+            const isOwed = m.net > 0.01;
+            const owes = m.net < -0.01;
+            const settled = !isOwed && !owes;
+
+            return (
+              <View key={m.userId} style={styles.memberBalanceRow}>
+                <MemberAvatar name={m.userName} imageUrl={m.imageUrl} size={40} />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.memberBalanceName}>
+                    {m.userName} {m.isMe ? '(You)' : ''}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.memberBalanceStatus,
+                      isOwed ? { color: '#059669' } : owes ? { color: '#DC2626' } : { color: '#6B7280' },
+                    ]}
+                  >
+                    {isOwed
+                      ? `gets back ${formatCurrency(m.net)}`
+                      : owes
+                      ? `owes ${formatCurrency(Math.abs(m.net))}`
+                      : 'settled up'}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+
+        {/* Suggested Optimized Payments */}
+        <View style={styles.chartBlockCard}>
+          <View style={styles.chartBlockHeader}>
+            <Handshake size={18} color="#059669" />
+            <Text style={styles.chartBlockTitle}>Suggested Payments</Text>
+          </View>
+
+          {settlements.length === 0 ? (
+            <View style={styles.emptySettledBox}>
+              <CheckCircle2 size={24} color="#059669" />
+              <Text style={[styles.emptySettledText, { color: '#059669', fontWeight: '600' }]}>
+                No debts! Everyone is settled up.
+              </Text>
+            </View>
+          ) : (
+            settlements.map((s, idx) => {
+              const isMeDebtor = s.fromUserId === user?.uid;
+              const isMeCreditor = s.toUserId === user?.uid;
+
+              return (
+                <View key={`balance-settlement-${idx}`} style={styles.suggestedPaymentCard}>
+                  <View style={styles.suggestedPaymentRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.suggestedPaymentText}>
+                        <Text style={isMeDebtor ? { color: '#DC2626', fontWeight: '700' } : { color: '#111827', fontWeight: '600' }}>
+                          {isMeDebtor ? 'You' : s.fromUserName}
+                        </Text>
+                        <Text style={{ color: '#6B7280' }}> owes </Text>
+                        <Text style={isMeCreditor ? { color: '#059669', fontWeight: '700' } : { color: '#111827', fontWeight: '600' }}>
+                          {isMeCreditor ? 'you' : s.toUserName}
+                        </Text>
+                      </Text>
+                      <Text style={styles.suggestedPaymentAmount}>{formatCurrency(s.amount)}</Text>
+                    </View>
+
+                    {(isMeDebtor || isMeCreditor) && (
+                      <TouchableOpacity
+                        style={styles.cardSettleBtnSmall}
+                        onPress={() => openQuickSettle(isMeDebtor ? s.toUserId : undefined, s.amount)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.cardSettleBtnSmallText}>Settle up</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </View>
+      </ScrollView>
+    );
+  };
+
+  // Section 4: Total & Overview
+  const renderTotalSection = () => {
+    return (
+      <ScrollView
+        style={{ width: screenWidth }}
+        contentContainerStyle={[
+          styles.pageScrollContent,
+          { paddingBottom: Math.max(insets.bottom + 90, 110) },
+        ]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            colors={['#059669']}
+            tintColor="#059669"
+          />
+        }
+      >
+        <View style={styles.totalHeaderContainer}>
+          {/* 4-Card Summary Grid */}
+          <View style={styles.grid2x2}>
+            <View style={styles.gridCard}>
+              <Text style={styles.gridCardLabel}>Total Expenses</Text>
+              <Text style={styles.gridCardValue}>{formatCurrency(totalExpensesAmount)}</Text>
+            </View>
+            <View style={styles.gridCard}>
+              <Text style={styles.gridCardLabel}>Number of Bills</Text>
+              <Text style={styles.gridCardValue}>{expenses.length}</Text>
+            </View>
+            <View style={styles.gridCard}>
+              <Text style={styles.gridCardLabel}>You Paid</Text>
+              <Text style={[styles.gridCardValue, { color: '#059669' }]}>
+                {formatCurrency(myPaidAmount)}
+              </Text>
+            </View>
+            <View style={styles.gridCard}>
+              <Text style={styles.gridCardLabel}>Your Fair Share</Text>
+              <Text style={[styles.gridCardValue, { color: '#DC2626' }]}>
+                {formatCurrency(myShareAmount)}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Member Spending Summary */}
+        <View style={styles.chartBlockCard}>
+          <View style={styles.chartBlockHeader}>
+            <Users size={18} color="#059669" />
+            <Text style={styles.chartBlockTitle}>Member Spending Summary</Text>
+          </View>
+
+          {memberBalances.map((m) => (
+            <View key={`total-member-${m.userId}`} style={styles.breakdownRow}>
+              <MemberAvatar name={m.userName} imageUrl={m.imageUrl} size={36} />
+              <View style={styles.breakdownMiddle}>
+                <View style={styles.breakdownLabelRow}>
+                  <Text style={styles.breakdownCategoryName}>
+                    {m.userName} {m.isMe ? '(You)' : ''}
+                  </Text>
+                  <Text style={styles.breakdownAmountText}>{formatCurrency(m.totalPaid)}</Text>
+                </View>
+                <View style={styles.breakdownSubRow}>
+                  <Text style={styles.breakdownCountText}>
+                    Fair share: {formatCurrency(m.totalShare)}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.breakdownPercentText,
+                      m.net > 0.01
+                        ? { color: '#059669' }
+                        : m.net < -0.01
+                        ? { color: '#DC2626' }
+                        : { color: '#6B7280' },
+                    ]}
+                  >
+                    {m.net > 0.01
+                      ? `+${formatCurrency(m.net)}`
+                      : m.net < -0.01
+                      ? `-${formatCurrency(Math.abs(m.net))}`
+                      : 'settled'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Top Banner Card (Dark Emerald Green like screenshot) */}
+      <View style={[styles.emeraldBanner, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.bannerNavRow}>
           <TouchableOpacity
-            style={styles.settleUpBtn}
-            onPress={() => setSettleModalVisible(true)}
-            activeOpacity={0.7}
-            accessibilityLabel="Settle Up"
+            style={styles.bannerCircleBtn}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.8}
+            accessibilityLabel="Back"
             accessibilityRole="button"
           >
-            <Handshake size={16} color="#1A1A1A" strokeWidth={2} style={{ marginRight: 6 }} />
-            <Text style={styles.settleUpBtnText}>Settle up</Text>
+            <ArrowLeft size={18} color="#064E3B" strokeWidth={2.5} />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.addExpenseBtn}
-            onPress={handleAddExpenseClick}
-            activeOpacity={0.85}
-            accessibilityLabel="Add Expense"
+            style={styles.bannerCircleBtn}
+            onPress={() => navigation.navigate('GroupSettings', { groupId })}
+            activeOpacity={0.8}
+            accessibilityLabel="Settings"
             accessibilityRole="button"
           >
-            <Plus size={16} color="#FFFFFF" strokeWidth={2.5} style={{ marginRight: 4 }} />
-            <Text style={styles.addExpenseBtnText}>Add expense</Text>
+            <Settings size={18} color="#064E3B" strokeWidth={2.5} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Group Title */}
+        <Text style={styles.bannerGroupTitle} numberOfLines={1}>
+          {group?.name || initialGroupName}
+        </Text>
+
+        {/* Action Pills in Banner */}
+        <View style={styles.bannerPillsRow}>
+          <TouchableOpacity
+            style={styles.bannerActionPill}
+            onPress={() => openQuickSettle()}
+            activeOpacity={0.8}
+          >
+            <Calendar size={14} color="#FFFFFF" strokeWidth={2} />
+            <Text style={styles.bannerActionPillText}>Settle up</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.bannerActionPill}
+            onPress={handleShareCode}
+            activeOpacity={0.8}
+          >
+            <Users size={14} color="#FFFFFF" strokeWidth={2} />
+            <Text style={styles.bannerActionPillText}>Add members</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Underline Tabs */}
-      <View style={styles.tabBar}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'expenses' && styles.tabActive]}
-          onPress={() => {
-            if (Platform.OS !== 'web') {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-            }
-            setActiveTab('expenses');
-          }}
-          activeOpacity={0.7}
-        >
-          <Text style={[
-            styles.tabText,
-            activeTab === 'expenses' ? styles.tabTextActive : styles.tabTextInactive,
-          ]}>
-            Expenses
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'balances' && styles.tabActive]}
-          onPress={() => {
-            if (Platform.OS !== 'web') {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-            }
-            setActiveTab('balances');
-          }}
-          activeOpacity={0.7}
-        >
-          <Text style={[
-            styles.tabText,
-            activeTab === 'balances' ? styles.tabTextActive : styles.tabTextInactive,
-          ]}>
-            Balances
-          </Text>
-        </TouchableOpacity>
+      {/* Balance Summary Alert Strip */}
+      <View style={styles.statusAlertStrip}>
+        <Text style={styles.statusAlertText}>
+          {isSettled
+            ? '🎉 You are all settled up in this group.'
+            : netBalance > 0
+            ? `🟢 You are owed ${formatCurrency(netBalance)} in this group.`
+            : `🔴 You owe ${formatCurrency(Math.abs(netBalance))} in this group.`}
+        </Text>
       </View>
-    </View>
-  );
 
-  return (
-    <View style={styles.container}>
-      {/* Top App Header */}
-      <AppHeader
-        title={group?.name || initialGroupName}
-        subtitle={`${members.length} ${members.length === 1 ? 'member' : 'members'}`}
-        showBack
-        onBack={() => navigation.goBack()}
-        avatar={
-          <MemberAvatar
-            name={group?.name || initialGroupName || 'G'}
-            imageUrl={group?.imageUrl}
-            size={32}
-          />
-        }
-        rightAction={
-          <View style={styles.topRightActions}>
-            <TouchableOpacity
-              onPress={handleShareCode}
-              style={styles.headerBtn}
-              accessibilityLabel="Invite members"
-              accessibilityRole="button"
-            >
-              <UserPlus size={20} color="#1A1A1A" strokeWidth={2} />
-            </TouchableOpacity>
+      {/* Horizontal Pill Navigation Tabs */}
+      <View style={styles.pillTabsContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.pillTabsScrollContent}
+        >
+          {TABS.map((tab, idx) => {
+            const isActive = activeTabIndex === idx;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                style={[
+                  styles.navPill,
+                  isActive ? styles.navPillActive : styles.navPillInactive,
+                ]}
+                onPress={() => handleTabPress(idx)}
+                activeOpacity={0.7}
+              >
+                {tab.hasSparkle && (
+                  <Sparkles
+                    size={14}
+                    color={isActive ? '#FFFFFF' : '#7C3AED'}
+                    strokeWidth={2.5}
+                    style={{ marginRight: 5 }}
+                  />
+                )}
+                <Text
+                  style={[
+                    styles.navPillText,
+                    isActive ? styles.navPillTextActive : styles.navPillTextInactive,
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
 
-            <TouchableOpacity
-              onPress={() => navigation.navigate('GroupSettings', { groupId })}
-              style={styles.headerBtn}
-              accessibilityLabel="Group settings"
-              accessibilityRole="button"
-            >
-              <Settings size={20} color="#1A1A1A" strokeWidth={2} />
-            </TouchableOpacity>
-          </View>
-        }
-      />
-
-      {/* Main List */}
+      {/* Pager / Swipeable Content */}
       {isLoading ? (
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color="#059669" />
         </View>
-      ) : activeTab === 'expenses' ? (
-        <FlatList
-          data={expenses}
-          keyExtractor={(item) => item.id}
-          ListHeaderComponent={renderGroupHeader}
-          contentContainerStyle={[
-            styles.listContent,
-            { paddingBottom: Math.max(insets.bottom + 80, 100) },
-          ]}
-          renderItem={({ item, index }) => {
-            const dateObj = new Date(item.createdAt);
-            const currentMonthYear = dateObj.toLocaleDateString('en-US', {
-              month: 'long',
-              year: 'numeric',
-            });
-            const prevMonthYear =
-              index > 0
-                ? new Date(expenses[index - 1].createdAt).toLocaleDateString('en-US', {
-                    month: 'long',
-                    year: 'numeric',
-                  })
-                : null;
-            const showMonthHeader = currentMonthYear !== prevMonthYear;
-
-            return (
-              <View>
-                {showMonthHeader && (
-                  <View style={styles.monthHeaderContainer}>
-                    <Text style={styles.monthHeaderText}>{currentMonthYear}</Text>
-                  </View>
-                )}
-                <ExpenseListItem
-                  expense={item}
-                  currentUserId={user?.uid || ''}
-                  payerName={getMemberName(item.paidBy || item.createdBy)}
-                  onPress={() => setSelectedExpense(item)}
-                />
-              </View>
-            );
-          }}
-          ListEmptyComponent={
-            <EmptyState
-              icon={Receipt}
-              title="No expenses yet"
-              description="Keep track of meals, bills, or trips by adding the first expense to this group."
-              actionLabel="Add Expense"
-              onAction={handleAddExpenseClick}
-            />
-          }
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={onRefresh}
-              colors={['#059669']}
-              tintColor="#059669"
-            />
-          }
-        />
       ) : (
-        <FlatList
-          data={settlements}
-          keyExtractor={(item, index) => `${item.fromUserId}-${item.toUserId}-${index}`}
-          ListHeaderComponent={renderGroupHeader}
-          contentContainerStyle={[
-            styles.listContent,
-            { paddingBottom: Math.max(insets.bottom + 80, 100) },
-          ]}
-          renderItem={({ item }) => {
-            const isMeDebtor = item.fromUserId === user?.uid;
-            const isMeCreditor = item.toUserId === user?.uid;
-
-            return (
-              <View style={styles.settlementRow}>
-                <View style={styles.settlementInfo}>
-                  <Text style={styles.settlementText}>
-                    <Text style={isMeDebtor ? { color: '#E74C3C', fontWeight: '600' } : { color: '#1A1A1A', fontWeight: '600' }}>
-                      {isMeDebtor ? 'You' : item.fromUserName}
-                    </Text>
-                    <Text style={{ color: '#9E9E9E' }}> owes </Text>
-                    <Text style={isMeCreditor ? { color: '#1CC88A', fontWeight: '600' } : { color: '#1A1A1A', fontWeight: '600' }}>
-                      {isMeCreditor ? 'you' : item.toUserName}
-                    </Text>
-                  </Text>
-                  <Text style={styles.settlementAmount}>
-                    {formatCurrency(item.amount)}
-                  </Text>
-                </View>
-
-                {(isMeDebtor || isMeCreditor) && (
-                  <TouchableOpacity
-                    style={styles.quickSettleBtn}
-                    onPress={() => setSettleModalVisible(true)}
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.quickSettleText}>Settle up</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            );
-          }}
-          ListEmptyComponent={
-            <EmptyState
-              icon={CheckCircle2}
-              title="All settled up"
-              description="Everyone in this group is completely settled. No payments are owed!"
-            />
-          }
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={onRefresh}
-              colors={['#059669']}
-              tintColor="#059669"
-            />
-          }
-        />
+        <ScrollView
+          ref={pagerRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={handleScrollEnd}
+          style={styles.pagerContainer}
+        >
+          {renderExpensesSection()}
+          {renderSettleUpSection()}
+          {renderChartsSection()}
+          {renderBalancesSection()}
+          {renderTotalSection()}
+        </ScrollView>
       )}
 
-      {/* FAB */}
+      {/* Floating Action Button (Screenshot-style Green Pill) */}
       <TouchableOpacity
         style={[
-          styles.fab,
+          styles.floatingAddExpenseBtn,
           { bottom: Math.max(insets.bottom + 16, 24) },
         ]}
         onPress={handleAddExpenseClick}
         activeOpacity={0.85}
         accessibilityRole="button"
-        accessibilityLabel="Add an expense"
+        accessibilityLabel="Add expense"
       >
-        <Plus size={24} color="#FFFFFF" strokeWidth={2.5} />
+        <Receipt size={18} color="#FFFFFF" strokeWidth={2.5} style={{ marginRight: 6 }} />
+        <Text style={styles.floatingAddExpenseBtnText}>Add expense</Text>
       </TouchableOpacity>
 
       {/* Settlement Modal */}
       <SettleUpModal
         visible={settleModalVisible}
-        onDismiss={() => setSettleModalVisible(false)}
+        onDismiss={() => {
+          setSettleModalVisible(false);
+          setSettlePrefill({});
+        }}
         groupId={groupId}
         settlements={settlements}
         currentUserId={user?.uid || ''}
         onSuccess={() => {
           fetchGroupData();
+          loadLocalData();
         }}
       />
 
-      {/* Expense Details Modal */}
+      {/* Full-Screen Expense Detail Screen (Matching Reference Design) */}
       {selectedExpense && (
         <Modal
           visible={!!selectedExpense}
-          transparent
-          animationType="fade"
+          animationType="slide"
+          presentationStyle="fullScreen"
           onRequestClose={() => setSelectedExpense(null)}
         >
-          <View style={styles.modalBackdrop}>
-            <View style={styles.modalDialog}>
-              {/* Header */}
-              <View style={styles.modalHeaderRow}>
-                <CategoryIcon
-                  description={selectedExpense.description}
-                  tags={selectedExpense.tags}
-                  size={42}
-                />
-                <View style={styles.modalHeaderActions}>
+          <KeyboardAvoidingView
+            style={{ flex: 1, backgroundColor: '#FFFFFF' }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            {/* Top Mint Header Bar */}
+            <View style={[styles.expDetailTopBar, { paddingTop: insets.top + 8 }]}>
+              <View style={styles.expDetailNavRow}>
+                <TouchableOpacity
+                  onPress={() => setSelectedExpense(null)}
+                  style={styles.expDetailIconBtn}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Back"
+                >
+                  <ArrowLeft size={22} color="#1F2937" strokeWidth={2.4} />
+                </TouchableOpacity>
+
+                <View style={styles.expDetailRightActions}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (selectedExpenseReceiptUri) {
+                        setViewReceiptModalVisible(true);
+                      } else {
+                        Alert.alert(
+                          'No Receipt Attached',
+                          'You can edit this expense to attach a receipt photo.',
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            { text: 'Edit Expense', onPress: handleEditSelectedExpense },
+                          ]
+                        );
+                      }
+                    }}
+                    style={styles.expDetailIconBtn}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Receipt photo"
+                  >
+                    <ImagePlus size={22} color="#374151" strokeWidth={2.2} />
+                  </TouchableOpacity>
+
                   <TouchableOpacity
                     onPress={() => setConfirmDeleteExpenseVisible(true)}
-                    style={styles.trashBtn}
-                    accessibilityRole="button"
+                    style={styles.expDetailIconBtn}
+                    activeOpacity={0.7}
                     accessibilityLabel="Delete expense"
                   >
-                    <Trash2 size={20} color="#E74C3C" strokeWidth={2} />
+                    <Trash2 size={22} color="#374151" strokeWidth={2.2} />
                   </TouchableOpacity>
+
                   <TouchableOpacity
-                    onPress={() => setSelectedExpense(null)}
-                    style={styles.closeBtn}
-                    accessibilityRole="button"
-                    accessibilityLabel="Close"
+                    onPress={handleEditSelectedExpense}
+                    style={styles.expDetailIconBtn}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Edit expense"
                   >
-                    <X size={20} color="#6B6B6B" strokeWidth={2} />
+                    <Pencil size={22} color="#374151" strokeWidth={2.2} />
                   </TouchableOpacity>
                 </View>
               </View>
+            </View>
 
-              {/* Expense Title & Amount */}
-              <Text style={styles.expenseDetailTitle}>
-                {selectedExpense.description}
-              </Text>
-              <Text style={styles.expenseDetailAmount}>
-                {formatCurrency(selectedExpense.amount)}
-              </Text>
-              <Text style={styles.expenseDetailDate}>
-                Added on {new Date(selectedExpense.createdAt).toLocaleDateString('en-US', {
-                  month: 'long',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </Text>
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={[
+                styles.expDetailScrollContent,
+                { paddingBottom: Math.max(insets.bottom + 80, 100) },
+              ]}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Category Icon, Title, Amount & Date */}
+              <View style={styles.expDetailHeroSection}>
+                <View style={styles.expDetailCategoryIconWrapper}>
+                  <CategoryIcon
+                    description={selectedExpense.description}
+                    tags={selectedExpense.tags}
+                    size={52}
+                  />
+                </View>
+                <Text style={styles.expDetailTitleText}>{selectedExpense.description}</Text>
+                <Text style={styles.expDetailAmountText}>
+                  {formatCurrency(selectedExpense.amount)}
+                </Text>
+                <Text style={styles.expDetailAddedDate}>
+                  Added by{' '}
+                  {(selectedExpense.paidBy || selectedExpense.createdBy) === user?.uid
+                    ? 'you'
+                    : getMemberName(selectedExpense.paidBy || selectedExpense.createdBy)}{' '}
+                  on{' '}
+                  {new Date(selectedExpense.createdAt).toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })}
+                </Text>
+              </View>
 
-              {/* Breakdown List */}
-              <View style={styles.breakdownBox}>
-                <View style={styles.payerDetailRow}>
-                  <Text style={styles.payerDetailText}>
-                    <Text style={{ fontWeight: '700', color: '#1A1A1A' }}>
-                      {getMemberName(selectedExpense.paidBy || selectedExpense.createdBy)}
-                    </Text>
-                    {' paid '}
-                    <Text style={{ fontWeight: '700', color: '#1A1A1A' }}>
-                      {formatCurrency(selectedExpense.amount)}
-                    </Text>
+              {/* Payer and Tree Splits Breakdown */}
+              <View style={styles.expDetailTreeSection}>
+                {/* Payer Row */}
+                <View style={styles.treePayerRow}>
+                  <MemberAvatar
+                    name={getMemberName(selectedExpense.paidBy || selectedExpense.createdBy)}
+                    size={42}
+                  />
+                  <Text style={styles.treePayerText}>
+                    {(selectedExpense.paidBy || selectedExpense.createdBy) === user?.uid
+                      ? 'You'
+                      : getMemberName(selectedExpense.paidBy || selectedExpense.createdBy)}{' '}
+                    paid {formatCurrency(selectedExpense.amount)}
                   </Text>
                 </View>
 
-                <ScrollView style={styles.splitsScrollView} showsVerticalScrollIndicator={false}>
-                  {selectedExpense.splits.map((s) => {
-                    const memberName = getMemberName(s.userId);
+                {/* Tree Branches for Splits */}
+                <View style={styles.treeBranchesContainer}>
+                  {selectedExpense.splits.map((s, idx) => {
                     const isMe = s.userId === user?.uid;
+                    const memberName = getMemberName(s.userId);
+                    const isLast = idx === selectedExpense.splits.length - 1;
+
                     return (
-                      <View key={s.userId} style={styles.splitDetailRow}>
-                        <Text style={styles.splitMemberName}>
-                          {isMe ? 'You owe' : `${memberName} owes`}
-                        </Text>
-                        <Text style={styles.splitAmountText}>
-                          {formatCurrency(s.amount)}
+                      <View key={s.userId} style={styles.treeBranchRow}>
+                        <View style={styles.treeBranchLines}>
+                          <View
+                            style={[
+                              styles.treeVerticalLine,
+                              isLast && { height: 16 },
+                            ]}
+                          />
+                          <View style={styles.treeHorizontalLine} />
+                        </View>
+                        <Text style={styles.treeSplitText}>
+                          {isMe ? 'You owe' : `${memberName} owes`}{' '}
+                          <Text style={{ fontWeight: '600' }}>{formatCurrency(s.amount)}</Text>
                         </Text>
                       </View>
                     );
                   })}
-                </ScrollView>
+                </View>
               </View>
 
-              {/* Local Receipt Preview Button */}
-              {selectedExpenseReceiptUri && (
+              {/* Spending Trends Section */}
+              <View style={styles.spendingTrendsSection}>
+                <Text style={styles.spendingTrendsTitle}>
+                  Spending trends for {group?.name || 'Group'} :: {categoryTrends.categoryName}
+                </Text>
+
+                <View style={styles.trendsChartCard}>
+                  {categoryTrends.data.map((m, idx) => (
+                    <View key={`trend-${m.monthLabel}-${idx}`} style={styles.trendMonthRow}>
+                      <Text style={styles.trendMonthLabel}>{m.monthLabel}</Text>
+                      <View style={styles.trendAxisLine} />
+                      <View style={styles.trendBarContainer}>
+                        <View
+                          style={[
+                            styles.trendBarFill,
+                            { width: `${Math.min(100, Math.max(m.total > 0 ? 8 : 0, m.percentage))}%` },
+                          ]}
+                        />
+                      </View>
+                      <Text style={styles.trendMonthAmount}>{formatCurrency(m.total)}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Violet "View more charts" Button */}
                 <TouchableOpacity
-                  style={styles.receiptPreviewBtn}
-                  onPress={() => setViewReceiptModalVisible(true)}
-                  activeOpacity={0.8}
-                  accessibilityRole="button"
-                  accessibilityLabel="View attached receipt"
+                  style={styles.viewMoreChartsBtn}
+                  onPress={() => {
+                    setSelectedExpense(null);
+                    handleTabPress(2); // Switches smoothly to Charts tab
+                  }}
+                  activeOpacity={0.85}
                 >
-                  <Camera size={16} color="#059669" />
-                  <Text style={styles.receiptPreviewBtnText}>View Receipt (Stored Locally)</Text>
+                  <Sparkles size={16} color="#FFFFFF" strokeWidth={2.2} style={{ marginRight: 8 }} />
+                  <Text style={styles.viewMoreChartsBtnText}>View more charts</Text>
                 </TouchableOpacity>
+              </View>
+
+              {/* Comments Display (if any) */}
+              {expenseComments[selectedExpense.id]?.length > 0 && (
+                <View style={styles.commentsListSection}>
+                  <Text style={styles.commentsSectionHeader}>Comments</Text>
+                  {expenseComments[selectedExpense.id].map((c) => (
+                    <View key={c.id} style={styles.commentItem}>
+                      <View style={styles.commentHeaderRow}>
+                        <Text style={styles.commentAuthor}>{c.author}</Text>
+                        <Text style={styles.commentTime}>{c.time}</Text>
+                      </View>
+                      <Text style={styles.commentText}>{c.text}</Text>
+                    </View>
+                  ))}
+                </View>
               )}
+            </ScrollView>
+
+            {/* Bottom Add Comment Bar */}
+            <View
+              style={[
+                styles.bottomCommentBar,
+                { paddingBottom: Math.max(insets.bottom + 8, 12) },
+              ]}
+            >
+              <View style={styles.commentInputWrapper}>
+                <TextInput
+                  style={styles.commentInput}
+                  placeholder="Add a comment"
+                  placeholderTextColor="#9CA3AF"
+                  value={commentText}
+                  onChangeText={setCommentText}
+                  onSubmitEditing={handleAddComment}
+                />
+                <TouchableOpacity
+                  onPress={handleAddComment}
+                  style={styles.commentSendBtn}
+                  activeOpacity={0.7}
+                  disabled={!commentText.trim()}
+                >
+                  <SendHorizontal
+                    size={20}
+                    color={commentText.trim() ? '#059669' : '#9CA3AF'}
+                    strokeWidth={2.2}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
@@ -667,7 +1449,7 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
         </Modal>
       )}
 
-      {/* Splitwise Screen 02: Only Member in Group Prompt */}
+      {/* Splitwise Prompt: Only Member in Group */}
       <Modal
         visible={onlyMemberPromptVisible}
         transparent
@@ -729,189 +1511,704 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
-  topRightActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  headerBtn: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#F9FAFB',
   },
   loaderContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  listContent: {
-    paddingBottom: 96,
-  },
-  summarySection: {
-    backgroundColor: '#FFFFFF',
+
+  // Emerald Banner Header
+  emeraldBanner: {
+    backgroundColor: '#064E3B',
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E8E8E8',
+    paddingBottom: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
-  balanceSummaryText: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 14,
-  },
-  actionButtonsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  settleUpBtn: {
-    flex: 1,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  settleUpBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
-  addExpenseBtn: {
-    flex: 1,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: '#059669',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addExpenseBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  monthHeaderContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 6,
-    backgroundColor: '#F5F5F5',
-  },
-  monthHeaderText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#6B6B6B',
-    letterSpacing: 0.2,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E8E8E8',
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 13,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabActive: {
-    borderBottomColor: '#059669',
-  },
-  tabText: {
-    fontSize: 15,
-  },
-  tabTextActive: {
-    color: '#059669',
-    fontWeight: '700',
-  },
-  tabTextInactive: {
-    color: '#6B6B6B',
-    fontWeight: '500',
-  },
-  settlementRow: {
+  bannerNavRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  bannerCircleBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E8E8E8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  settlementInfo: {
-    flex: 1,
+  bannerGroupTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+    marginBottom: 14,
   },
-  settlementText: {
-    fontSize: 15,
-    color: '#1A1A1A',
+  bannerPillsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
-  settlementAmount: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginTop: 2,
-  },
-  quickSettleBtn: {
-    paddingVertical: 6,
+  bannerActionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
     paddingHorizontal: 14,
-    borderRadius: 6,
-    backgroundColor: '#F0FAF6',
-    marginLeft: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
-  quickSettleText: {
+  bannerActionPillText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#059669',
+    color: '#FFFFFF',
   },
-  fab: {
-    position: 'absolute',
-    right: 16,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#059669',
+
+  // Status Alert Strip
+  statusAlertStrip: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  statusAlertText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+
+  // Horizontal Navigation Pill Tabs
+  pillTabsContainer: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  pillTabsScrollContent: {
+    paddingHorizontal: 16,
+    gap: 8,
     alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
+  },
+  navPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  navPillActive: {
+    backgroundColor: '#059669',
+  },
+  navPillInactive: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  navPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  navPillTextActive: {
+    color: '#FFFFFF',
+  },
+  navPillTextInactive: {
+    color: '#374151',
+  },
+
+  // Pager Scroll
+  pagerContainer: {
+    flex: 1,
+  },
+  pageScrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+
+  // Section 1: Settle Up
+  settledCelebrationCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
   },
-  // Expense detail modal
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: 'center',
+  settledTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  toggleSettledBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 24,
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    marginBottom: 28,
   },
-  modalDialog: {
-    width: '100%',
-    maxWidth: 380,
+  toggleSettledBtnText: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  modernCheckContainer: {
+    marginVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modernCheckBadge: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: '#EDE9FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#DDD6FE',
+  },
+  settledNotice: {
+    fontSize: 13,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 20,
+    lineHeight: 18,
+    maxWidth: 280,
+  },
+
+  pendingSection: {
+    gap: 12,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  sectionHeading: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  sectionSubCount: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  settlementCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
-  modalHeaderRow: {
+  settlementCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
+  settlementParties: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  transferArrowWrapper: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settlementAmountBox: {
+    alignItems: 'flex-end',
+  },
+  settlementAmountText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  settlementSubRole: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  settlementCardDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  settlementDetailSentence: {
+    fontSize: 13,
+    color: '#4B5563',
+    flex: 1,
+  },
+  cardSettleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#059669',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 16,
+  },
+  cardSettleBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  toggleSettledBtnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    marginTop: 6,
+  },
+
+  settledHistorySection: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  settledHistoryHeader: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  settledHistoryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    gap: 12,
+  },
+  settledHistoryIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settledHistoryTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  settledHistoryDate: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
+  settledHistoryAmount: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  emptySettledBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    gap: 6,
+  },
+  emptySettledText: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+
+  // Section 2: Charts
+  chartsHeroCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  chartsHeroHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  chartsHeroLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  chartsHeroAmount: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#111827',
+    marginTop: 2,
+  },
+  sparkleIconBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chartsHeroDivider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+    marginVertical: 14,
+  },
+  chartsHeroStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  chartsHeroStat: {
+    flex: 1,
+  },
+  chartsHeroStatLabel: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '500',
+    marginBottom: 3,
+  },
+  chartsHeroStatVal: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#111827',
+  },
+
+  chartBlockCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  chartBlockHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 14,
+  },
+  chartBlockTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  emptyChartNotice: {
+    fontSize: 13,
+    color: '#6B7280',
+    textAlign: 'center',
+    paddingVertical: 12,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F9FAFB',
+    gap: 12,
+  },
+  breakdownMiddle: {
+    flex: 1,
+  },
+  breakdownLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  breakdownCategoryName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  breakdownAmountText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  progressBarTrack: {
+    height: 6,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginVertical: 3,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#059669',
+    borderRadius: 3,
+  },
+  breakdownSubRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  breakdownCountText: {
+    fontSize: 11,
+    color: '#6B7280',
+  },
+  breakdownPercentText: {
+    fontSize: 11,
+    color: '#059669',
+    fontWeight: '700',
+  },
+
+  memberSpendingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F9FAFB',
+    gap: 12,
+  },
+  memberSpendingRight: {
+    flex: 1,
+  },
+  memberSpendingName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  memberPaidAmount: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  memberSpendingSubRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  memberShareText: {
+    fontSize: 11,
+    color: '#6B7280',
+  },
+  memberPercentText: {
+    fontSize: 11,
+    color: '#3B82F6',
+    fontWeight: '700',
+  },
+
+  // Section 3: Balances
+  memberBalanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  memberBalanceName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  memberBalanceStatus: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  suggestedPaymentCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  suggestedPaymentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  suggestedPaymentText: {
+    fontSize: 13,
+    marginBottom: 2,
+  },
+  suggestedPaymentAmount: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  cardSettleBtnSmall: {
+    backgroundColor: '#059669',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  cardSettleBtnSmallText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  // Section 4: Total & Ledger
+  totalHeaderContainer: {
+    marginBottom: 12,
+  },
+  grid2x2: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 16,
+  },
+  gridCard: {
+    width: '48%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  gridCardLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  gridCardValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  ledgerHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  ledgerHeading: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  ledgerSubText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  monthHeaderContainer: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  monthHeaderText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#4B5563',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+
+  // Floating Action Button (Bottom Right)
+  floatingAddExpenseBtn: {
+    position: 'absolute',
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#059669',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 30,
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+    zIndex: 10,
+  },
+  floatingAddExpenseBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+
+  // Modals & Details
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalDialog: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 20,
+    width: '100%',
+    maxWidth: 420,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   modalHeaderActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  editBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
   },
   trashBtn: {
     width: 36,
@@ -920,140 +2217,383 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF2F2',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#FECACA',
   },
   closeBtn: {
     width: 36,
     height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
   },
   expenseDetailTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    fontWeight: '800',
+    color: '#111827',
     marginBottom: 4,
   },
   expenseDetailAmount: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#1A1A1A',
-    marginBottom: 2,
+    color: '#059669',
+    marginBottom: 4,
   },
   expenseDetailDate: {
-    fontSize: 13,
-    color: '#9E9E9E',
+    fontSize: 12,
+    color: '#6B7280',
     marginBottom: 16,
   },
   breakdownBox: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E8E8E8',
-    paddingTop: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 16,
   },
   payerDetailRow: {
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
     marginBottom: 10,
   },
   payerDetailText: {
-    fontSize: 15,
-    color: '#6B6B6B',
+    fontSize: 14,
+    color: '#374151',
   },
   splitsScrollView: {
-    maxHeight: 180,
+    maxHeight: 160,
   },
   splitDetailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: 5,
   },
   splitMemberName: {
-    fontSize: 14,
-    color: '#6B6B6B',
+    fontSize: 13,
+    color: '#4B5563',
   },
   splitAmountText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
-  // Splitwise only member dialog
-  onlyMemberDialog: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    width: '85%',
-    maxWidth: 340,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  onlyMemberTitle: {
-    fontSize: 18,
+    fontSize: 13,
     fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 10,
-    lineHeight: 24,
-  },
-  onlyMemberSub: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  onlyMemberPrimaryBtn: {
-    backgroundColor: '#059669',
-    borderRadius: 8,
-    paddingVertical: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  onlyMemberPrimaryBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  onlyMemberSecondaryBtn: {
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  onlyMemberSecondaryBtnText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#059669',
+    color: '#111827',
   },
   receiptPreviewBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginTop: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
     backgroundColor: '#ECFDF5',
-    borderRadius: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#A7F3D0',
   },
   receiptPreviewBtnText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#059669',
   },
   receiptFullImage: {
     width: '100%',
-    height: 320,
-    borderRadius: 8,
+    height: 360,
+    borderRadius: 12,
     backgroundColor: '#F3F4F6',
     marginVertical: 12,
   },
   receiptLocalNotice: {
-    fontSize: 12,
+    fontSize: 11,
+    color: '#9CA3AF',
+    textAlign: 'center',
+  },
+
+  // Only Member Prompt
+  onlyMemberDialog: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+    alignItems: 'center',
+  },
+  onlyMemberTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  onlyMemberSub: {
+    fontSize: 13,
     color: '#6B7280',
     textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 18,
+  },
+  onlyMemberPrimaryBtn: {
+    width: '100%',
+    backgroundColor: '#059669',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  onlyMemberPrimaryBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  onlyMemberSecondaryBtn: {
+    width: '100%',
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  onlyMemberSecondaryBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+
+  // Full-Screen Expense Detail Screen Styles (Reference Matching)
+  expDetailTopBar: {
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+  },
+  expDetailNavRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  expDetailIconBtn: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  expDetailRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  expDetailScrollContent: {
+    paddingBottom: 24,
+  },
+  expDetailHeroSection: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 20,
+  },
+  expDetailCategoryIconWrapper: {
+    marginBottom: 8,
+  },
+  expDetailTitleText: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#111827',
+    letterSpacing: -0.3,
+  },
+  expDetailAmountText: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: '#111827',
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  expDetailAddedDate: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '400',
+  },
+  expDetailTreeSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  treePayerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  treePayerText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  treeBranchesContainer: {
     marginTop: 4,
+  },
+  treeBranchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 34,
+  },
+  treeBranchLines: {
+    width: 42,
+    height: 34,
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  treeVerticalLine: {
+    position: 'absolute',
+    left: 20,
+    top: 0,
+    bottom: 0,
+    width: 1.5,
+    backgroundColor: '#D1D5DB',
+  },
+  treeHorizontalLine: {
+    position: 'absolute',
+    left: 20,
+    top: 16,
+    width: 18,
+    height: 1.5,
+    backgroundColor: '#D1D5DB',
+  },
+  treeSplitText: {
+    fontSize: 14,
+    color: '#374151',
+  },
+  spendingTrendsSection: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  spendingTrendsTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 16,
+  },
+  trendsChartCard: {
+    marginBottom: 8,
+  },
+  trendMonthRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  trendMonthLabel: {
+    width: 38,
+    fontSize: 13,
+    color: '#4B5563',
+    fontWeight: '500',
+  },
+  trendAxisLine: {
+    width: 1.5,
+    height: 24,
+    backgroundColor: '#E5E7EB',
+    marginRight: 10,
+  },
+  trendBarContainer: {
+    flex: 1,
+    height: 22,
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  trendBarFill: {
+    height: 20,
+    backgroundColor: '#D1FAE5',
+    borderRadius: 4,
+  },
+  trendMonthAmount: {
+    minWidth: 70,
+    textAlign: 'right',
+    fontSize: 13,
+    color: '#4B5563',
+    fontWeight: '600',
+  },
+  viewMoreChartsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#7C3AED',
+    paddingVertical: 11,
+    paddingHorizontal: 22,
+    borderRadius: 24,
+    alignSelf: 'center',
+    marginTop: 20,
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  viewMoreChartsBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  commentsListSection: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  commentsSectionHeader: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 10,
+  },
+  commentItem: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  commentHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 3,
+  },
+  commentAuthor: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  commentTime: {
+    fontSize: 10,
+    color: '#9CA3AF',
+  },
+  commentText: {
+    fontSize: 13,
+    color: '#374151',
+  },
+  bottomCommentBar: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  commentInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'ios' ? 8 : 4,
+  },
+  commentInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#111827',
+    paddingVertical: 4,
+  },
+  commentSendBtn: {
+    padding: 6,
   },
 });
 

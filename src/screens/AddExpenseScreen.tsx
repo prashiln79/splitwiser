@@ -34,7 +34,7 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { getGroupMembers, getGroupById } from '../services/groups';
 import { getLocalGroupById, getLocalGroupMembers } from '../repositories/groupRepository';
-import { createExpenseLocal } from '../repositories/expenseRepository';
+import { createExpenseLocal, updateExpenseLocal } from '../repositories/expenseRepository';
 import { getDirectGroupId } from '../repositories/friendRepository';
 import { useAuth } from '../context/AuthContext';
 import { MemberAvatar } from '../components/common/MemberAvatar';
@@ -55,36 +55,62 @@ const CURRENCIES = [
 ];
 
 export const AddExpenseScreen = ({ route, navigation }: any) => {
-  const { groupId: passedGroupId, friendId, friendName } = route.params || {};
+  const { groupId: passedGroupId, friendId, friendName, expenseToEdit } = route.params || {};
+  const isEditing = Boolean(expenseToEdit);
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
 
   const isDirectFriendExpense = Boolean(friendId && !passedGroupId);
   const groupId = passedGroupId || (friendId && user ? getDirectGroupId(user.uid, friendId) : '');
 
+  // Extract initial values from expenseToEdit if editing
+  const initialCategory = useMemo(() => {
+    if (!expenseToEdit?.tags) return null;
+    const cat = expenseToEdit.tags.find((t: string) => !t.startsWith('note:') && !t.startsWith('receipt:'));
+    return (cat as ExpenseCategory) || null;
+  }, [expenseToEdit]);
+
+  const initialNote = useMemo(() => {
+    if (!expenseToEdit?.tags) return '';
+    const noteTag = expenseToEdit.tags.find((t: string) => t.startsWith('note:'));
+    return noteTag ? noteTag.replace(/^note:/, '') : '';
+  }, [expenseToEdit]);
+
+  const initialReceipt = useMemo(() => {
+    if (!expenseToEdit?.tags) return null;
+    const recTag = expenseToEdit.tags.find((t: string) => t.startsWith('receipt:'));
+    return recTag ? recTag.replace(/^receipt:/, '') : null;
+  }, [expenseToEdit]);
+
   // Form states
-  const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState('');
-  const [currency, setCurrency] = useState('₹');
-  const [manualCategory, setManualCategory] = useState<ExpenseCategory | null>(null);
+  const [description, setDescription] = useState(expenseToEdit?.description ?? '');
+  const [amount, setAmount] = useState(expenseToEdit ? String(expenseToEdit.amount) : '');
+  const [currency, setCurrency] = useState(expenseToEdit?.currency || '₹');
+  const [manualCategory, setManualCategory] = useState<ExpenseCategory | null>(initialCategory);
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Split & Payer states
-  const [splitMethod, setSplitMethod] = useState<SplitType>('equal');
-  const [payerId, setPayerId] = useState<string | null>(null);
+  const [splitMethod, setSplitMethod] = useState<SplitType>(expenseToEdit?.splitType || 'equal');
+  const [payerId, setPayerId] = useState<string | null>(
+    expenseToEdit?.paidBy || expenseToEdit?.createdBy || null
+  );
   const [percentages, setPercentages] = useState<Record<string, string>>({});
   const [shares, setShares] = useState<Record<string, string>>({});
   const [exactAmounts, setExactAmounts] = useState<Record<string, string>>({});
   const [selectedMembers, setSelectedMembers] = useState<Record<string, boolean>>({});
 
   // Additional details (date, receipt photo, notes)
-  const [expenseDate, setExpenseDate] = useState<Date>(new Date());
-  const [calendarViewDate, setCalendarViewDate] = useState<Date>(new Date());
-  const [receiptImage, setReceiptImage] = useState<string | null>(null);
-  const [notes, setNotes] = useState('');
+  const [expenseDate, setExpenseDate] = useState<Date>(
+    expenseToEdit?.createdAt ? new Date(expenseToEdit.createdAt) : new Date()
+  );
+  const [calendarViewDate, setCalendarViewDate] = useState<Date>(
+    expenseToEdit?.createdAt ? new Date(expenseToEdit.createdAt) : new Date()
+  );
+  const [receiptImage, setReceiptImage] = useState<string | null>(initialReceipt);
+  const [notes, setNotes] = useState(initialNote);
 
   // Contextual modal states
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
@@ -119,7 +145,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
       const initExactAmounts: Record<string, string> = {};
       const initSelected: Record<string, boolean> = {};
 
-      memberList.forEach((m, index) => {
+      normalizedList.forEach((m, index) => {
         initShares[m.userId] = '1';
         initPercentages[m.userId] = (
           basePercentage + (index < remainder ? 1 : 0)
@@ -128,13 +154,40 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         initSelected[m.userId] = true;
       });
 
+      // If editing an existing expense, prefill splits
+      if (expenseToEdit && expenseToEdit.splits && expenseToEdit.splits.length > 0) {
+        if (expenseToEdit.splitType === 'equal') {
+          normalizedList.forEach((m) => {
+            initSelected[m.userId] = expenseToEdit.splits.some((s: any) => s.userId === m.userId);
+          });
+        } else if (expenseToEdit.splitType === 'unequal') {
+          normalizedList.forEach((m) => {
+            const found = expenseToEdit.splits.find((s: any) => s.userId === m.userId);
+            initExactAmounts[m.userId] = found ? String(found.amount) : '0.00';
+          });
+        } else if (expenseToEdit.splitType === 'percentage') {
+          normalizedList.forEach((m) => {
+            const found = expenseToEdit.splits.find((s: any) => s.userId === m.userId);
+            if (found && expenseToEdit.amount > 0) {
+              initPercentages[m.userId] = String(Math.round((found.amount / expenseToEdit.amount) * 100));
+            } else {
+              initPercentages[m.userId] = '0';
+            }
+          });
+        }
+      }
+
       setShares(initShares);
       setPercentages(initPercentages);
       setExactAmounts(initExactAmounts);
       setSelectedMembers(initSelected);
 
-      const myMembership = memberList.find((m) => m.userId === user?.uid);
-      setPayerId(myMembership ? user!.uid : memberList[0]?.userId ?? null);
+      if (expenseToEdit?.paidBy || expenseToEdit?.createdBy) {
+        setPayerId(expenseToEdit.paidBy || expenseToEdit.createdBy);
+      } else {
+        const myMembership = normalizedList.find((m) => m.userId === user?.uid);
+        setPayerId(myMembership ? user!.uid : normalizedList[0]?.userId ?? null);
+      }
     };
 
     if (isDirectFriendExpense) {
@@ -329,15 +382,27 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
       if (notes.trim()) tags.push(`note:${notes.trim()}`);
       if (receiptImage) tags.push(`receipt:${receiptImage}`);
 
-      await createExpenseLocal(groupId, user!.uid, {
-        description: description.trim(),
-        amount: numericAmount,
-        paidBy: payerId,
-        splitType: finalSplitType,
-        splits,
-        tags,
-        createdAt: expenseDate,
-      });
+      if (isEditing && expenseToEdit) {
+        await updateExpenseLocal(groupId, expenseToEdit.id, {
+          description: description.trim(),
+          amount: numericAmount,
+          paidBy: payerId,
+          splitType: finalSplitType,
+          splits,
+          tags,
+          createdAt: expenseDate,
+        });
+      } else {
+        await createExpenseLocal(groupId, user!.uid, {
+          description: description.trim(),
+          amount: numericAmount,
+          paidBy: payerId,
+          splitType: finalSplitType,
+          splits,
+          tags,
+          createdAt: expenseDate,
+        });
+      }
 
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -460,7 +525,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
           <ArrowLeft size={24} color="#1A1A1A" strokeWidth={2.2} />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>Add expense</Text>
+        <Text style={styles.headerTitle}>{isEditing ? 'Edit expense' : 'Add expense'}</Text>
 
         <TouchableOpacity
           onPress={handleAddExpense}
@@ -893,7 +958,8 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
               <Text style={styles.saveCtaBtnText}>
-                Save expense{numericAmount > 0 ? ` · ${currency}${numericAmount.toFixed(2)}` : ''}
+                {isEditing ? 'Save changes' : 'Save expense'}
+                {numericAmount > 0 ? ` · ${currency}${numericAmount.toFixed(2)}` : ''}
               </Text>
             )}
           </TouchableOpacity>
