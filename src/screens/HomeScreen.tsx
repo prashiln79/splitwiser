@@ -12,8 +12,20 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
-import { Search, X, Users, Hash, Receipt, UserPlus } from 'lucide-react-native';
+import {
+  Search,
+  X,
+  Users,
+  Hash,
+  Receipt,
+  UserPlus,
+  Eye,
+  EyeOff,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIsFocused } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
@@ -227,6 +239,43 @@ const HomeScreen = ({ navigation }: any) => {
     return { totalOwed: owed, totalOwes: owes };
   }, [groupSettlements]);
 
+  // Toggle for viewing settled (hidden) groups
+  const [showHiddenSettled, setShowHiddenSettled] = useState(false);
+
+  // Partition displayed groups into active (unsettled or recent < 7 days old) and hidden settled
+  const { unsettledGroups, settledGroups } = useMemo(() => {
+    const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const active: Group[] = [];
+    const settledHidden: Group[] = [];
+
+    displayedGroups.forEach((g) => {
+      const status = groupSettlements[g.id];
+      const isSettled = !status || status.isSettled;
+      const createdAtMs = g.createdAt
+        ? g.createdAt instanceof Date
+          ? g.createdAt.getTime()
+          : new Date(g.createdAt).getTime()
+        : now;
+      const isRecent = now - createdAtMs < ONE_WEEK_MS;
+
+      // Don't hide week-old / newly added groups even if settled
+      if (!isSettled || isRecent) {
+        active.push(g);
+      } else {
+        settledHidden.push(g);
+      }
+    });
+    return { unsettledGroups: active, settledGroups: settledHidden };
+  }, [displayedGroups, groupSettlements]);
+
+  // When searching, show all matches. Otherwise, hide settled groups by default.
+  const visibleGroups = useMemo(() => {
+    if (searchQuery.trim()) return displayedGroups;
+    if (showHiddenSettled) return [...unsettledGroups, ...settledGroups];
+    return unsettledGroups;
+  }, [displayedGroups, searchQuery, showHiddenSettled, unsettledGroups, settledGroups]);
+
   const handleAddExpenseClick = () => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -249,8 +298,61 @@ const HomeScreen = ({ navigation }: any) => {
     );
   };
 
+  const isAllSettledUp = totalOwed <= 0.01 && totalOwes <= 0.01;
+
   const renderFooter = () => (
     <View style={styles.footerContainer}>
+      {/* Option to view / hide settled groups */}
+      {settledGroups.length > 0 && !searchQuery.trim() && (
+        <TouchableOpacity
+          style={styles.viewHiddenGroupsBtn}
+          onPress={() => {
+            if (Platform.OS !== 'web') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+            }
+            setShowHiddenSettled(!showHiddenSettled);
+          }}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={
+            showHiddenSettled
+              ? 'Hide settled groups'
+              : `View hidden groups (${settledGroups.length})`
+          }
+        >
+          {showHiddenSettled ? (
+            <>
+              <EyeOff size={16} color="#4B5563" style={{ marginRight: 6 }} />
+              <Text style={styles.viewHiddenGroupsText}>Hide settled groups</Text>
+              <ChevronUp size={16} color="#4B5563" style={{ marginLeft: 4 }} />
+            </>
+          ) : (
+            <>
+              <Eye size={16} color="#4B5563" style={{ marginRight: 6 }} />
+              <Text style={styles.viewHiddenGroupsText}>
+                View hidden groups ({settledGroups.length})
+              </Text>
+              <ChevronDown size={16} color="#4B5563" style={{ marginLeft: 4 }} />
+            </>
+          )}
+        </TouchableOpacity>
+      )}
+
+      {/* Show celebratory illustration when all settled up and settled groups are expanded */}
+      {isAllSettledUp && showHiddenSettled && (
+        <View style={styles.settledIllustrationContainer}>
+          <Image
+            source={require('../../assets/settled-illustration.png')}
+            style={styles.settledIllustrationImage}
+            resizeMode="contain"
+          />
+          <Text style={styles.settledIllustrationTitle}>You're all settled up!</Text>
+          <Text style={styles.settledIllustrationSubtitle}>
+            No outstanding balances across your groups.
+          </Text>
+        </View>
+      )}
+
       <TouchableOpacity
         style={styles.createGroupFooterBtn}
         onPress={() => navigation.navigate('CreateGroup')}
@@ -263,6 +365,51 @@ const HomeScreen = ({ navigation }: any) => {
   );
 
   const renderEmptyState = () => {
+    // If user has groups, but all of them are settled & hidden:
+    if (groups.length > 0) {
+      return (
+        <View style={styles.settledAllHiddenContainer}>
+          <Image
+            source={require('../../assets/settled-illustration.png')}
+            style={styles.settledIllustrationImage}
+            resizeMode="contain"
+          />
+          <Text style={styles.settledIllustrationTitle}>You're all settled up!</Text>
+          <Text style={styles.settledIllustrationSubtitle}>
+            All your groups are settled up. Hidden to keep things easy to navigate.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.viewHiddenGroupsPrimaryBtn}
+            onPress={() => {
+              if (Platform.OS !== 'web') {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+              }
+              setShowHiddenSettled(true);
+            }}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={`View hidden groups (${settledGroups.length})`}
+          >
+            <Eye size={16} color="#065F46" style={{ marginRight: 6 }} />
+            <Text style={styles.viewHiddenGroupsPrimaryText}>
+              View hidden groups ({settledGroups.length})
+            </Text>
+            <ChevronDown size={16} color="#065F46" style={{ marginLeft: 4 }} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.createGroupFooterBtn, { marginTop: 14 }]}
+            onPress={() => navigation.navigate('CreateGroup')}
+            activeOpacity={0.7}
+          >
+            <UserPlus size={18} color="#059669" strokeWidth={2.2} style={{ marginRight: 8 }} />
+            <Text style={styles.createGroupFooterText}>Start a new group</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     const firstName = user?.name ? user.name.trim().split(' ')[0] : '';
     return (
       <View style={styles.emptyContainer}>
@@ -372,13 +519,13 @@ const HomeScreen = ({ navigation }: any) => {
         </View>
       ) : (
         <FlatList
-          data={displayedGroups}
+          data={visibleGroups}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={renderHeader}
-          ListFooterComponent={displayedGroups.length > 0 ? renderFooter : null}
+          ListFooterComponent={visibleGroups.length > 0 ? renderFooter : null}
           contentContainerStyle={[
             styles.listContent,
-            { paddingBottom: 80 },
+            { paddingBottom: 90 },
           ]}
           renderItem={({ item }) => {
             const status = groupSettlements[item.id];
@@ -597,8 +744,81 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   footerContainer: {
-    paddingVertical: 24,
+    paddingVertical: 16,
     alignItems: 'center',
+  },
+  settledIllustrationContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 20,
+  },
+  settledIllustrationImage: {
+    width: 230,
+    height: 208,
+    marginBottom: 10,
+  },
+  settledIllustrationTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  settledIllustrationSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 18,
+    maxWidth: 280,
+  },
+  settledAllHiddenContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 40,
+  },
+  viewHiddenGroupsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  viewHiddenGroupsText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4B5563',
+  },
+  viewHiddenGroupsPrimaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 11,
+    paddingHorizontal: 20,
+    borderRadius: 22,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    marginTop: 14,
+    marginBottom: 6,
+  },
+  viewHiddenGroupsPrimaryText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#065F46',
   },
   createGroupFooterBtn: {
     flexDirection: 'row',

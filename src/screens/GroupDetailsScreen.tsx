@@ -42,11 +42,13 @@ import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 import { EmptyState } from '../components/common/EmptyState';
 import { Expense, Group, GroupMember, OptimizedSettlement, Settlement } from '../types';
 import { formatCurrency } from '../utils/currency';
+import { useIsFocused } from '@react-navigation/native';
 
 const GroupDetailsScreen = ({ route, navigation }: any) => {
   const { groupId, groupName: initialGroupName } = route.params;
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
 
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
@@ -117,6 +119,13 @@ const GroupDetailsScreen = ({ route, navigation }: any) => {
       unsubQueue();
     };
   }, [groupId]);
+
+  // Focus effect: reload group data whenever returning from settings or editing
+  useEffect(() => {
+    if (isFocused) {
+      loadLocalData();
+    }
+  }, [isFocused]);
 
   // Recompute settlements whenever expenses, members, or recorded settlements change
   useEffect(() => {

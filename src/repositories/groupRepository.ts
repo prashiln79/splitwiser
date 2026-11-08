@@ -76,7 +76,7 @@ export async function getLocalGroups(userId: string): Promise<Group[]> {
 
   return rows
     .map(rowToGroup)
-    .filter((g) => g.memberIds.includes(userId) || g.createdBy === userId);
+    .filter((g) => g.memberIds.includes(userId));
 }
 
 /**
@@ -283,7 +283,29 @@ export async function removeMemberLocal(groupId: string, memberUid: string): Pro
  * Leaves a group locally.
  */
 export async function leaveGroupLocal(groupId: string, uid: string): Promise<void> {
+  const database = await getDatabase();
+  const now = Date.now();
+
+  // 1. Soft-delete the group locally so it no longer appears in local_groups for this user
+  await database.runAsync(
+    `UPDATE local_groups 
+     SET is_deleted = 1, updated_at = ? 
+     WHERE id = ?`,
+    [now, groupId]
+  );
+
+  // 2. Remove member from local_groups member_ids_json and local_group_members
   await removeMemberLocal(groupId, uid);
+
+  // 3. Clean up cached local expenses & settlements for this group
+  await database.runAsync(
+    `DELETE FROM local_expenses WHERE group_id = ?`,
+    [groupId]
+  );
+  await database.runAsync(
+    `DELETE FROM local_settlements WHERE group_id = ?`,
+    [groupId]
+  );
 }
 
 /**

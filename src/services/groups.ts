@@ -27,6 +27,7 @@ import {
   upsertRemoteGroups,
 } from '../repositories/groupRepository';
 import { networkMonitor } from '../sync/networkMonitor';
+import { syncQueue } from '../sync/syncQueue';
 
 // ─── Path helpers ─────────────────────────────────────────────────────────────
 // All data lives under /splitwiser/data/groups/...
@@ -177,13 +178,25 @@ export async function joinGroup(
 }
 
 export async function removeMember(groupId: string, memberUid: string): Promise<void> {
+  // 1. Immediately remove member locally from SQLite
   await removeMemberLocal(groupId, memberUid);
+
+  // 2. Enqueue in sync queue so it works offline/retries properly
+  await syncQueue.enqueue('group', `${groupId}_remove_${memberUid}`, 'LEAVE_GROUP', {
+    groupId,
+    uid: memberUid,
+  });
+
+  // 3. If online, also execute immediately with Firestore
   if (networkMonitor.isCurrentlyOnline()) {
     try {
-      await deleteDoc(memberDoc(groupId, memberUid));
-      await updateDoc(groupDoc(groupId), { memberIds: arrayRemove(memberUid) });
+      await deleteDoc(memberDoc(groupId, memberUid)).catch(() => {});
+      const groupSnap = await getDoc(groupDoc(groupId)).catch(() => null);
+      if (groupSnap && groupSnap.exists()) {
+        await updateDoc(groupDoc(groupId), { memberIds: arrayRemove(memberUid) }).catch(() => {});
+      }
     } catch (e: any) {
-      console.warn('[removeMember] remote remove failed:', e?.message);
+      console.warn('[removeMember] remote remove failed (queued):', e?.message);
     }
   }
 }
@@ -197,13 +210,32 @@ export async function updateMemberRole(
 }
 
 export async function leaveGroup(groupId: string, uid: string): Promise<void> {
+  // 1. Immediately soft-delete group locally & clear local data for this user
   await leaveGroupLocal(groupId, uid);
+
+  // 2. Enqueue in sync queue so it works offline/retries properly
+  await syncQueue.enqueue('group', `${groupId}_leave_${uid}`, 'LEAVE_GROUP', {
+    groupId,
+    uid,
+  });
+
+  // 3. If online, also execute immediately with Firestore
   if (networkMonitor.isCurrentlyOnline()) {
     try {
-      await deleteDoc(memberDoc(groupId, uid));
-      await updateDoc(groupDoc(groupId), { memberIds: arrayRemove(uid) });
+      await deleteDoc(memberDoc(groupId, uid)).catch(() => {});
+      const groupSnap = await getDoc(groupDoc(groupId)).catch(() => null);
+      if (groupSnap && groupSnap.exists()) {
+        await updateDoc(groupDoc(groupId), { memberIds: arrayRemove(uid) }).catch(() => {});
+        const remainingSnap = await getDocs(membersCol(groupId)).catch(() => null);
+        if (remainingSnap && !remainingSnap.empty) {
+          const hasAdmin = remainingSnap.docs.some((d) => d.data().role === 'admin');
+          if (!hasAdmin) {
+            await updateDoc(remainingSnap.docs[0].ref, { role: 'admin' }).catch(() => {});
+          }
+        }
+      }
     } catch (e: any) {
-      console.warn('[leaveGroup] remote leave failed:', e?.message);
+      console.warn('[leaveGroup] remote leave failed (queued):', e?.message);
     }
   }
 }

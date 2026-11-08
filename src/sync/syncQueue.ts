@@ -1,4 +1,4 @@
-import { doc, setDoc, deleteDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc, updateDoc, arrayRemove, collection, getDocs, getDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import * as Crypto from 'expo-crypto';
 import { db } from '../config/firebase';
 import { getDatabase } from '../db/sqlite';
@@ -11,6 +11,7 @@ export type QueueOperation =
   | 'RECORD_SETTLEMENT'
   | 'CREATE_GROUP'
   | 'DELETE_GROUP'
+  | 'LEAVE_GROUP'
   | 'CREATE_FRIENDSHIP'
   | 'DELETE_FRIENDSHIP';
 
@@ -250,6 +251,28 @@ class SyncQueue {
         const { groupId } = payload;
         const groupRef = doc(db, 'splitwiser', 'data', 'groups', groupId);
         await deleteDoc(groupRef);
+        break;
+      }
+
+      case 'LEAVE_GROUP': {
+        const { groupId, uid } = payload;
+        const memberRef = doc(db, 'splitwiser', 'data', 'groups', groupId, 'members', uid);
+        await deleteDoc(memberRef).catch(() => {});
+
+        const groupRef = doc(db, 'splitwiser', 'data', 'groups', groupId);
+        const groupSnap = await getDoc(groupRef).catch(() => null);
+        if (groupSnap && groupSnap.exists()) {
+          await updateDoc(groupRef, { memberIds: arrayRemove(uid) }).catch(() => {});
+
+          const membersCol = collection(db, 'splitwiser', 'data', 'groups', groupId, 'members');
+          const remainingSnap = await getDocs(membersCol).catch(() => null);
+          if (remainingSnap && !remainingSnap.empty) {
+            const hasAdmin = remainingSnap.docs.some((d) => d.data().role === 'admin');
+            if (!hasAdmin) {
+              await updateDoc(remainingSnap.docs[0].ref, { role: 'admin' }).catch(() => {});
+            }
+          }
+        }
         break;
       }
 

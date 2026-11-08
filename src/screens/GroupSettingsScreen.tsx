@@ -29,6 +29,11 @@ import {
   removeMember,
 } from '../services/groups';
 import { getGroupExpenses } from '../services/expenses';
+import { getGroupSettlements } from '../services/settlements';
+import { getGroupExpensesLocal } from '../repositories/expenseRepository';
+import { getLocalGroupById, getLocalGroupMembers } from '../repositories/groupRepository';
+import { getGroupSettlementsLocal } from '../repositories/settlementRepository';
+import { networkMonitor } from '../sync/networkMonitor';
 import { getOptimizedSettlements } from '../utils/balanceCalculator';
 import { useAuth } from '../context/AuthContext';
 import { AppHeader } from '../components/common/AppHeader';
@@ -61,14 +66,36 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
 
   const load = async () => {
     try {
-      setLoading(true);
-      const [g, m] = await Promise.all([getGroupById(groupId), getGroupMembers(groupId)]);
-      setGroup(g);
-      setName(g?.name ?? '');
-      setMembers(m);
-    } catch {
-      Alert.alert('Error', 'Failed to load group settings.');
-    } finally {
+      // 1. Instant local read
+      const [localG, localM] = await Promise.all([
+        getLocalGroupById(groupId),
+        getLocalGroupMembers(groupId),
+      ]);
+      if (localG) {
+        setGroup(localG);
+        setName(localG.name);
+      }
+      if (localM && localM.length > 0) {
+        setMembers(localM);
+      }
+      setLoading(false);
+
+      // 2. Fresh remote read if online
+      if (networkMonitor.isCurrentlyOnline()) {
+        const [g, m] = await Promise.all([
+          getGroupById(groupId).catch(() => null),
+          getGroupMembers(groupId).catch(() => null),
+        ]);
+        if (g) {
+          setGroup(g);
+          setName(g.name);
+        }
+        if (m && m.length > 0) {
+          setMembers(m);
+        }
+      }
+    } catch (e) {
+      console.warn('[GroupSettings] load error:', e);
       setLoading(false);
     }
   };
@@ -142,13 +169,26 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
 
   const checkSettledBeforeAction = async (targetUserId: string): Promise<boolean> => {
     try {
-      const [expenses, mems] = await Promise.all([
-        getGroupExpenses(groupId),
-        getGroupMembers(groupId),
+      let [expenses, mems, recordedSets] = await Promise.all([
+        getGroupExpensesLocal(groupId),
+        getLocalGroupMembers(groupId),
+        getGroupSettlementsLocal(groupId),
       ]);
-      const settlements = getOptimizedSettlements(expenses, mems);
+
+      if (expenses.length === 0 && mems.length === 0 && networkMonitor.isCurrentlyOnline()) {
+        const [remE, remM, remS] = await Promise.all([
+          getGroupExpenses(groupId).catch(() => []),
+          getGroupMembers(groupId).catch(() => []),
+          getGroupSettlements(groupId).catch(() => []),
+        ]);
+        if (remE.length > 0) expenses = remE;
+        if (remM.length > 0) mems = remM;
+        if (remS.length > 0) recordedSets = remS;
+      }
+
+      const settlements = getOptimizedSettlements(expenses, mems, recordedSets);
       const hasUnsettled = settlements.some(
-        (s) => (s.fromUserId === targetUserId || s.toUserId === targetUserId) && s.amount > 0
+        (s) => (s.fromUserId === targetUserId || s.toUserId === targetUserId) && s.amount > 0.01
       );
       return !hasUnsettled;
     } catch {
@@ -185,7 +225,14 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
         setConfirmLeaveVisible(false);
         return;
       }
-      await leaveGroup(groupId, user!.uid);
+
+      const others = members.filter((m) => m.userId !== user?.uid);
+      if (others.length === 0) {
+        await deleteGroupService(groupId);
+      } else {
+        await leaveGroup(groupId, user!.uid);
+      }
+
       setConfirmLeaveVisible(false);
       navigation.popToTop();
     } catch (e: any) {
