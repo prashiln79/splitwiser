@@ -79,7 +79,7 @@ export const SpendingDonutChart: React.FC<SpendingDonutChartProps> = ({
     const isWeb = Platform.OS === 'web';
     const gProps: any = isWeb
       ? { transform: `rotate(-90 ${center} ${center})` }
-      : { rotation: -90, origin: `${center}, ${center}` };
+      : { rotation: -90, originX: center, originY: center };
 
     return (
       <View style={[styles.container, { width: size, height: size }]}>

@@ -88,7 +88,7 @@ const TABS: TabItem[] = [
 ];
 
 export const GroupDetailsScreen = ({ route, navigation }: any) => {
-  const { groupId, groupName: initialGroupName } = route.params;
+  const { groupId, groupName: initialGroupName } = route?.params || {};
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
@@ -96,7 +96,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
 
   const pagerRef = useRef<any>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
-  const useNativeDriver = Platform.OS !== 'web';
+  const useNativeDriver = false;
   const [activeTabIndex, setActiveTabIndex] = useState<number>(0);
   const [showSettledExpenses, setShowSettledExpenses] = useState<boolean>(false);
   const [chartTimeframe, setChartTimeframe] = useState<'1M' | '3M' | 'ALL'>('ALL');

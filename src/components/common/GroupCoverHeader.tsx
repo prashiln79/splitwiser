@@ -9,7 +9,6 @@ import {
   Animated,
 } from 'react-native';
 import { ArrowLeft, Settings, Camera } from 'lucide-react-native';
-import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Group, OptimizedSettlement } from '../../types';
@@ -48,26 +47,28 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
 
   // Resolved cover image URL: custom coverPhoto -> bannerUrl -> deterministic fallback
   const coverImageUrl = useMemo(() => {
-    if (group?.coverPhoto?.imageUrl) return group.coverPhoto.imageUrl;
-    if (group?.bannerUrl) return group.bannerUrl;
+    if (group?.coverPhoto?.imageUrl?.trim()) return group.coverPhoto.imageUrl.trim();
+    if (group?.bannerUrl?.trim()) return group.bannerUrl.trim();
     const defaultCover = getDefaultCoverPhoto(
       group?.id || 'default',
       group?.icon,
       group?.name || initialGroupName
     );
-    return defaultCover.imageUrl;
+    return defaultCover?.imageUrl || 'https://images.unsplash.com/photo-1518780664697-55e3ad937233?auto=format&fit=crop&w=1200&q=80';
   }, [group, initialGroupName]);
 
   // Formatted creation date (e.g., "Jul 2019" matching Splitwise screenshot)
   const createdDateStr = useMemo(() => {
     if (!group?.createdAt) return '';
     const d = new Date(group.createdAt);
+    if (isNaN(d.getTime())) return '';
     return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   }, [group?.createdAt]);
 
   // Balance status sentence
   const balanceSummary = useMemo(() => {
-    const isSettled = Math.abs(netBalance) < 0.01;
+    const safeNet = typeof netBalance === 'number' && !isNaN(netBalance) ? netBalance : 0;
+    const isSettled = Math.abs(safeNet) < 0.01;
     if (isSettled) {
       return {
         text: 'All settled up',
@@ -75,10 +76,11 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
       };
     }
 
-    const myOwedSettlements = settlements.filter(
+    const safeSettlements = Array.isArray(settlements) ? settlements : [];
+    const myOwedSettlements = safeSettlements.filter(
       (s) => s.toUserId === currentUserId && s.amount > 0.01
     );
-    const myOwingSettlements = settlements.filter(
+    const myOwingSettlements = safeSettlements.filter(
       (s) => s.fromUserId === currentUserId && s.amount > 0.01
     );
 
@@ -100,17 +102,17 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
       };
     }
 
-    if (netBalance > 0.01) {
+    if (safeNet > 0.01) {
       return {
         prefix: 'You are owed ',
-        amount: `${formatCurrency(netBalance)} overall`,
+        amount: `${formatCurrency(safeNet)} overall`,
         isPositive: true,
       };
     }
 
     return {
       prefix: 'You owe ',
-      amount: `${formatCurrency(Math.abs(netBalance))} overall`,
+      amount: `${formatCurrency(Math.abs(safeNet))} overall`,
       isPositive: false,
     };
   }, [netBalance, settlements, currentUserId]);
@@ -147,24 +149,43 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
   return (
     <View style={[styles.headerContainer, { height: totalHeaderHeight }]}>
       {/* Landscape Cover Photo Background */}
-      <Image
-        source={{ uri: coverImageUrl }}
-        style={styles.coverImage}
-        resizeMode="cover"
-      />
+      {coverImageUrl ? (
+        <Image
+          source={{ uri: coverImageUrl }}
+          style={styles.coverImage}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={[styles.coverImage, { backgroundColor: '#1E293B' }]} />
+      )}
 
-      {/* Dark Translucent Gradient Scrim for Contrast & Legibility */}
-      <Svg style={StyleSheet.absoluteFill}>
-        <Defs>
-          <LinearGradient id="coverScrim" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0%" stopColor="#000000" stopOpacity="0.65" />
-            <Stop offset="40%" stopColor="#000000" stopOpacity="0.30" />
-            <Stop offset="75%" stopColor="#000000" stopOpacity="0.70" />
-            <Stop offset="100%" stopColor="#000000" stopOpacity="0.92" />
-          </LinearGradient>
-        </Defs>
-        <Rect width="100%" height="100%" fill="url(#coverScrim)" />
-      </Svg>
+      {/* Dark Translucent Scrim Overlays for Contrast & Text Legibility */}
+      <View
+        style={[
+          StyleSheet.absoluteFill,
+          { backgroundColor: 'rgba(0, 0, 0, 0.44)' },
+        ]}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: insets.top + 46,
+          backgroundColor: 'rgba(0, 0, 0, 0.28)',
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 64,
+          backgroundColor: 'rgba(0, 0, 0, 0.40)',
+        }}
+      />
 
       {/* Sticky Top Navigation Bar (Always Pinned at insets.top) */}
       <View style={[styles.navBarRow, { paddingTop: insets.top + 4 }]}>
