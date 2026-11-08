@@ -11,7 +11,7 @@
       "android",
       "web"
     ],
-    "version": "3.0.0",
+    "version": "3.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -23,7 +23,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "Allow Splitwiser to select a group icon from your photo library."
+        "NSPhotoLibraryUsageDescription": "Allow Splitwiser to select a group icon from your photo library.",
+        "NSCameraUsageDescription": "Allow Splitwiser to scan friend and group QR codes."
       }
     },
     "owner": "prashiln79",
@@ -36,7 +37,8 @@
       },
       "permissions": [
         "INTERNET",
-        "ACCESS_NETWORK_STATE"
+        "ACCESS_NETWORK_STATE",
+        "CAMERA"
       ],
       "blockedPermissions": [
         "android.permission.READ_MEDIA_IMAGES",

@@ -36,6 +36,7 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '../context/AuthContext';
 import { MemberAvatar } from '../components/common/MemberAvatar';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
+import { QrCodeModal } from '../components/common/QrCodeModal';
 
 export const AccountScreen = ({ navigation }: any) => {
   const { user, signOut, updateProfile } = useAuth();
@@ -326,48 +327,10 @@ export const AccountScreen = ({ navigation }: any) => {
       </ScrollView>
 
       {/* ── Scan Code / QR Modal ───────────────────────────────────────────── */}
-      <Modal
+      <QrCodeModal
         visible={qrModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setQrModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setQrModalVisible(false)}
-        >
-          <View style={styles.dialogCard}>
-            <Text style={styles.dialogTitle}>Your Splitwise QR Code</Text>
-            <Text style={styles.dialogSub}>
-              Friends can scan this code to add you instantly on Splitwise.
-            </Text>
-
-            <View style={styles.qrCodeBox}>
-              <QrCode size={140} color="#111827" strokeWidth={1.8} />
-              <Text style={styles.qrUidText}>{user?.name || 'User'} • {user?.uid.slice(0, 10)}</Text>
-            </View>
-
-            <TouchableOpacity
-              style={styles.dialogPrimaryBtn}
-              onPress={() => {
-                setQrModalVisible(false);
-                Alert.alert('Scan QR Code', 'Point your camera at a friend’s QR code to connect.');
-              }}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.dialogPrimaryBtnText}>Scan a Friend's Code</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.dialogCancelBtn}
-              onPress={() => setQrModalVisible(false)}
-            >
-              <Text style={styles.dialogCancelBtnText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+        onClose={() => setQrModalVisible(false)}
+      />
 
       {/* ── Email Settings Modal ───────────────────────────────────────────── */}
       <Modal
