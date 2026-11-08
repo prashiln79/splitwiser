@@ -10,6 +10,7 @@ export type QueueOperation =
   | 'DELETE_EXPENSE'
   | 'RECORD_SETTLEMENT'
   | 'CREATE_GROUP'
+  | 'DELETE_GROUP'
   | 'CREATE_FRIENDSHIP'
   | 'DELETE_FRIENDSHIP';
 
@@ -242,6 +243,13 @@ class SyncQueue {
           role: 'admin',
           joinedAt: serverTimestamp(),
         });
+        break;
+      }
+
+      case 'DELETE_GROUP': {
+        const { groupId } = payload;
+        const groupRef = doc(db, 'splitwiser', 'data', 'groups', groupId);
+        await deleteDoc(groupRef);
         break;
       }
 

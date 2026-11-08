@@ -19,7 +19,14 @@ import {
 import { db } from '../config/firebase';
 import { Group, GroupMember, MemberRole } from '../types';
 
-import { updateGroupLocal, upsertRemoteGroups } from '../repositories/groupRepository';
+import {
+  updateGroupLocal,
+  deleteGroupLocal,
+  removeMemberLocal,
+  leaveGroupLocal,
+  upsertRemoteGroups,
+} from '../repositories/groupRepository';
+import { networkMonitor } from '../sync/networkMonitor';
 
 // ─── Path helpers ─────────────────────────────────────────────────────────────
 // All data lives under /splitwiser/data/groups/...
@@ -120,7 +127,17 @@ export async function updateGroup(
 }
 
 export async function deleteGroup(groupId: string): Promise<void> {
-  await deleteDoc(groupDoc(groupId));
+  // 1. Delete immediately in local SQLite so the UI reflects with zero latency
+  await deleteGroupLocal(groupId);
+
+  // 2. If online, also delete from Firestore
+  if (networkMonitor.isCurrentlyOnline()) {
+    try {
+      await deleteDoc(groupDoc(groupId));
+    } catch (e: any) {
+      console.warn('[deleteGroup] remote delete skipped/queued:', e?.message);
+    }
+  }
 }
 
 // ─── Members ─────────────────────────────────────────────────────────────────
@@ -160,8 +177,15 @@ export async function joinGroup(
 }
 
 export async function removeMember(groupId: string, memberUid: string): Promise<void> {
-  await deleteDoc(memberDoc(groupId, memberUid));
-  await updateDoc(groupDoc(groupId), { memberIds: arrayRemove(memberUid) });
+  await removeMemberLocal(groupId, memberUid);
+  if (networkMonitor.isCurrentlyOnline()) {
+    try {
+      await deleteDoc(memberDoc(groupId, memberUid));
+      await updateDoc(groupDoc(groupId), { memberIds: arrayRemove(memberUid) });
+    } catch (e: any) {
+      console.warn('[removeMember] remote remove failed:', e?.message);
+    }
+  }
 }
 
 export async function updateMemberRole(
@@ -173,8 +197,15 @@ export async function updateMemberRole(
 }
 
 export async function leaveGroup(groupId: string, uid: string): Promise<void> {
-  await deleteDoc(memberDoc(groupId, uid));
-  await updateDoc(groupDoc(groupId), { memberIds: arrayRemove(uid) });
+  await leaveGroupLocal(groupId, uid);
+  if (networkMonitor.isCurrentlyOnline()) {
+    try {
+      await deleteDoc(memberDoc(groupId, uid));
+      await updateDoc(groupDoc(groupId), { memberIds: arrayRemove(uid) });
+    } catch (e: any) {
+      console.warn('[leaveGroup] remote leave failed:', e?.message);
+    }
+  }
 }
 
 // ─── Real-time Listeners ──────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Search, X, Users, Hash, Receipt, UserPlus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useIsFocused } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import {
   joinGroup,
@@ -43,6 +44,7 @@ interface GroupSettlementData {
 const HomeScreen = ({ navigation }: any) => {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -128,40 +130,47 @@ const HomeScreen = ({ navigation }: any) => {
   );
 
   // ── Instant Local Load + Real-time sync to groups ────────────────────────
+  const loadGroups = useCallback(async () => {
+    if (!user) return;
+    try {
+      const local = await getLocalGroups(user.uid);
+      setGroups(local || []);
+      setIsLoading(false);
+      refreshSettlements(local || []);
+    } catch (e) {
+      console.warn('[HomeScreen] load error:', e);
+      setIsLoading(false);
+    }
+  }, [user, refreshSettlements]);
+
+  // Focus effect: reload groups whenever returning to HomeScreen (e.g. after deleting a group)
+  useEffect(() => {
+    if (isFocused && user) {
+      loadGroups();
+    }
+  }, [isFocused, user, loadGroups]);
+
   useEffect(() => {
     if (!user) return;
 
-    // 1. Instant local read
-    getLocalGroups(user.uid).then((local) => {
-      if (local && local.length > 0) {
-        setGroups(local);
-        setIsLoading(false);
-        refreshSettlements(local);
-      }
-    });
+    // 1. Initial read
+    loadGroups();
 
     // 2. Real-time remote subscription via SyncService
-    const unsubscribeGroups = syncService.subscribeToUserGroups(user.uid, async () => {
-      const updated = await getLocalGroups(user.uid);
-      setGroups(updated);
-      setIsLoading(false);
-      refreshSettlements(updated);
+    const unsubscribeGroups = syncService.subscribeToUserGroups(user.uid, () => {
+      loadGroups();
     });
 
-    // 3. Queue subscription (triggers when pending items sync)
-    const unsubscribeQueue = syncQueue.subscribe(async () => {
-      const updated = await getLocalGroups(user.uid);
-      if (updated.length > 0) {
-        setGroups(updated);
-        refreshSettlements(updated);
-      }
+    // 3. Queue subscription (triggers when pending items sync or are queued)
+    const unsubscribeQueue = syncQueue.subscribe(() => {
+      loadGroups();
     });
 
     return () => {
       unsubscribeGroups();
       unsubscribeQueue();
     };
-  }, [user, refreshSettlements]);
+  }, [user, loadGroups]);
 
   const onRefresh = async () => {
     setIsRefreshing(true);

@@ -216,9 +216,80 @@ export async function updateGroupLocal(
 }
 
 /**
+ * Deletes a group locally immediately (soft delete) and cascades deletion to local expenses.
+ * Enqueues a DELETE_GROUP operation for background/online synchronization.
+ */
+export async function deleteGroupLocal(groupId: string): Promise<void> {
+  const database = await getDatabase();
+  const now = Date.now();
+
+  // 1. Mark group as deleted in local SQLite immediately
+  await database.runAsync(
+    `UPDATE local_groups SET is_deleted = 1, sync_status = 'pending', updated_at = ? WHERE id = ?`,
+    [now, groupId]
+  );
+
+  // 2. Mark its local expenses as deleted
+  await database.runAsync(
+    `UPDATE local_expenses SET is_deleted = 1, updated_at = ? WHERE group_id = ?`,
+    [now, groupId]
+  );
+
+  // 3. Mark its local settlements as cleaned
+  await database.runAsync(
+    `DELETE FROM local_settlements WHERE group_id = ?`,
+    [groupId]
+  );
+
+  // 4. Remove cached members
+  await database.runAsync(
+    `DELETE FROM local_group_members WHERE group_id = ?`,
+    [groupId]
+  );
+
+  // 5. Enqueue remote deletion
+  await syncQueue.enqueue('group', groupId, 'DELETE_GROUP', {
+    groupId,
+  });
+}
+
+/**
+ * Removes a member from a group locally.
+ */
+export async function removeMemberLocal(groupId: string, memberUid: string): Promise<void> {
+  const database = await getDatabase();
+  const now = Date.now();
+
+  const row = await database.getFirstAsync<LocalGroupRow>(
+    `SELECT * FROM local_groups WHERE id = ?`,
+    [groupId]
+  );
+  if (row) {
+    const memberIds: string[] = JSON.parse(row.member_ids_json || '[]');
+    const updatedMemberIds = memberIds.filter((id) => id !== memberUid);
+    await database.runAsync(
+      `UPDATE local_groups SET member_ids_json = ?, updated_at = ? WHERE id = ?`,
+      [JSON.stringify(updatedMemberIds), now, groupId]
+    );
+  }
+
+  await database.runAsync(
+    `DELETE FROM local_group_members WHERE group_id = ? AND user_id = ?`,
+    [groupId, memberUid]
+  );
+}
+
+/**
+ * Leaves a group locally.
+ */
+export async function leaveGroupLocal(groupId: string, uid: string): Promise<void> {
+  await removeMemberLocal(groupId, uid);
+}
+
+/**
  * Saves remote groups into SQLite cache.
  */
-export async function upsertRemoteGroups(remoteGroups: Group[]): Promise<void> {
+export async function upsertRemoteGroups(remoteGroups: Group[], userId?: string): Promise<void> {
   const database = await getDatabase();
 
   for (const group of remoteGroups) {
@@ -255,6 +326,30 @@ export async function upsertRemoteGroups(remoteGroups: Group[]): Promise<void> {
         updatedAtMs,
       ]
     );
+  }
+
+  // If userId is provided, soft-delete any local synced groups that no longer exist on remote
+  if (userId) {
+    const remoteIds = remoteGroups.map((g) => g.id);
+    if (remoteIds.length > 0) {
+      const placeholders = remoteIds.map(() => '?').join(',');
+      await database.runAsync(
+        `UPDATE local_groups 
+         SET is_deleted = 1, updated_at = ? 
+         WHERE sync_status = 'synced' 
+           AND (member_ids_json LIKE ? OR created_by = ?)
+           AND id NOT IN (${placeholders})`,
+        [Date.now(), `%"${userId}"%`, userId, ...remoteIds]
+      );
+    } else {
+      await database.runAsync(
+        `UPDATE local_groups 
+         SET is_deleted = 1, updated_at = ? 
+         WHERE sync_status = 'synced' 
+           AND (member_ids_json LIKE ? OR created_by = ?)`,
+        [Date.now(), `%"${userId}"%`, userId]
+      );
+    }
   }
 }
 

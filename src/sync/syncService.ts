@@ -241,7 +241,7 @@ class SyncService {
           };
         });
 
-        await upsertRemoteGroups(remoteGroups);
+        await upsertRemoteGroups(remoteGroups, userId);
         onGroupsUpdated();
       },
       (error) => {
@@ -286,7 +286,7 @@ class SyncService {
         };
       });
 
-      await upsertRemoteGroups(remoteGroups);
+      await upsertRemoteGroups(remoteGroups, userId);
     } catch (e) {
       console.warn('[SyncService] failed to sync user groups:', e);
     }
