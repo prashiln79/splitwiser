@@ -16,6 +16,15 @@ All notable changes are documented in this file. Changes are listed in reverse c
   - Profile picture card integrated into `EditProfileScreen.tsx` (Account → Edit Profile → Profile Picture).
   - `AccountScreen.tsx` avatar tap now opens `ProfilePhotoModal` instead of a bare image picker.
 
+- **Complete Application Limits & Boundary Validation**:
+  - `src/constants/limits.ts`: Centralized `APP_LIMITS` across Expense, Split, Group, User, and Export domains.
+  - `src/utils/currency.ts`: Added currency decimal precision awareness (0 for JPY/KRW, 3 for KWD/BHD, 2 for INR/USD/EUR), symbol mappings for all 15 currencies, `isValidFinancialAmount`, `isSafeMinorUnit`, and non-finite safe formatting.
+  - `src/utils/splitMath.ts`: Added safe integer checks (`Number.isSafeInteger`) and share bounds protection in `distributeCentsByShares`.
+  - `src/screens/AddExpenseScreen.tsx`: Bounded descriptions (`maxLength={255}`), notes (`maxLength={1000}`), sanitized newlines, validated dates between -10 and +1 years, and replaced floating-point multi-payer validation with exact minor-unit cents check.
+  - `src/screens/CreateGroupScreen.tsx` & `src/screens/EditProfileScreen.tsx`: Enforced `maxLength` across group names (50), user names (70), emails (254), and phone numbers (25).
+  - `src/services/exportService.ts`: Added CSV formula injection defense (`'`, `+`, `-`, `@`, `\t`, `\r`) and bounded export batch sizes to 5,000 rows.
+  - `tests/limitsValidation.test.ts`: Added 8 test suites covering zero/negative/overflow amounts, currency decimal precisions, safe integer bounds, and extreme shares.
+
 - **Automated Unit Tests for Profile Photo System** (`tests/profilePhoto.test.ts`):
   - 10 comprehensive test scenarios covering Google login sync, custom upload priority, subsequent Google login protection, URL validation, and fallback chain.
 

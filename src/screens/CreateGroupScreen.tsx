@@ -31,6 +31,7 @@ import { GroupCoverPhotoModal } from '../components/common/GroupCoverPhotoModal'
 import { compressAvatarPhoto } from '../utils/imageCompressor';
 import { getDefaultCoverPhoto } from '../constants/presetCovers';
 import { GroupCoverPhoto } from '../types';
+import { APP_LIMITS } from '../constants/limits';
 
 type GroupType = 'trip' | 'home' | 'couple' | 'other';
 
@@ -194,6 +195,7 @@ export const CreateGroupScreen = ({ navigation }: any) => {
                 onChangeText={setName}
                 autoFocus
                 returnKeyType="done"
+                maxLength={APP_LIMITS.GROUP.MAX_NAME_LENGTH}
                 onSubmitEditing={isDoneEnabled ? handleDone : undefined}
                 accessibilityLabel="Group name"
               />

@@ -1,3 +1,5 @@
+import { APP_LIMITS } from '../constants/limits';
+
 /**
  * Financial calculation engine using minor currency units (integer cents/paise)
  * to guarantee exact penny reconciliation with zero floating-point arithmetic drift.
@@ -6,20 +8,24 @@
 export const toCents = (val: number | string | undefined | null): number => {
   if (val === undefined || val === null || val === '') return 0;
   if (typeof val === 'number') {
-    if (isNaN(val)) return 0;
-    return Math.round(val * 100);
+    if (isNaN(val) || !isFinite(val)) return 0;
+    const rounded = Math.round(val * 100);
+    return Number.isSafeInteger(rounded) ? rounded : 0;
   }
   const clean = String(val).replace(/[^0-9.-]/g, '');
   const parsed = parseFloat(clean);
-  if (isNaN(parsed)) return 0;
-  return Math.round(parsed * 100);
+  if (isNaN(parsed) || !isFinite(parsed)) return 0;
+  const rounded = Math.round(parsed * 100);
+  return Number.isSafeInteger(rounded) ? rounded : 0;
 };
 
 export const fromCents = (cents: number): number => {
+  if (isNaN(cents) || !isFinite(cents)) return 0;
   return Math.round(cents) / 100;
 };
 
 export const formatCents = (cents: number, currency: string = '₹'): string => {
+  if (isNaN(cents) || !isFinite(cents)) return `${currency}0.00`;
   const isNegative = cents < 0;
   const abs = Math.abs(cents);
   const formatted = (abs / 100).toFixed(2);
@@ -49,13 +55,17 @@ export const distributeCentsByShares = (
   totalCents: number,
   participants: { id: string; shares: number }[]
 ): { id: string; cents: number }[] => {
-  const totalShares = participants.reduce((acc, p) => acc + Math.max(0, p.shares), 0);
-  if (totalShares <= 0) {
-    return participants.map((p) => ({ id: p.id, cents: 0 }));
+  const sanitized = participants.map((p) => ({
+    id: p.id,
+    shares: Math.min(Math.max(0, Math.floor(p.shares || 0)), APP_LIMITS.SPLIT.MAX_SHARES_PER_PERSON),
+  }));
+  const totalShares = sanitized.reduce((acc, p) => acc + p.shares, 0);
+  if (totalShares <= 0 || totalCents <= 0) {
+    return sanitized.map((p) => ({ id: p.id, cents: 0 }));
   }
 
   let distributed = 0;
-  const result = participants.map((p) => {
+  const result = sanitized.map((p) => {
     if (p.shares <= 0) return { id: p.id, cents: 0 };
     const shareCents = Math.floor((totalCents * p.shares) / totalShares);
     distributed += shareCents;
@@ -64,7 +74,7 @@ export const distributeCentsByShares = (
 
   let remainder = totalCents - distributed;
   for (let i = 0; i < result.length && remainder > 0; i++) {
-    if (participants[i].shares > 0) {
+    if (sanitized[i].shares > 0) {
       result[i].cents += 1;
       remainder -= 1;
     }

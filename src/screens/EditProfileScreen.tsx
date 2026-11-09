@@ -28,6 +28,7 @@ import { GoogleIcon } from '../components/common/GoogleIcon';
 import { ConnectGoogleModal } from '../components/common/ConnectGoogleModal';
 import { ProfileAvatar } from '../components/common/MemberAvatar';
 import { ProfilePhotoModal } from '../components/common/ProfilePhotoModal';
+import { APP_LIMITS } from '../constants/limits';
 
 const TIMEZONES = [
   '(GMT+05:30) Chennai, Kolkata, Mumbai, New Delhi',
@@ -115,17 +116,32 @@ export const EditProfileScreen = ({ navigation }: any) => {
   };
 
   const handleSaveChanges = async () => {
-    if (!name.trim()) {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
       Alert.alert('Name Required', 'Your full name cannot be blank.');
+      return;
+    }
+    if (trimmedName.length > APP_LIMITS.USER.MAX_NAME_LENGTH) {
+      Alert.alert('Name Too Long', `Name must be ${APP_LIMITS.USER.MAX_NAME_LENGTH} characters or less.`);
+      return;
+    }
+    const trimmedEmail = email.trim();
+    if (trimmedEmail.length > APP_LIMITS.USER.MAX_EMAIL_LENGTH) {
+      Alert.alert('Email Too Long', `Email must be ${APP_LIMITS.USER.MAX_EMAIL_LENGTH} characters or less.`);
+      return;
+    }
+    const trimmedPhone = phone.trim();
+    if (trimmedPhone.length > APP_LIMITS.USER.MAX_PHONE_LENGTH) {
+      Alert.alert('Phone Too Long', `Phone number must be ${APP_LIMITS.USER.MAX_PHONE_LENGTH} characters or less.`);
       return;
     }
 
     setIsSubmitting(true);
     try {
       await updateProfile({
-        name: name.trim(),
-        email: email.trim() || undefined,
-        phone: phone.trim() || undefined,
+        name: trimmedName,
+        email: trimmedEmail || undefined,
+        phone: trimmedPhone || undefined,
         currency,
         timezone,
         language,
@@ -241,6 +257,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
               onChangeText={setName}
               placeholder="Your full name"
               placeholderTextColor="#9CA3AF"
+              maxLength={APP_LIMITS.USER.MAX_NAME_LENGTH}
               autoFocus
             />
           ) : (
@@ -269,6 +286,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
               placeholderTextColor="#9CA3AF"
               keyboardType="email-address"
               autoCapitalize="none"
+              maxLength={APP_LIMITS.USER.MAX_EMAIL_LENGTH}
               autoFocus
             />
           ) : (
@@ -296,6 +314,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
               placeholder="+91 98765 43210"
               placeholderTextColor="#9CA3AF"
               keyboardType="phone-pad"
+              maxLength={APP_LIMITS.USER.MAX_PHONE_LENGTH}
               autoFocus
             />
           ) : (

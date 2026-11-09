@@ -189,6 +189,7 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
                       placeholderTextColor="#9E9E9E"
                       value={note}
                       onChangeText={setNote}
+                      maxLength={200}
                     />
                   </View>
 

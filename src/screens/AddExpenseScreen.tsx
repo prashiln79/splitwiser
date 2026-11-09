@@ -46,7 +46,8 @@ import {
   ExpenseCategory,
 } from '../components/common/CategoryIcon';
 import { GroupMember, ExpenseSplit, SplitType, Group } from '../types';
-import { formatCurrency } from '../utils/currency';
+import { formatCurrency, isValidFinancialAmount } from '../utils/currency';
+import { APP_LIMITS } from '../constants/limits';
 import { PayerSelectionModal } from '../components/expense/PayerSelectionModal';
 import {
   SplitConfigurationModal,
@@ -401,33 +402,64 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
   };
 
   const handleAddExpense = async () => {
-    if (!description.trim()) {
+    const trimmedDesc = description.trim().replace(/\r?\n+/g, ' ');
+    if (!trimmedDesc) {
       Alert.alert('Missing Description', 'Please enter a description for the expense.');
       return;
     }
-    if (numericAmount <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter an amount greater than zero.');
+    if (trimmedDesc.length > APP_LIMITS.EXPENSE.MAX_DESCRIPTION_LENGTH) {
+      Alert.alert(
+        'Description Too Long',
+        `Description must be ${APP_LIMITS.EXPENSE.MAX_DESCRIPTION_LENGTH} characters or less.`
+      );
       return;
     }
+
+    const amountValidation = isValidFinancialAmount(numericAmount, currency);
+    if (!amountValidation.isValid) {
+      Alert.alert('Invalid Amount', amountValidation.errorMessage || 'Please enter a valid amount.');
+      return;
+    }
+
     if (!payerId) {
       Alert.alert('Payer Required', 'Please select who paid for this expense.');
       return;
     }
+
+    const totalExpenseCents = toCents(numericAmount);
+
     if (payerId === '__MULTIPLE__') {
-      if (Math.abs(totalPaidAmount - numericAmount) > 0.05) {
+      const totalPaidCents = Object.values(payerAmounts).reduce((sum, v) => sum + toCents(v), 0);
+      if (totalPaidCents !== totalExpenseCents) {
         Alert.alert(
           'Payer Total Mismatch',
-          `The amounts entered for each payer sum to ${currency}${totalPaidAmount.toFixed(2)}, but total expense is ${currency}${numericAmount.toFixed(2)}.`
+          `The amounts entered for each payer sum to ${formatCents(totalPaidCents, currency)}, but total expense is ${formatCents(totalExpenseCents, currency)}.`
         );
         return;
       }
+    }
+
+    if (isNaN(expenseDate.getTime())) {
+      Alert.alert('Invalid Date', 'The selected expense date is invalid.');
+      return;
+    }
+    const currentYear = new Date().getFullYear();
+    const expYear = expenseDate.getFullYear();
+    if (
+      expYear < currentYear - APP_LIMITS.EXPENSE.MAX_PAST_YEARS ||
+      expYear > currentYear + APP_LIMITS.EXPENSE.MAX_FUTURE_YEARS
+    ) {
+      Alert.alert(
+        'Date Out of Bounds',
+        `Expense date must be between ${currentYear - APP_LIMITS.EXPENSE.MAX_PAST_YEARS} and ${currentYear + APP_LIMITS.EXPENSE.MAX_FUTURE_YEARS}.`
+      );
+      return;
     }
 
     setIsSubmitting(true);
     try {
       let splits: ExpenseSplit[] = [];
       let finalSplitType: SplitType = splitMethod;
-      const totalExpenseCents = toCents(numericAmount);
 
       if (splitMethod === 'equal') {
         const included = Object.keys(selectedMembers).filter((uid) => selectedMembers[uid]);
@@ -545,7 +577,8 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
       }
 
       const tags: string[] = [activeCategory];
-      if (notes.trim()) tags.push(`note:${notes.trim()}`);
+      const sanitizedNotes = notes.trim().slice(0, APP_LIMITS.EXPENSE.MAX_NOTES_LENGTH);
+      if (sanitizedNotes) tags.push(`note:${sanitizedNotes}`);
       if (receiptImage) tags.push(`receipt:${receiptImage}`);
 
       // Encode multiple payer tags if multiple people paid
@@ -560,7 +593,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
 
       if (isEditing && expenseToEdit) {
         await updateExpenseLocal(groupId, expenseToEdit.id, {
-          description: description.trim(),
+          description: trimmedDesc,
           amount: numericAmount,
           paidBy: payerId,
           splitType: finalSplitType,
@@ -570,7 +603,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         });
       } else {
         await createExpenseLocal(groupId, user!.uid, {
-          description: description.trim(),
+          description: trimmedDesc,
           amount: numericAmount,
           paidBy: payerId,
           splitType: finalSplitType,
@@ -776,6 +809,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                 onChangeText={setDescription}
                 autoFocus={true}
                 returnKeyType="next"
+                maxLength={APP_LIMITS.EXPENSE.MAX_DESCRIPTION_LENGTH}
                 onSubmitEditing={() => amountInputRef.current?.focus()}
                 accessibilityLabel="Expense description"
               />
@@ -1716,6 +1750,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
               onChangeText={setTempNotes}
               multiline
               numberOfLines={4}
+              maxLength={APP_LIMITS.EXPENSE.MAX_NOTES_LENGTH}
               autoFocus
             />
 

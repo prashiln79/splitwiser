@@ -78,3 +78,11 @@ This document records the permanent, immutable technical and product decisions g
 - **Decision**: Expenses and settlements use soft deletion (`isDeleted: true`). They are omitted from balance calculations but preserved in the database for auditing and restoration.
 - **Consequences**: No historical financial records are lost.
 
+---
+
+## ADR-010: Centralized Boundary, Overflow & Input Safety Architecture
+- **Status**: **Accepted & Permanent**
+- **Context**: Unbounded string inputs, extreme numerical values, floating point mismatches, and CSV formula injection can corrupt local SQLite databases, crash mobile rendering, or corrupt spreadsheet exports.
+- **Decision**: All application thresholds and boundary conditions are centralized in `src/constants/limits.ts` (`APP_LIMITS`). Amounts are strictly bounded to 1 Billion major units and verified using safe integer minor units. Currency decimal precisions (0, 2, 3 digits) are enforced. Text inputs enforce hard `maxLength` boundaries. CSV exports sanitize formula injection characters (`=`, `+`, `-`, `@`, `\t`, `\r`).
+- **Consequences**: Deterministic, crash-resilient input behavior across all screens and models.
+

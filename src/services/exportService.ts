@@ -1,5 +1,6 @@
 import { Group, GroupMember, Expense, Settlement } from '../types';
 import { formatCurrency } from '../utils/currency';
+import { APP_LIMITS } from '../constants/limits';
 
 export type ExportDateRange = 'all' | 'this_month' | 'prev_month' | 'this_year';
 export type ExportFormat = 'csv' | 'summary';
@@ -41,7 +42,9 @@ export function filterItemsByDateRange<T extends { createdAt: Date | string }>(
 function escapeCsvField(val: string | number | undefined | null): string {
   if (val === undefined || val === null) return '""';
   const str = String(val).replace(/"/g, '""');
-  return `"${str}"`;
+  // Formula Injection Prevention: Prefix dangerous characters with single quote
+  const safeStr = /^[=+\-@\t\r]/.test(str) ? `'${str}` : str;
+  return `"${safeStr}"`;
 }
 
 export function generateGroupCsv({
@@ -58,8 +61,14 @@ export function generateGroupCsv({
   dateRange: ExportDateRange;
 }): string {
   const memberNameMap = new Map(members.map((m) => [m.userId, m.userName]));
-  const filteredExpenses = filterItemsByDateRange(expenses, dateRange);
-  const filteredSettlements = filterItemsByDateRange(settlements, dateRange);
+  const boundedExpenses = filterItemsByDateRange(expenses, dateRange).slice(
+    0,
+    APP_LIMITS.EXPORT.MAX_EXPORT_ROWS
+  );
+  const boundedSettlements = filterItemsByDateRange(settlements, dateRange).slice(
+    0,
+    APP_LIMITS.EXPORT.MAX_EXPORT_ROWS
+  );
 
   const lines: string[] = [];
 
@@ -83,11 +92,11 @@ export function generateGroupCsv({
   lines.push('');
 
   // 3. Expenses Table
-  lines.push(`"--- EXPENSES (${filteredExpenses.length}) ---"`);
+  lines.push(`"--- EXPENSES (${boundedExpenses.length}) ---"`);
   lines.push(
     `"Date","Description","Category","Paid By","Total Amount (${group.currency || 'INR'})","Split Type","Participants Count"`
   );
-  filteredExpenses.forEach((e) => {
+  boundedExpenses.forEach((e) => {
     const dateStr = new Date(e.createdAt).toLocaleDateString();
     const payerName = memberNameMap.get(e.paidBy) || e.paidBy;
     const splitCount = e.splits?.length || 0;
@@ -106,9 +115,9 @@ export function generateGroupCsv({
   lines.push('');
 
   // 4. Settlements Table
-  lines.push(`"--- RECORDED SETTLEMENTS (${filteredSettlements.length}) ---"`);
+  lines.push(`"--- RECORDED SETTLEMENTS (${boundedSettlements.length}) ---"`);
   lines.push(`"Date","From Member","To Member","Amount (${group.currency || 'INR'})"`);
-  filteredSettlements.forEach((s) => {
+  boundedSettlements.forEach((s) => {
     const dateStr = new Date(s.createdAt).toLocaleDateString();
     const fromName = memberNameMap.get(s.fromUserId) || s.fromUserId;
     const toName = memberNameMap.get(s.toUserId) || s.toUserId;
