@@ -19,12 +19,15 @@ import {
   X,
   Shield,
   Ban,
+  Camera,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../context/AuthContext';
 import { GoogleIcon } from '../components/common/GoogleIcon';
 import { ConnectGoogleModal } from '../components/common/ConnectGoogleModal';
+import { ProfileAvatar } from '../components/common/MemberAvatar';
+import { ProfilePhotoModal } from '../components/common/ProfilePhotoModal';
 
 const TIMEZONES = [
   '(GMT+05:30) Chennai, Kolkata, Mumbai, New Delhi',
@@ -83,6 +86,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
   const [blocklistModalVisible, setBlocklistModalVisible] = useState(false);
   const [connectModalVisible, setConnectModalVisible] = useState(false);
+  const [photoModalVisible, setPhotoModalVisible] = useState(false);
 
   const isGoogleLinked = !user?.isAnonymous && user?.authProvider === 'google';
 
@@ -189,6 +193,44 @@ export const EditProfileScreen = ({ navigation }: any) => {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Profile Picture */}
+        <View style={styles.avatarCard}>
+          <TouchableOpacity
+            style={styles.avatarWrapper}
+            onPress={() => setPhotoModalVisible(true)}
+            activeOpacity={0.8}
+            accessibilityLabel="Change profile picture"
+            accessibilityRole="button"
+          >
+            <ProfileAvatar
+              name={name || user?.name || 'User'}
+              imageUrl={user?.imageUrl}
+              size={80}
+            />
+            <View style={styles.cameraBadge}>
+              <Camera size={14} color="#FFFFFF" strokeWidth={2.2} />
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.avatarInfo}>
+            <Text style={styles.avatarSectionTitle}>Profile picture</Text>
+            <Text style={styles.avatarSourceText}>
+              {user?.photoSource === 'custom' && user?.customPhotoUrl
+                ? 'Custom picture'
+                : user?.photoSource === 'google' && user?.googlePhotoUrl
+                ? 'Google account picture'
+                : 'Initials fallback'}
+            </Text>
+            <TouchableOpacity
+              style={styles.changePictureButton}
+              onPress={() => setPhotoModalVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.changePictureButtonText}>Change picture</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* 1. Full name */}
         <View style={styles.formGroup}>
           <Text style={styles.fieldLabel}>Full name</Text>
@@ -597,6 +639,12 @@ export const EditProfileScreen = ({ navigation }: any) => {
         visible={connectModalVisible}
         onDismiss={() => setConnectModalVisible(false)}
       />
+
+      {/* ── Profile Photo Modal ─────────────────────────────────────────── */}
+      <ProfilePhotoModal
+        visible={photoModalVisible}
+        onClose={() => setPhotoModalVisible(false)}
+      />
     </View>
   );
 };
@@ -641,6 +689,62 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 16,
+  },
+  avatarCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 20,
+  },
+  avatarWrapper: {
+    position: 'relative',
+    marginRight: 16,
+  },
+  cameraBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#059669',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  avatarInfo: {
+    flex: 1,
+  },
+  avatarSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  avatarSourceText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  changePictureButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  changePictureButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#059669',
   },
   formGroup: {
     marginBottom: 18,

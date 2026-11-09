@@ -10,7 +10,7 @@ import {
   ScrollView,
   Share,
 } from 'react-native';
-import { ArrowLeft, Settings, Camera, Gem, Share2 } from 'lucide-react-native';
+import { ArrowLeft, Settings, Camera, Gem, Share2, Users } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Group, OptimizedSettlement } from '../../types';
@@ -38,6 +38,7 @@ export interface GroupCoverHeaderProps {
   group: Group | null;
   initialGroupName?: string;
   memberCount: number;
+  expenseCount?: number;
   netBalance: number;
   settlements?: OptimizedSettlement[];
   currentUserId?: string;
@@ -49,6 +50,7 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
   group,
   initialGroupName,
   memberCount,
+  expenseCount,
   netBalance,
   settlements = [],
   currentUserId = '',
@@ -86,6 +88,11 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
 
   // Balance status sentence
   const balanceSummary = useMemo(() => {
+    // If there are no expenses or transactions in the group yet, hide balance status
+    if (typeof expenseCount === 'number' && expenseCount === 0) {
+      return null;
+    }
+
     const safeNet = typeof netBalance === 'number' && !isNaN(netBalance) ? netBalance : 0;
     const isSettled = Math.abs(safeNet) < 0.01;
     if (isSettled) {
@@ -199,91 +206,113 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
           {groupDisplayName}
         </Text>
 
-        {/* Member Count */}
-        <View style={styles.metaRow}>
-          <Text
-            style={[
-              styles.metaText,
-              hasCover ? styles.metaTextDark : styles.metaTextLight,
-            ]}
+        {/* Member Count & Group Join Code in one row */}
+        <View style={[styles.metaRow, !balanceSummary && { marginBottom: 16 }]}>
+          <View
+            style={styles.memberCountContainer}
+            accessibilityLabel={`${memberCount} ${memberCount === 1 ? 'person' : 'people'}`}
           >
-            {memberCount} {memberCount === 1 ? 'person' : 'people'}
-          </Text>
-        </View>
-
-        {/* Group Join Code Pill */}
-        {group?.joinCode ? (
-          <TouchableOpacity
-            style={[
-              styles.codeBadge,
-              hasCover ? styles.codeBadgeDark : styles.codeBadgeLight,
-            ]}
-            onPress={handleShareCode}
-            activeOpacity={0.75}
-            accessibilityLabel={`Group join code: ${group.joinCode}. Tap to share.`}
-            accessibilityRole="button"
-          >
-            <Share2
-              size={11}
-              color={hasCover ? '#FFFFFF' : '#059669'}
+            <Users
+              size={13}
+              color={hasCover ? 'rgba(255, 255, 255, 0.92)' : '#6B7280'}
               strokeWidth={2.4}
-              style={{ marginRight: 5 }}
+              style={{ marginRight: 4 }}
             />
             <Text
               style={[
-                styles.codeBadgePrefix,
-                hasCover ? styles.codeBadgePrefixDark : styles.codeBadgePrefixLight,
+                styles.metaText,
+                hasCover ? styles.metaTextDark : styles.metaTextLight,
               ]}
             >
-              Code:{' '}
+              {memberCount}
             </Text>
-            <Text
-              style={[
-                styles.codeBadgeValue,
-                hasCover ? styles.codeBadgeValueDark : styles.codeBadgeValueLight,
-              ]}
-            >
-              {group.joinCode}
-            </Text>
-          </TouchableOpacity>
-        ) : null}
+          </View>
 
-        {/* Current Balance Summary Sentence */}
-        <View style={styles.balanceRow}>
-          {balanceSummary.text ? (
-            <Text
-              style={[
-                styles.balanceText,
-                hasCover
-                  ? styles.balanceTextDark
-                  : styles.balanceSettledLight,
-              ]}
-            >
-              {balanceSummary.text}
-            </Text>
-          ) : (
-            <Text
-              style={[
-                styles.balanceText,
-                hasCover ? styles.balanceTextDark : styles.balancePrefixLight,
-              ]}
-            >
-              {balanceSummary.prefix}
+          {group?.joinCode ? (
+            <>
               <Text
                 style={[
-                  styles.balanceAmountText,
-                  hasCover
-                    ? styles.balanceAmountDark
-                    : balanceSummary.isPositive
-                    ? styles.balanceAmountPositiveLight
-                    : styles.balanceAmountNegativeLight,
+                  styles.metaDotSeparator,
+                  hasCover ? styles.metaDotDark : styles.metaDotLight,
                 ]}
               >
-                {balanceSummary.amount}
+                •
               </Text>
-            </Text>
-          )}
+              <TouchableOpacity
+                style={[
+                  styles.codeBadge,
+                  hasCover ? styles.codeBadgeDark : styles.codeBadgeLight,
+                ]}
+                onPress={handleShareCode}
+                activeOpacity={0.75}
+                accessibilityLabel={`Group join code: ${group.joinCode}. Tap to share.`}
+                accessibilityRole="button"
+              >
+                <Share2
+                  size={10.5}
+                  color={hasCover ? '#FFFFFF' : '#059669'}
+                  strokeWidth={2.4}
+                  style={{ marginRight: 4 }}
+                />
+                <Text
+                  style={[
+                    styles.codeBadgePrefix,
+                    hasCover ? styles.codeBadgePrefixDark : styles.codeBadgePrefixLight,
+                  ]}
+                >
+                  Code:{' '}
+                </Text>
+                <Text
+                  style={[
+                    styles.codeBadgeValue,
+                    hasCover ? styles.codeBadgeValueDark : styles.codeBadgeValueLight,
+                  ]}
+                >
+                  {group.joinCode}
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : null}
         </View>
+
+        {/* Current Balance Summary Sentence (hidden when no expenses exist) */}
+        {balanceSummary && (
+          <View style={styles.balanceRow}>
+            {balanceSummary.text ? (
+              <Text
+                style={[
+                  styles.balanceText,
+                  hasCover
+                    ? styles.balanceTextDark
+                    : styles.balanceSettledLight,
+                ]}
+              >
+                {balanceSummary.text}
+              </Text>
+            ) : (
+              <Text
+                style={[
+                  styles.balanceText,
+                  hasCover ? styles.balanceTextDark : styles.balancePrefixLight,
+                ]}
+              >
+                {balanceSummary.prefix}
+                <Text
+                  style={[
+                    styles.balanceAmountText,
+                    hasCover
+                      ? styles.balanceAmountDark
+                      : balanceSummary.isPositive
+                      ? styles.balanceAmountPositiveLight
+                      : styles.balanceAmountNegativeLight,
+                  ]}
+                >
+                  {balanceSummary.amount}
+                </Text>
+              </Text>
+            )}
+          </View>
+        )}
       </View>
 
       {/* Optional Children (Inline Navigation Pill Tabs) */}
@@ -541,9 +570,9 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   coverBodyContent: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: 8,
     paddingBottom: 2,
     zIndex: 5,
@@ -551,7 +580,7 @@ const styles = StyleSheet.create({
   groupTitleText: {
     fontSize: 24,
     fontWeight: '800',
-    textAlign: 'left',
+    textAlign: 'center',
     letterSpacing: -0.4,
     lineHeight: 30,
     marginBottom: 6,
@@ -568,13 +597,19 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    marginBottom: 8,
+    justifyContent: 'center',
+    marginBottom: 10,
+    gap: 7,
+  },
+  memberCountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   metaText: {
-    fontSize: 13.5,
-    fontWeight: '500',
-    textAlign: 'left',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   metaTextDark: {
     color: 'rgba(255, 255, 255, 0.92)',
@@ -585,15 +620,27 @@ const styles = StyleSheet.create({
   metaTextLight: {
     color: '#6B7280',
   },
+  metaDotSeparator: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  metaDotDark: {
+    color: 'rgba(255, 255, 255, 0.75)',
+    textShadowColor: 'rgba(0, 0, 0, 0.65)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  metaDotLight: {
+    color: '#9CA3AF',
+  },
   codeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 4.5,
-    borderRadius: 14,
-    marginBottom: 10,
-    alignSelf: 'flex-start',
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    borderRadius: 12,
+    alignSelf: 'center',
   },
   codeBadgeDark: {
     backgroundColor: 'rgba(0, 0, 0, 0.40)',
@@ -635,12 +682,12 @@ const styles = StyleSheet.create({
   balanceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
     marginBottom: 16,
   },
   balanceText: {
     fontSize: 15,
-    textAlign: 'left',
+    textAlign: 'center',
   },
   balanceTextDark: {
     color: '#FFFFFF',
@@ -656,6 +703,10 @@ const styles = StyleSheet.create({
   balanceSettledLight: {
     color: '#059669',
     fontWeight: '600',
+  },
+  balanceEmptyLight: {
+    color: '#6B7280',
+    fontWeight: '500',
   },
   balanceAmountText: {
     fontWeight: '700',

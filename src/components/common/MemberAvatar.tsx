@@ -38,6 +38,10 @@ export const MemberAvatar: React.FC<MemberAvatarProps> = ({
   const { colors } = useAppTheme();
   const [imageError, setImageError] = React.useState(false);
 
+  React.useEffect(() => {
+    setImageError(false);
+  }, [imageUrl]);
+
   let imageUri: string | null = null;
   if (imageUrl) {
     const raw = imageUrl.trim();
@@ -144,4 +148,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
+// Reusable alias matching product design specifications
+export const ProfileAvatar = MemberAvatar;
+export type ProfileAvatarProps = MemberAvatarProps;
 

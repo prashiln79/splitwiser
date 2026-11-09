@@ -71,7 +71,7 @@ export const EditGroupInfoModal: React.FC<EditGroupInfoModalProps> = ({
     if (visible && group) {
       setName(group.name || '');
       setDescription(group.description || '');
-      setType(group.type || 'home');
+      setType((((group.type || group.icon || 'home') as string).toLowerCase()) as GroupType);
       setError('');
     }
   }, [visible, group]);

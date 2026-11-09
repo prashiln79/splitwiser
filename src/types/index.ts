@@ -2,12 +2,17 @@
 export type SyncStatus = 'pending' | 'syncing' | 'synced' | 'failed';
 
 // ─── User ────────────────────────────────────────────────────────────────────
+export type ProfilePhotoSource = 'custom' | 'google' | 'none';
+
 export interface AppUser {
   uid: string;
   name: string;
   createdAt: Date;
   isAnonymous: boolean;
   imageUrl?: string;
+  customPhotoUrl?: string;
+  googlePhotoUrl?: string;
+  photoSource?: ProfilePhotoSource;
   email?: string;
   photoURL?: string;
   authProvider?: string;

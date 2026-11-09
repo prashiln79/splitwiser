@@ -62,7 +62,6 @@ import { MemberAvatar } from '../components/common/MemberAvatar';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 import { TypedConfirmDialog } from '../components/common/TypedConfirmDialog';
 import { GroupCoverPhotoModal } from '../components/common/GroupCoverPhotoModal';
-import { compressAvatarPhoto } from '../utils/imageCompressor';
 import { getDefaultCoverPhoto } from '../constants/presetCovers';
 import { formatCurrency } from '../utils/currency';
 import { logGroupActivity } from '../services/activityService';
@@ -211,39 +210,6 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
     );
   };
 
-  // Avatar picker
-  const pickAvatar = async () => {
-    if (!isAdmin) return;
-    if (Platform.OS === 'ios') {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Allow photo library access to change the group avatar.');
-        return;
-      }
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      base64: false,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets?.length > 0) {
-      const compressed = await compressAvatarPhoto(result.assets[0].uri);
-      const base64Url = compressed.base64
-        ? `data:image/jpeg;base64,${compressed.base64}`
-        : compressed.uri;
-      await updateGroup(groupId, { imageUrl: base64Url });
-      await logGroupActivity(
-        groupId,
-        { id: user?.uid || '', name: user?.name || 'Admin' },
-        'avatar_updated',
-        `${user?.name || 'Admin'} updated the group avatar`
-      );
-      await loadData();
-    }
-  };
-
   // Share group code
   const onShareInvite = async () => {
     if (Platform.OS !== 'web') {
@@ -262,7 +228,7 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
 
   // Save info updates (Name, Type, Description)
   const handleSaveInfo = async (updates: { name: string; type: GroupType; description: string }) => {
-    await updateGroup(groupId, updates);
+    await updateGroup(groupId, { ...updates, icon: updates.type });
     await logGroupActivity(
       groupId,
       { id: user?.uid || '', name: user?.name || 'Admin' },
@@ -564,7 +530,8 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
   }
 
   const isArchived = Boolean(group?.isArchived || group?.status === 'archived');
-  const typeConfig = GROUP_TYPES.find((t) => t.key === (group?.type || 'home')) || GROUP_TYPES[0];
+  const rawType = (group?.type || group?.icon || 'home').toLowerCase();
+  const typeConfig = GROUP_TYPES.find((t) => t.key.toLowerCase() === rawType) || GROUP_TYPES[0];
   const TypeIcon = typeConfig.icon;
   const debtorsCount = settlements.filter((s) => s.toUserId === user?.uid && s.amount > 0.01).length;
 
@@ -606,23 +573,6 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
           </TouchableOpacity>
 
           <View style={styles.profileMetaBox}>
-            <TouchableOpacity
-              style={styles.avatarWrapper}
-              onPress={isAdmin ? pickAvatar : undefined}
-              activeOpacity={isAdmin ? 0.8 : 1}
-            >
-              <MemberAvatar
-                name={group?.name || 'Group'}
-                imageUrl={group?.imageUrl}
-                size={58}
-              />
-              {isAdmin && (
-                <View style={styles.cameraIconCircle}>
-                  <Camera size={11} color="#FFFFFF" strokeWidth={2.5} />
-                </View>
-              )}
-            </TouchableOpacity>
-
             <View style={styles.profileInfoText}>
               <Text style={styles.groupMainTitle} numberOfLines={1}>
                 {group?.name || 'Group'}
@@ -1210,28 +1160,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    marginTop: -24,
-  },
-  avatarWrapper: {
-    position: 'relative',
-    marginRight: 12,
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    borderRadius: 32,
-    backgroundColor: '#FFFFFF',
-  },
-  cameraIconCircle: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#059669',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
   },
   profileInfoText: {
     flex: 1,

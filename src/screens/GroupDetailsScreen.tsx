@@ -564,6 +564,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
       group={group}
       initialGroupName={initialGroupName}
       memberCount={members.length}
+      expenseCount={expenses.length}
       netBalance={netBalance}
       settlements={settlements}
       currentUserId={user?.uid || ''}
@@ -1296,14 +1297,13 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
         </View>
       )}
 
-      {/* Pinned Top Navigation Bar (Back, Mini Title, Settings, Add Cover) */}
+      {/* Pinned Top Navigation Bar (Back, Mini Title, Settings) */}
       <GroupTopBar
         group={group}
         initialGroupName={initialGroupName}
         hasCover={hasCover}
         onBack={() => navigation.goBack()}
         onSettings={() => navigation.navigate('GroupSettings', { groupId })}
-        onEditCover={() => setCoverModalVisible(true)}
         scrollY={scrollY}
       />
 

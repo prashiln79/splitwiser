@@ -41,6 +41,7 @@ import { MemberAvatar } from '../components/common/MemberAvatar';
 import { compressAvatarPhoto } from '../utils/imageCompressor';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 import { QrCodeModal } from '../components/common/QrCodeModal';
+import { ProfilePhotoModal } from '../components/common/ProfilePhotoModal';
 import { submitSupportTicket } from '../services/support';
 import { hapticsService } from '../services/hapticsService';
 
@@ -53,6 +54,7 @@ export const AccountScreen = ({ navigation }: any) => {
 
   // Scan / QR Code Modal
   const [qrModalVisible, setQrModalVisible] = useState(false);
+  const [profilePhotoModalVisible, setProfilePhotoModalVisible] = useState(false);
 
   // Preferences Modals
   const [emailSettingsVisible, setEmailSettingsVisible] = useState(false);
@@ -127,25 +129,9 @@ export const AccountScreen = ({ navigation }: any) => {
 
   const isGoogleLinked = !user?.isAnonymous && user?.authProvider === 'google';
 
-  const handlePickAvatar = async () => {
+  const handlePickAvatar = () => {
     hapticsService.impact(Haptics.ImpactFeedbackStyle.Light);
-    try {
-      const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-        base64: false,
-      });
-      if (!res.canceled && res.assets && res.assets.length > 0) {
-        const compressed = await compressAvatarPhoto(res.assets[0].uri);
-        const imageUrl = compressed.base64 ? `data:image/jpeg;base64,${compressed.base64}` : compressed.uri;
-        await updateProfile({ imageUrl });
-        hapticsService.notification(Haptics.NotificationFeedbackType.Success);
-      }
-    } catch {
-      // Ignored
-    }
+    setProfilePhotoModalVisible(true);
   };
 
   const handleSignOut = async () => {
@@ -735,6 +721,12 @@ export const AccountScreen = ({ navigation }: any) => {
         isDestructive
         isLoading={isSigningOut}
         icon="logout"
+      />
+
+      {/* Profile Photo Modal */}
+      <ProfilePhotoModal
+        visible={profilePhotoModalVisible}
+        onClose={() => setProfilePhotoModalVisible(false)}
       />
     </View>
   );

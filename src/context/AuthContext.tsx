@@ -10,6 +10,7 @@ import { syncService } from '../sync/syncService';
 import {
   subscribeToAuthState,
   loadUserProfile,
+  syncGoogleProfileOnAuth,
   signInAndCreateProfile,
   updateUserProfile,
   linkGoogleCredential,
@@ -59,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = subscribeToAuthState(async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          const profile = await loadUserProfile(firebaseUser.uid);
+          const profile = await syncGoogleProfileOnAuth(firebaseUser);
           setUser(profile);
           syncService.initialize(firebaseUser.uid);
         } catch (err) {
