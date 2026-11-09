@@ -3,6 +3,7 @@ import {
   Alert,
   Animated,
   FlatList,
+  Image,
   RefreshControl,
   StyleSheet,
   View,
@@ -353,11 +354,11 @@ export const FriendsScreen = ({ navigation }: any) => {
       return (
         <View style={styles.emptyContainer}>
           <View style={styles.emptyIllustration}>
-            <View style={styles.emptyOuterRing}>
-              <View style={styles.emptyInnerCircle}>
-                <Users size={46} color="#059669" strokeWidth={1.8} />
-              </View>
-            </View>
+            <Image
+              source={require('../../assets/friends-illustration.png')}
+              style={styles.friendsIllustrationImage}
+              resizeMode="contain"
+            />
           </View>
           <Text style={styles.emptyTitle}>Start sharing expenses with friends</Text>
           <Text style={styles.emptySub}>
@@ -912,6 +913,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  friendsIllustrationImage: {
+    width: 220,
+    height: 200,
   },
   emptyOuterRing: {
     width: 130,
