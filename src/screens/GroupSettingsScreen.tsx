@@ -81,6 +81,7 @@ import { GroupNotificationsModal } from '../components/groupSettings/GroupNotifi
 import { BalanceRemindersModal } from '../components/groupSettings/BalanceRemindersModal';
 import { GroupExportModal } from '../components/groupSettings/GroupExportModal';
 import { RecentActivityModal } from '../components/groupSettings/RecentActivityModal';
+import { ExpensePreferencesModal } from '../components/groupSettings/ExpensePreferencesModal';
 
 const GroupSettingsScreen = ({ route, navigation }: any) => {
   const { groupId } = route.params;
@@ -95,6 +96,7 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
   const [settlements, setSettlements] = useState<OptimizedSettlement[]>([]);
   const [hideUninvolved, setHideUninvolved] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [simplifyDebts, setSimplifyDebts] = useState<boolean>(true);
 
   // Modals Visibility
   const [coverModalVisible, setCoverModalVisible] = useState(false);
@@ -103,6 +105,7 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
   const [membersListVisible, setMembersListVisible] = useState(false);
   const [selectedMember, setSelectedMember] = useState<GroupMember | null>(null);
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
+  const [preferencesModalVisible, setPreferencesModalVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [remindersVisible, setRemindersVisible] = useState(false);
   const [exportVisible, setExportVisible] = useState(false);
@@ -193,6 +196,12 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (group?.settings?.simplifyDebts !== undefined) {
+      setSimplifyDebts(group.settings.simplifyDebts);
+    }
+  }, [group?.settings?.simplifyDebts]);
 
   // Check if target user has unsettled debts
   const checkMemberHasUnsettled = (targetUserId: string): boolean => {
@@ -434,16 +443,93 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
     }
   };
 
-  // Update Group Settings (Simplify Debts, Split Types, Permissions)
-  const handleUpdateGroupSettings = async (newSettings: GroupSettings) => {
-    await updateGroup(groupId, { settings: newSettings });
-    await logGroupActivity(
+  // Instantaneous Optimistic Simplify Debts Toggle
+  const handleToggleSimplifyDebts = (val: boolean) => {
+    if (!isAdmin) return;
+
+    if (!val) {
+      Alert.alert(
+        'Disable Simplify Debts?',
+        'Balances will show exact bilateral debts from every individual expense rather than the shortest repayment paths.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Disable',
+            style: 'destructive',
+            onPress: () => applySimplifyDebtsChange(false),
+          },
+        ]
+      );
+      return;
+    }
+
+    applySimplifyDebtsChange(true);
+  };
+
+  const applySimplifyDebtsChange = (val: boolean) => {
+    // 1. Instant Haptic & Instant State Update (0ms UI latency)
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    setSimplifyDebts(val);
+    const newSettings: GroupSettings = {
+      ...(group?.settings || {}),
+      simplifyDebts: val,
+    };
+    setGroup((prev) => (prev ? { ...prev, settings: newSettings } : prev));
+
+    // 2. Instantly recalculate settlements in memory (no network wait)
+    const updated = calculateGroupSettlements(
+      expenses,
+      members,
+      recordedSettlements,
+      val
+    );
+    setSettlements(updated);
+
+    // 3. Persist asynchronously in background (no blocking, no network re-fetch)
+    updateGroup(groupId, { settings: newSettings }).catch((err) => {
+      console.warn('Failed to update group settings:', err);
+      // Revert on error
+      setSimplifyDebts(!val);
+      setGroup((prev) =>
+        prev ? { ...prev, settings: { ...(prev.settings || {}), simplifyDebts: !val } } : prev
+      );
+    });
+
+    logGroupActivity(
       groupId,
       { id: user?.uid || '', name: user?.name || 'Admin' },
       'settings_updated',
-      `${user?.name || 'Admin'} updated group expense preferences`
-    );
-    await loadData();
+      `${user?.name || 'Admin'} ${val ? 'enabled' : 'disabled'} Simplify Debts`
+    ).catch(() => {});
+  };
+
+  // Update Group Settings (Simplify Debts, Split Types, Permissions)
+  const handleUpdateGroupSettings = async (newSettings: GroupSettings) => {
+    // Optimistic state update
+    setGroup((prev) => (prev ? { ...prev, settings: newSettings } : prev));
+    if (newSettings.simplifyDebts !== undefined) {
+      setSimplifyDebts(newSettings.simplifyDebts);
+      const updated = calculateGroupSettlements(
+        expenses,
+        members,
+        recordedSettlements,
+        newSettings.simplifyDebts
+      );
+      setSettlements(updated);
+    }
+    try {
+      await updateGroup(groupId, { settings: newSettings });
+      logGroupActivity(
+        groupId,
+        { id: user?.uid || '', name: user?.name || 'Admin' },
+        'settings_updated',
+        `${user?.name || 'Admin'} updated group expense preferences`
+      ).catch(() => {});
+    } catch (e: any) {
+      console.warn('Failed to update group settings:', e);
+    }
   };
 
   // Update Hide Uninvolved
@@ -692,34 +778,8 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
                 <Text style={styles.rowSubtitle}>Minimizes total payment transfers</Text>
               </View>
               <Switch
-                value={group?.settings?.simplifyDebts ?? true}
-                onValueChange={async (val) => {
-                  if (!isAdmin) return;
-                  if (!val) {
-                    Alert.alert(
-                      'Disable Simplify Debts?',
-                      'Balances will show exact bilateral debts from every individual expense rather than the shortest repayment paths.',
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        {
-                          text: 'Disable',
-                          style: 'destructive',
-                          onPress: async () => {
-                            await handleUpdateGroupSettings({
-                              ...(group?.settings || {}),
-                              simplifyDebts: false,
-                            });
-                          },
-                        },
-                      ]
-                    );
-                    return;
-                  }
-                  await handleUpdateGroupSettings({
-                    ...(group?.settings || {}),
-                    simplifyDebts: true,
-                  });
-                }}
+                value={simplifyDebts}
+                onValueChange={handleToggleSimplifyDebts}
                 disabled={!isAdmin}
                 trackColor={{ false: '#D1D5DB', true: '#059669' }}
                 thumbColor="#FFFFFF"
@@ -743,9 +803,13 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
 
             <TouchableOpacity
               style={[styles.settingRow, styles.lastRow]}
-              onPress={() => setEditInfoVisible(false)} // Opens full preferences
-              onPressIn={() => {}}
-              onPressOut={() => {}}
+              onPress={() => {
+                if (Platform.OS !== 'web') {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                }
+                setPreferencesModalVisible(true);
+              }}
+              activeOpacity={0.7}
             >
               <View style={styles.rowIcon}>
                 <Sliders size={16} color="#7C3AED" />
@@ -972,6 +1036,17 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
         isAdmin={isAdmin}
         onClose={() => setCurrencyModalVisible(false)}
         onSelect={handleSelectCurrency}
+      />
+
+      {/* Expense & Balance Preferences Modal */}
+      <ExpensePreferencesModal
+        visible={preferencesModalVisible}
+        isAdmin={isAdmin}
+        groupSettings={group?.settings || {}}
+        hideUninvolvedExpenses={hideUninvolved}
+        onClose={() => setPreferencesModalVisible(false)}
+        onUpdateGroupSettings={handleUpdateGroupSettings}
+        onUpdateHideUninvolved={handleUpdateHideUninvolved}
       />
 
       {/* Notifications Modal */}

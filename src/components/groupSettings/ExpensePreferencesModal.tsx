@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -53,6 +53,17 @@ export const ExpensePreferencesModal: React.FC<ExpensePreferencesModalProps> = (
   const [memberPermissions, setMemberPermissions] = useState<'anyone' | 'admin_only'>(
     groupSettings.memberPermissions || 'anyone'
   );
+
+  useEffect(() => {
+    if (visible) {
+      setSimplifyDebts(groupSettings.simplifyDebts ?? true);
+      setDefaultSplit(groupSettings.defaultSplitType || 'equal');
+      setDefaultParticipants(
+        groupSettings.defaultParticipants === 'last' ? 'last' : 'all'
+      );
+      setMemberPermissions(groupSettings.memberPermissions || 'anyone');
+    }
+  }, [visible, groupSettings]);
 
   const handleToggleSimplify = async (val: boolean) => {
     if (!isAdmin) return;
@@ -113,8 +124,15 @@ export const ExpensePreferencesModal: React.FC<ExpensePreferencesModalProps> = (
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <View style={styles.sheetContainer}>
+      <TouchableOpacity
+        style={styles.backdrop}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <View
+          style={styles.sheetContainer}
+          onStartShouldSetResponder={() => true}
+        >
           {/* Header */}
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>Expense & Balance Preferences</Text>
@@ -287,7 +305,7 @@ export const ExpensePreferencesModal: React.FC<ExpensePreferencesModalProps> = (
             </View>
           </ScrollView>
         </View>
-      </View>
+      </TouchableOpacity>
     </Modal>
   );
 };
