@@ -199,3 +199,62 @@ Splitwiser is targeted exclusively for the **Android OS ecosystem**.
   - `npm run build:aab`: Builds a production Android App Bundle (AAB) for Google Play Store publishing.
 - **Orientation & Hardware**: Locked to `portrait`, fully utilizing Android hardware back-button handling, safe area window insets (`react-native-safe-area-context`), and native Android vibration channels.
 
+
+---
+
+## 8. Internationalization (i18n) Architecture
+
+Splitwiser features a comprehensive, offline-first multilingual system supporting 8 global languages.
+
+```
+                    ┌────────────────────────────────────────┐
+                    │      Device / User Locale Request      │
+                    └───────────────────┬────────────────────┘
+                                        │
+             ┌──────────────────────────┴──────────────────────────┐
+             ▼                                                     ▼
+┌──────────────────────────┐                             ┌───────────────────┐
+│ Manual User Preference   │                             │  System Detection │
+│ (AsyncStorage/Firestore) │                             │(expo-localization)│
+└────────────┬─────────────┘                             └─────────┬─────────┘
+             │                                                     │
+             │                   normalizeLocale()                 │
+             └──────────────────────────┬──────────────────────────┘
+                                        │
+                                        ▼
+                         ┌─────────────────────────────┐
+                         │ Selected Language (8 tiers) │
+                         │ en | zh-Hans | es | ar |    │
+                         │ fr | pt-BR | id | ru        │
+                         └──────────────┬──────────────┘
+                                        │
+                         ┌──────────────┴──────────────┐
+                         ▼                             ▼
+              LTR Layout Engine              RTL Engine (Arabic)
+              (Default Direction)            (I18nManager.forceRTL)
+                         │                             │
+                         └──────────────┬──────────────┘
+                                        │
+                                        ▼
+                    ┌────────────────────────────────────────┐
+                    │  15 Pre-bundled Offline Namespaces     │
+                    │  (common, auth, home, groups, friends, │
+                    │   expenses, split, balances, etc.)     │
+                    └───────────────────┬────────────────────┘
+                                        │
+                                        ▼
+                    ┌────────────────────────────────────────┐
+                    │  Pure Localized UI Components & Hooks  │
+                    │  • useTranslation([ns])                │
+                    │  • useI18n() (formatAmount, formatDate)│
+                    │  • LanguagePickerModal                 │
+                    └────────────────────────────────────────┘
+```
+
+### Key Architectural Tenets
+1. **Zero Runtime Network Requirement**: All 120 locale JSON dictionaries are bundled statically. The application operates 100% offline in all 8 languages.
+2. **Immutable Financial Calculations**: Currency amounts, split math, integer minor units, and balances are language-neutral and calculated with strict mathematical bounds.
+3. **UGC Preserved**: User-entered expense descriptions, personal notes, and group names are never auto-translated or altered.
+4. **Canonical Category Identifiers**: Database category IDs (`Food`, `Coffee`, etc.) remain permanent and unchanged; only UI presentation is localized via `getCategoryLabel(category)`.
+5. **Arabic RTL Support**: Native direction flipping via React Native `I18nManager` when switching between LTR languages and Arabic.
+6. **Per-Recipient Push Notifications**: Remote notification payloads utilize user-specific language preferences stored in Firestore profiles.

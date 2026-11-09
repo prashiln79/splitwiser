@@ -1,0 +1,23 @@
+{
+  "settleUp": "Settle Up",
+  "recordPayment": "Record a Payment",
+  "selectPayment": "Select payment",
+  "paymentConfirmed": "Payment recorded successfully",
+  "paymentNote": "Payment note",
+  "paymentMethod": "Payment method",
+  "addPaymentNote": "Add note (optional)",
+  "paidTo": "Paid to {{name}}",
+  "receivedFrom": "Received from {{name}}",
+  "settlementAmount": "Amount to settle",
+  "partialPayment": "Partial Payment",
+  "fullPayment": "Full Payment",
+  "recordedPayment": "{{payer}} paid {{payee}} {{amount}}",
+  "confirmPayment": "Record Payment",
+  "noSettlements": "No settlement history yet",
+  "paymentHistory": "Payment History",
+  "enterAmount": "Enter payment amount",
+  "cash": "Cash",
+  "upi": "UPI",
+  "bankTransfer": "Bank Transfer",
+  "other": "Other"
+}

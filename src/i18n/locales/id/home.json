@@ -1,0 +1,20 @@
+{
+  "myGroups": "Grup Saya",
+  "noGroups": "Belum ada grup",
+  "noGroupsMessage": "Buat atau gabung ke grup untuk mulai membagi tagihan dan pengeluaran.",
+  "createGroup": "Buat Grup",
+  "joinGroup": "Gabung Grup",
+  "createFirstGroup": "Buat grup pertama Anda",
+  "totalBalance": "Total Saldo",
+  "youOwe": "Anda berutang",
+  "youAreOwed": "Anda dipinjami",
+  "settledUp": "Semua lunas",
+  "recentActivity": "Aktivitas Terbaru",
+  "viewAll": "Lihat semua",
+  "noActivity": "Belum ada aktivitas terbaru",
+  "noActivityMessage": "Saat Anda atau anggota grup menambahkan pengeluaran, aktivitas akan muncul di sini.",
+  "overall": "Keseluruhan",
+  "friendsCount": "Teman",
+  "groupsCount": "Grup",
+  "searchGroups": "Cari grup..."
+}

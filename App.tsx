@@ -3,6 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
+import { I18nProvider } from './src/context/I18nContext';
 import { ThemeProvider, useAppTheme } from './src/theme';
 import AppNavigator from './src/navigation/AppNavigator';
 import { getDatabase } from './src/db/sqlite';
@@ -32,7 +33,9 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         <AuthProvider>
-          <MainApp />
+          <I18nProvider>
+            <MainApp />
+          </I18nProvider>
         </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>

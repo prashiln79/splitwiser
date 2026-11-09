@@ -1,0 +1,23 @@
+{
+  "settleUp": "Quitar contas",
+  "recordPayment": "Registrar um pagamento",
+  "selectPayment": "Selecionar pagamento",
+  "paymentConfirmed": "Pagamento registrado com sucesso",
+  "paymentNote": "Nota de pagamento",
+  "paymentMethod": "Forma de pagamento",
+  "addPaymentNote": "Adicionar nota (opcional)",
+  "paidTo": "Pago para {{name}}",
+  "receivedFrom": "Recebido de {{name}}",
+  "settlementAmount": "Valor a quitar",
+  "partialPayment": "Pagamento parcial",
+  "fullPayment": "Pagamento integral",
+  "recordedPayment": "{{payer}} pagou {{amount}} para {{payee}}",
+  "confirmPayment": "Registrar pagamento",
+  "noSettlements": "Nenhum histórico de pagamentos ainda",
+  "paymentHistory": "Histórico de pagamentos",
+  "enterAmount": "Digite o valor do pagamento",
+  "cash": "Dinheiro",
+  "upi": "PIX / UPI",
+  "bankTransfer": "Transferência bancária",
+  "other": "Outro"
+}

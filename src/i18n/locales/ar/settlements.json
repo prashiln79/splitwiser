@@ -1,0 +1,23 @@
+{
+  "settleUp": "تسوية الحساب",
+  "recordPayment": "تسجيل دفعة",
+  "selectPayment": "اختيار الدفعة",
+  "paymentConfirmed": "تم تسجيل الدفعة بنجاح",
+  "paymentNote": "ملاحظة الدفع",
+  "paymentMethod": "طريقة الدفع",
+  "addPaymentNote": "إضافة ملاحظة (اختياري)",
+  "paidTo": "دُفعت إلى {{name}}",
+  "receivedFrom": "استلمت من {{name}}",
+  "settlementAmount": "المبلغ المراد تسويته",
+  "partialPayment": "تسوية جزئية",
+  "fullPayment": "تسوية كاملة",
+  "recordedPayment": "دفع {{payer}} لـ {{payee}} مبلغ {{amount}}",
+  "confirmPayment": "تسجيل الدفعة",
+  "noSettlements": "لا يوجد سجل مدفوعات بعد",
+  "paymentHistory": "سجل المدفوعات",
+  "enterAmount": "أدخل مبلغ الدفع",
+  "cash": "نقداً",
+  "upi": "UPI",
+  "bankTransfer": "تحويل بنكي",
+  "other": "أخرى"
+}

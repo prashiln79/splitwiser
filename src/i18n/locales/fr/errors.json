@@ -1,0 +1,21 @@
+{
+  "networkError": "Erreur réseau",
+  "networkErrorMessage": "Vérifiez votre connexion internet et réessayez.",
+  "syncError": "Erreur de synchronisation",
+  "uploadFailed": "Échec du téléversement de l'image. Veuillez réessayer.",
+  "downloadFailed": "Échec du téléchargement des données.",
+  "permissionDenied": "Permission refusée",
+  "cameraPermission": "L'autorisation d'accès à l'appareil photo est requise.",
+  "galleryPermission": "L'autorisation d'accès à la galerie photo est requise.",
+  "groupNotFound": "Groupe introuvable ou supprimé.",
+  "expenseNotFound": "Dépense introuvable.",
+  "userNotFound": "Profil utilisateur introuvable.",
+  "loadFailed": "Échec du chargement. Tirez vers le bas pour actualiser.",
+  "saveFailed": "Échec de l'enregistrement. Veuillez réessayer.",
+  "deleteFailed": "Échec de la suppression. Veuillez réessayer.",
+  "unknownError": "Une erreur inattendue est survenue.",
+  "tryAgain": "Veuillez réessayer.",
+  "offlineMode": "Vous êtes actuellement hors ligne.",
+  "offlineMessage": "Vos modifications seront synchronisées dès votre reconnexion.",
+  "firebaseError": "Service temporairement indisponible. Veuillez réessayer plus tard."
+}

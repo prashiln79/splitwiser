@@ -1,0 +1,17 @@
+{
+  "notifications": "通知",
+  "newExpense": "新增支出：{{description}}（{{amount}}）",
+  "expenseUpdated": "支出已更新：{{description}}",
+  "settlementRecorded": "{{payer}} 向你支付了 {{amount}}",
+  "groupInvitation": "你受邀加入 {{groupName}}",
+  "memberJoined": "{{name}} 加入了 {{groupName}}",
+  "paymentReminder": "温馨提醒：你欠 {{name}} {{amount}}",
+  "balanceReminder": "{{groupName}} 的结余变动",
+  "enableNotifications": "开启通知",
+  "muteGroup": "静音群组",
+  "unmuteGroup": "取消静音",
+  "reminderSettings": "提醒设置",
+  "notificationPreferences": "通知偏好",
+  "markAllAsRead": "全部标为已读",
+  "noNotifications": "暂无通知"
+}

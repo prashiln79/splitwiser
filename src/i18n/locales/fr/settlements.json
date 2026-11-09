@@ -1,0 +1,23 @@
+{
+  "settleUp": "Équilibrer les comptes",
+  "recordPayment": "Enregistrer un remboursement",
+  "selectPayment": "Sélectionner le remboursement",
+  "paymentConfirmed": "Paiement enregistré avec succès",
+  "paymentNote": "Note de paiement",
+  "paymentMethod": "Moyen de paiement",
+  "addPaymentNote": "Ajouter une note (facultatif)",
+  "paidTo": "Payé à {{name}}",
+  "receivedFrom": "Reçu de {{name}}",
+  "settlementAmount": "Montant à régler",
+  "partialPayment": "Remboursement partiel",
+  "fullPayment": "Règlement complet",
+  "recordedPayment": "{{payer}} a payé {{amount}} à {{payee}}",
+  "confirmPayment": "Enregistrer le paiement",
+  "noSettlements": "Aucun historique de remboursement",
+  "paymentHistory": "Historique des paiements",
+  "enterAmount": "Entrez le montant du paiement",
+  "cash": "Espèces",
+  "upi": "UPI",
+  "bankTransfer": "Virement bancaire",
+  "other": "Autre"
+}

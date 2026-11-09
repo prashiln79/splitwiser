@@ -1,0 +1,22 @@
+{
+  "statistics": "Statistiques",
+  "spending": "Dépenses",
+  "mySpending": "Mes dépenses",
+  "groupSpending": "Dépenses du groupe",
+  "categoryBreakdown": "Répartition par catégorie",
+  "monthlyTrends": "Tendances mensuelles",
+  "totalSpent": "Total dépensé",
+  "totalPaid": "Total payé",
+  "totalShare": "Part totale",
+  "viewMore": "Voir plus",
+  "thisMonth": "Ce mois-ci",
+  "lastMonth": "Le mois dernier",
+  "thisYear": "Cette année",
+  "allTime": "Depuis le début",
+  "noDataForPeriod": "Aucune dépense enregistrée pour cette période",
+  "topCategories": "Principales catégories",
+  "spendingByCategory": "Dépenses par catégorie",
+  "noExpensesYet": "Ajoutez des dépenses pour afficher les graphiques et tendances",
+  "balanceHistory": "Historique des soldes",
+  "insights": "Aperçu des dépenses"
+}

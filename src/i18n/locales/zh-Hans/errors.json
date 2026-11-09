@@ -1,0 +1,21 @@
+{
+  "networkError": "网络连接错误",
+  "networkErrorMessage": "请检查您的网络连接并重试。",
+  "syncError": "数据同步错误",
+  "uploadFailed": "图片上传失败，请重试。",
+  "downloadFailed": "数据下载失败。",
+  "permissionDenied": "权限被拒绝",
+  "cameraPermission": "拍照需要相机权限。",
+  "galleryPermission": "选择照片需要相册权限。",
+  "groupNotFound": "群组不存在或已被删除。",
+  "expenseNotFound": "未找到该支出记录。",
+  "userNotFound": "未找到用户资料。",
+  "loadFailed": "加载失败，请下拉刷新重试。",
+  "saveFailed": "保存失败，请重试。",
+  "deleteFailed": "删除失败，请重试。",
+  "unknownError": "发生未知错误。",
+  "tryAgain": "请稍后重试。",
+  "offlineMode": "当前处于离线模式。",
+  "offlineMessage": "恢复网络连接后将自动同步更改。",
+  "firebaseError": "服务暂时不可用，请稍后重试。"
+}

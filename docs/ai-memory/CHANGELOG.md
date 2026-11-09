@@ -4,6 +4,25 @@ All notable changes are documented in this file. Changes are listed in reverse c
 
 ---
 
+## [v2.1.0] — 2026-11-09
+
+### Added
+- **Complete Multilingual Internationalization (i18n) Implementation**:
+  - Full support for 8 global languages: English (`en`, default fallback), Mandarin Chinese Simplified (`zh-Hans`), Spanish (`es`), Arabic (`ar`, RTL), French (`fr`), Brazilian Portuguese (`pt-BR`), Indonesian (`id`), and Russian (`ru`).
+  - Standardized on `i18next`, `react-i18next`, and `expo-localization` with Hermes Intl pluralization support.
+  - Complete pre-bundled 120 locale JSON resource sets (8 locales × 15 namespaces: `common`, `auth`, `home`, `groups`, `friends`, `expenses`, `split`, `balances`, `settlements`, `charts`, `categories`, `settings`, `notifications`, `validation`, `errors`).
+  - Automatic language detection hierarchy with device preferred locale normalization (`normalizeLocale`, `detectBestLocale`).
+  - Persistent language preference using AsyncStorage and bidirectional synchronization to Firestore (`users/{uid}.language`) via `languageService.ts`.
+  - Native RTL direction management with React Native `I18nManager` for Arabic.
+  - Interactive `LanguagePickerModal` with native script display, device default toggle, and haptic feedback.
+  - Added Language selection row in `AccountScreen` (Preferences) and `EditProfileScreen`.
+  - Localized tab labels in `MainNavigator` (Groups, Friends, Statistics, Account).
+  - Localized category getter `getCategoryLabel(category)` preserving canonical database IDs.
+  - Automated translation test suite `tests/i18n.test.ts` verifying 100% key parity (3,345 passing assertions across 417 keys per language), interpolation parameter consistency, and pluralization.
+  - Integrated `test:i18n` into `npm test` pipeline.
+
+---
+
 ## [v2.0.1] — 2026-11-09
 
 ### Added

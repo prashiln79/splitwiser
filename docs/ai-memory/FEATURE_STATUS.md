@@ -251,6 +251,18 @@ This document provides a rigorous, verified audit of all features across the cod
 - **Test Coverage**: Service tested.
 - **Known Limitations**: Feedback status tracking is admin-side in Firebase Console.
 
+### 6.4 Multilingual Internationalization (i18n)
+- **Status**: **Implemented**
+- **Description**: Comprehensive offline-first multilingual localization across 8 tier-1 languages (English, Chinese Simplified, Spanish, Arabic RTL, French, Brazilian Portuguese, Indonesian, Russian) with 15 functional namespaces. Automatic locale detection via `expo-localization`, AsyncStorage persistence, Firestore syncing, and Arabic RTL layout support.
+- **Screens**: All application screens (`AccountScreen`, `EditProfileScreen`, `MainNavigator` tabs, etc.)
+- **Source Files**: `src/i18n/*`, `src/context/I18nContext.tsx`, `src/components/settings/LanguagePickerModal.tsx`, `src/services/languageService.ts`
+- **Components**: `LanguagePickerModal`, `I18nProvider`
+- **Services**: `languageService.ts`, `i18n/language-storage.ts`, `i18n/language-detector.ts`
+- **Firebase Dependencies**: Firestore `users/{uid}.language`
+- **Business Rules**: 100% key parity across all 8 languages; UGC preserved without auto-translation; canonical category IDs immutable; financial math decoupled and language-agnostic; Arabic triggers RTL layout mode via React Native `I18nManager`.
+- **Test Coverage**: 3,345 automated test assertions in `tests/i18n.test.ts` (100% pass).
+- **Known Limitations**: Physical device app restart is required for native RTL text direction switches to take full system effect on Android.
+
 ---
 
 ## 7. Advanced & Future Capabilities

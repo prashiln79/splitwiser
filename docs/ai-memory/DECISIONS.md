@@ -98,3 +98,21 @@ This document records the permanent, immutable technical and product decisions g
   - Builds target local APK and production AAB files via EAS.
   - iOS support is explicitly excluded and out of scope.
 
+
+---
+
+## ADR-012: Complete Multilingual Internationalization (i18n) Architecture
+- **Status**: **Accepted & Permanent**
+- **Context**: Splitwiser serves a global, diverse user base sharing expenses across international borders, travel groups, and roommates speaking different languages.
+- **Decision**: 
+  - Standardized on `i18next` and `react-i18next` with `expo-localization`.
+  - 8 Tier-1 supported languages: English (`en`, default fallback), Simplified Chinese (`zh-Hans`), Spanish (`es`), Arabic (`ar`, RTL), French (`fr`), Brazilian Portuguese (`pt-BR`), Indonesian (`id`), and Russian (`ru`).
+  - Strict 15 functional namespaces (`common`, `auth`, `home`, `groups`, `friends`, `expenses`, `split`, `balances`, `settlements`, `charts`, `categories`, `settings`, `notifications`, `validation`, `errors`).
+  - Pre-bundled, 100% offline-ready JSON resource sets ensuring zero network delay or network dependency.
+  - Priority detection hierarchy: (1) Manual user override from AsyncStorage/Firestore, (2) Device locale from `expo-localization` mapped via `normalizeLocale`, (3) Fallback to `en`.
+  - User-generated content (expense descriptions, group names, personal notes, comments) is strictly preserved without auto-translation.
+  - Category database IDs remain immutable (canonical keys like `Food`, `Coffee`, `Transport`); only user-facing display names are localized.
+  - Financial calculations, minor units, and currency math remain language-agnostic.
+- **Consequences**:
+  - Full native multilingual experience for 8 global languages with 100% key parity.
+  - Zero performance penalty on financial calculations.

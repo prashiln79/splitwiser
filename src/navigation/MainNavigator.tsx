@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Users, User } from 'lucide-react-native';
 import Svg, { Rect, Path, Circle, Defs, ClipPath } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import GroupsStackNavigator from './GroupsStackNavigator';
 import FriendsStackNavigator from './FriendsStackNavigator';
@@ -80,6 +81,7 @@ const AccountTabIcon = ({
 const MainNavigator = () => {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation(['groups', 'friends', 'charts', 'settings']);
 
   const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 10 : 8);
   const tabHeight = 56 + bottomPadding;
@@ -130,7 +132,7 @@ const MainNavigator = () => {
         name="Groups"
         component={GroupsStackNavigator}
         options={{
-          tabBarLabel: 'Groups',
+          tabBarLabel: t('groups:groups', { defaultValue: 'Groups' }),
           tabBarIcon: ({ color, focused }) => (
             <Users
               color={color}
@@ -144,7 +146,7 @@ const MainNavigator = () => {
         name="Friends"
         component={FriendsStackNavigator}
         options={{
-          tabBarLabel: 'Friends',
+          tabBarLabel: t('friends:friends', { defaultValue: 'Friends' }),
           tabBarIcon: ({ color, focused }) => (
             <User
               color={color}
@@ -158,7 +160,7 @@ const MainNavigator = () => {
         name="Statistics"
         component={StatisticsScreen}
         options={{
-          tabBarLabel: 'Statistics',
+          tabBarLabel: t('charts:statistics', { defaultValue: 'Statistics' }),
           tabBarIcon: ({ color, focused }) => (
             <StatisticsTabIcon color={color} focused={focused} />
           ),
@@ -168,7 +170,7 @@ const MainNavigator = () => {
         name="Account"
         component={AccountStackNavigator}
         options={{
-          tabBarLabel: 'Account',
+          tabBarLabel: t('settings:account', { defaultValue: 'Account' }),
           tabBarIcon: ({ focused }) => (
             <AccountTabIcon
               focused={focused}

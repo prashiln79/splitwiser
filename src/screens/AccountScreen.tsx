@@ -32,21 +32,28 @@ import {
   Share2,
   Vibrate,
   VibrateOff,
+  Globe,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import { useI18n } from '../context/I18nContext';
+import { LOCALE_NATIVE_NAMES } from '../i18n';
 import { MemberAvatar } from '../components/common/MemberAvatar';
 import { compressAvatarPhoto } from '../utils/imageCompressor';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 import { QrCodeModal } from '../components/common/QrCodeModal';
 import { ProfilePhotoModal } from '../components/common/ProfilePhotoModal';
+import { LanguagePickerModal } from '../components/settings/LanguagePickerModal';
 import { submitSupportTicket } from '../services/support';
 import { hapticsService } from '../services/hapticsService';
 
 export const AccountScreen = ({ navigation }: any) => {
   const { user, signOut, updateProfile } = useAuth();
+  const { currentLocale, isSystemLanguage } = useI18n();
+  const { t } = useTranslation(['settings', 'common', 'auth']);
   const insets = useSafeAreaInsets();
 
   const [confirmSignOutVisible, setConfirmSignOutVisible] = useState(false);
@@ -55,6 +62,7 @@ export const AccountScreen = ({ navigation }: any) => {
   // Scan / QR Code Modal
   const [qrModalVisible, setQrModalVisible] = useState(false);
   const [profilePhotoModalVisible, setProfilePhotoModalVisible] = useState(false);
+  const [languageModalVisible, setLanguageModalVisible] = useState(false);
 
   // Preferences Modals
   const [emailSettingsVisible, setEmailSettingsVisible] = useState(false);
@@ -318,15 +326,35 @@ export const AccountScreen = ({ navigation }: any) => {
 
             {/* Appearance */}
             <TouchableOpacity
-              style={[styles.settingItemRow, { borderBottomWidth: 0 }]}
+              style={styles.settingItemRow}
               onPress={() => setAppearanceVisible(true)}
               activeOpacity={0.7}
             >
               <View style={styles.settingItemLeft}>
                 <Palette size={19} color="#374151" strokeWidth={2} style={styles.rowIcon} />
-                <Text style={styles.settingItemTitle}>Appearance</Text>
+                <Text style={styles.settingItemTitle}>{t('settings:appearance', { defaultValue: 'Appearance' })}</Text>
               </View>
               <ChevronRight size={18} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            {/* Language */}
+            <TouchableOpacity
+              style={[styles.settingItemRow, { borderBottomWidth: 0 }]}
+              onPress={() => setLanguageModalVisible(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingItemLeft}>
+                <Globe size={19} color="#374151" strokeWidth={2} style={styles.rowIcon} />
+                <Text style={styles.settingItemTitle}>{t('settings:language', { defaultValue: 'Language' })}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 14, color: '#6B7280', marginRight: 6 }}>
+                  {isSystemLanguage
+                    ? t('common:systemDefault', { defaultValue: 'System Default' })
+                    : LOCALE_NATIVE_NAMES[currentLocale] || currentLocale}
+                </Text>
+                <ChevronRight size={18} color="#9CA3AF" />
+              </View>
             </TouchableOpacity>
           </View>
         </View>
@@ -384,6 +412,12 @@ export const AccountScreen = ({ navigation }: any) => {
       <QrCodeModal
         visible={qrModalVisible}
         onClose={() => setQrModalVisible(false)}
+      />
+
+      {/* ── Language Picker Modal ──────────────────────────────────────────── */}
+      <LanguagePickerModal
+        visible={languageModalVisible}
+        onClose={() => setLanguageModalVisible(false)}
       />
 
       {/* ── Email Settings Modal ───────────────────────────────────────────── */}

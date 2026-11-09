@@ -1,0 +1,21 @@
+{
+  "networkError": "Kesalahan jaringan",
+  "networkErrorMessage": "Periksa koneksi internet Anda dan coba lagi.",
+  "syncError": "Kesalahan sinkronisasi",
+  "uploadFailed": "Gagal mengunggah gambar. Silakan coba lagi.",
+  "downloadFailed": "Gagal mengunduh data.",
+  "permissionDenied": "Izin ditolak",
+  "cameraPermission": "Izin kamera diperlukan untuk mengambil foto.",
+  "galleryPermission": "Izin galeri diperlukan untuk memilih foto.",
+  "groupNotFound": "Grup tidak ditemukan atau telah dihapus.",
+  "expenseNotFound": "Pengeluaran tidak ditemukan.",
+  "userNotFound": "Profil pengguna tidak ditemukan.",
+  "loadFailed": "Gagal memuat. Tarik ke bawah untuk memuat ulang.",
+  "saveFailed": "Gagal menyimpan perubahan. Silakan coba lagi.",
+  "deleteFailed": "Gagal menghapus item. Silakan coba lagi.",
+  "unknownError": "Terjadi kesalahan yang tidak terduga.",
+  "tryAgain": "Silakan coba lagi.",
+  "offlineMode": "Anda sedang offline.",
+  "offlineMessage": "Perubahan akan otomatis disinkronkan saat terhubung kembali.",
+  "firebaseError": "Layanan sementara tidak tersedia. Silakan coba beberapa saat lagi."
+}

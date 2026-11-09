@@ -1,0 +1,17 @@
+{
+  "notifications": "الإشعارات",
+  "newExpense": "تمت إضافة مصروف جديد: {{description}} ({{amount}})",
+  "expenseUpdated": "تم تحديث المصروف: {{description}}",
+  "settlementRecorded": "دفع لك {{payer}} مبلغ {{amount}}",
+  "groupInvitation": "تمت دعوتك للانضمام إلى {{groupName}}",
+  "memberJoined": "انضم {{name}} إلى {{groupName}}",
+  "paymentReminder": "تذكير ودّي: أنت مدين لـ {{name}} بـ {{amount}}",
+  "balanceReminder": "تحديث الرصيد في {{groupName}}",
+  "enableNotifications": "تفعيل الإشعارات",
+  "muteGroup": "كتم المجموعة",
+  "unmuteGroup": "إلغاء كتم المجموعة",
+  "reminderSettings": "إعدادات التذكير",
+  "notificationPreferences": "تفضيلات الإشعارات",
+  "markAllAsRead": "تعيين الكل كمقروء",
+  "noNotifications": "ليس لديك إشعارات"
+}

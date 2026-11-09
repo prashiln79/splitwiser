@@ -1,0 +1,23 @@
+{
+  "friends": "Teman",
+  "addFriend": "Tambah Teman",
+  "searchFriends": "Cari teman...",
+  "noFriends": "Belum ada teman",
+  "noFriendsMessage": "Tambah teman untuk membagi pengeluaran berdua atau melihat saldo bersama di luar grup.",
+  "friendRequest": "Permintaan Teman",
+  "pendingRequest": "Menunggu",
+  "acceptRequest": "Terima",
+  "declineRequest": "Tolak",
+  "removeFriend": "Hapus Teman",
+  "friendDetails": "Rincian Teman",
+  "sharedGroups": "Grup Bersama",
+  "directExpenses": "Pengeluaran Langsung",
+  "addExpenseWithFriend": "Tambah pengeluaran dengan {{name}}",
+  "confirmRemoveFriend": "Hapus Teman?",
+  "confirmRemoveFriendMessage": "Yakin ingin menghapus {{name}} dari daftar teman Anda?",
+  "friendAdded": "Teman berhasil ditambahkan",
+  "friendRemoved": "Teman telah dihapus",
+  "settleDirectDebt": "Lunasi Saldo",
+  "noSharedExpenses": "Tidak ada pengeluaran bersama dengan {{name}}",
+  "enterFriendEmail": "Masukkan email atau nomor telepon teman"
+}

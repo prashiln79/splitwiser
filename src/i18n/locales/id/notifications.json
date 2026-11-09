@@ -1,0 +1,17 @@
+{
+  "notifications": "Notifikasi",
+  "newExpense": "Pengeluaran baru ditambahkan: {{description}} ({{amount}})",
+  "expenseUpdated": "Pengeluaran diperbarui: {{description}}",
+  "settlementRecorded": "{{payer}} membayar {{amount}} kepada Anda",
+  "groupInvitation": "Anda diundang bergabung ke {{groupName}}",
+  "memberJoined": "{{name}} bergabung ke {{groupName}}",
+  "paymentReminder": "Pengingat: Anda berutang {{amount}} ke {{name}}",
+  "balanceReminder": "Pembaruan saldo di {{groupName}}",
+  "enableNotifications": "Aktifkan Notifikasi",
+  "muteGroup": "Bisukan Grup",
+  "unmuteGroup": "Bunyikan Grup",
+  "reminderSettings": "Pengaturan Pengingat",
+  "notificationPreferences": "Preferensi Notifikasi",
+  "markAllAsRead": "Tandai semua sudah dibaca",
+  "noNotifications": "Tidak ada notifikasi"
+}

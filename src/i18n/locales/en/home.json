@@ -1,0 +1,20 @@
+{
+  "myGroups": "My Groups",
+  "noGroups": "No groups yet",
+  "noGroupsMessage": "Create or join a group to start splitting bills and expenses.",
+  "createGroup": "Create Group",
+  "joinGroup": "Join Group",
+  "createFirstGroup": "Create your first group",
+  "totalBalance": "Total Balance",
+  "youOwe": "You owe",
+  "youAreOwed": "You are owed",
+  "settledUp": "You are all settled up",
+  "recentActivity": "Recent Activity",
+  "viewAll": "View all",
+  "noActivity": "No recent activity",
+  "noActivityMessage": "When you or your group members add expenses, they will appear here.",
+  "overall": "Overall",
+  "friendsCount": "Friends",
+  "groupsCount": "Groups",
+  "searchGroups": "Search groups..."
+}

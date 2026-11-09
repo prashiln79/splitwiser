@@ -1,0 +1,17 @@
+{
+  "notifications": "Уведомления",
+  "newExpense": "Добавлен новый расход: {{description}} ({{amount}})",
+  "expenseUpdated": "Расход обновлен: {{description}}",
+  "settlementRecorded": "{{payer}} перевел(а) вам {{amount}}",
+  "groupInvitation": "Вас пригласили в группу {{groupName}}",
+  "memberJoined": "{{name}} присоединился к {{groupName}}",
+  "paymentReminder": "Напоминание: вы должны {{amount}} участнику {{name}}",
+  "balanceReminder": "Обновление баланса в {{groupName}}",
+  "enableNotifications": "Включить уведомления",
+  "muteGroup": "Отключить звук группы",
+  "unmuteGroup": "Включить звук группы",
+  "reminderSettings": "Настройки напоминаний",
+  "notificationPreferences": "Параметры уведомлений",
+  "markAllAsRead": "Отметить все как прочитанные",
+  "noNotifications": "У вас нет уведомлений"
+}

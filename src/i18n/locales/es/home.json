@@ -1,0 +1,20 @@
+{
+  "myGroups": "Mis grupos",
+  "noGroups": "Sin grupos aún",
+  "noGroupsMessage": "Crea o únete a un grupo para empezar a dividir cuentas y gastos.",
+  "createGroup": "Crear grupo",
+  "joinGroup": "Unirse a un grupo",
+  "createFirstGroup": "Crea tu primer grupo",
+  "totalBalance": "Saldo total",
+  "youOwe": "Debes",
+  "youAreOwed": "Te deben",
+  "settledUp": "Estás al día",
+  "recentActivity": "Actividad reciente",
+  "viewAll": "Ver todo",
+  "noActivity": "Sin actividad reciente",
+  "noActivityMessage": "Cuando tú o tus compañeros agreguen gastos, aparecerán aquí.",
+  "overall": "General",
+  "friendsCount": "Amigos",
+  "groupsCount": "Grupos",
+  "searchGroups": "Buscar grupos..."
+}

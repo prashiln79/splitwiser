@@ -1,0 +1,21 @@
+{
+  "networkError": "Error de red",
+  "networkErrorMessage": "Comprueba tu conexión a internet e inténtalo de nuevo.",
+  "syncError": "Error de sincronización",
+  "uploadFailed": "Error al subir la imagen. Inténtalo de nuevo.",
+  "downloadFailed": "Error al descargar datos.",
+  "permissionDenied": "Permiso denegado",
+  "cameraPermission": "Se requiere permiso de cámara para tomar fotos.",
+  "galleryPermission": "Se requiere permiso de fotos para elegir de la galería.",
+  "groupNotFound": "Grupo no encontrado o eliminado.",
+  "expenseNotFound": "Gasto no encontrado.",
+  "userNotFound": "Perfil de usuario no encontrado.",
+  "loadFailed": "Error al cargar. Desliza hacia abajo para actualizar.",
+  "saveFailed": "Error al guardar. Inténtalo de nuevo.",
+  "deleteFailed": "Error al eliminar. Inténtalo de nuevo.",
+  "unknownError": "Ocurrió un error inesperado.",
+  "tryAgain": "Inténtalo de nuevo.",
+  "offlineMode": "Actualmente estás sin conexión.",
+  "offlineMessage": "Los cambios se sincronizarán al reconectar.",
+  "firebaseError": "Servicio no disponible temporalmente. Inténtalo en unos momentos."
+}

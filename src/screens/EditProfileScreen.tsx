@@ -28,6 +28,10 @@ import { GoogleIcon } from '../components/common/GoogleIcon';
 import { ConnectGoogleModal } from '../components/common/ConnectGoogleModal';
 import { ProfileAvatar } from '../components/common/MemberAvatar';
 import { ProfilePhotoModal } from '../components/common/ProfilePhotoModal';
+import { LanguagePickerModal } from '../components/settings/LanguagePickerModal';
+import { useI18n } from '../context/I18nContext';
+import { LOCALE_NATIVE_NAMES } from '../i18n';
+import { useTranslation } from 'react-i18next';
 import { APP_LIMITS } from '../constants/limits';
 
 const TIMEZONES = [
@@ -50,17 +54,10 @@ const CURRENCIES = [
   { code: 'SGD', label: 'SGD (S$)' },
 ];
 
-const LANGUAGES = [
-  'English',
-  'Español (Spanish)',
-  'Français (French)',
-  'Deutsch (German)',
-  'Hindi (हिन्दी)',
-  '日本語 (Japanese)',
-];
-
 export const EditProfileScreen = ({ navigation }: any) => {
   const { user, updateProfile } = useAuth();
+  const { currentLocale, isSystemLanguage } = useI18n();
+  const { t } = useTranslation(['settings', 'common', 'validation']);
   const insets = useSafeAreaInsets();
 
   // Field values
@@ -102,8 +99,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
     currency !== (user?.currency || 'INR') ||
     timezone !==
       (user?.timezone ||
-        '(GMT+05:30) Chennai, Kolkata, Mumbai, New Delhi') ||
-    language !== (user?.language || 'English');
+        '(GMT+05:30) Chennai, Kolkata, Mumbai, New Delhi');
 
   const isEditingOrChanged = isEditing || hasChanges;
 
@@ -144,7 +140,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
         phone: trimmedPhone || undefined,
         currency,
         timezone,
-        language,
+        language: isSystemLanguage ? undefined : currentLocale,
       });
 
       if (Platform.OS !== 'web') {
@@ -388,13 +384,17 @@ export const EditProfileScreen = ({ navigation }: any) => {
 
         {/* 7. Language */}
         <View style={styles.formGroup}>
-          <Text style={styles.fieldLabel}>Language (for emails and notifications)</Text>
+          <Text style={styles.fieldLabel}>{t('settings:language', { defaultValue: 'Language' })}</Text>
           <TouchableOpacity
             style={styles.selectBox}
             onPress={() => setLanguageModalVisible(true)}
             activeOpacity={0.7}
           >
-            <Text style={styles.selectBoxText}>{language}</Text>
+            <Text style={styles.selectBoxText}>
+              {isSystemLanguage
+                ? t('common:systemDefault', { defaultValue: 'System Default' })
+                : LOCALE_NATIVE_NAMES[currentLocale] || currentLocale}
+            </Text>
             <ChevronDown size={18} color="#6B7280" />
           </TouchableOpacity>
         </View>
@@ -571,51 +571,10 @@ export const EditProfileScreen = ({ navigation }: any) => {
       </Modal>
 
       {/* ── Language Modal ─────────────────────────────────────────────────── */}
-      <Modal
+      <LanguagePickerModal
         visible={languageModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setLanguageModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setLanguageModalVisible(false)}
-        >
-          <View style={styles.selectionModal}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Select Language</Text>
-              <TouchableOpacity onPress={() => setLanguageModalVisible(false)}>
-                <X size={20} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-
-            {LANGUAGES.map((l) => (
-              <TouchableOpacity
-                key={l}
-                style={[
-                  styles.modalOptionRow,
-                  language === l && styles.modalOptionRowSelected,
-                ]}
-                onPress={() => {
-                  setLanguage(l);
-                  setLanguageModalVisible(false);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.modalOptionText,
-                    language === l && styles.modalOptionTextSelected,
-                  ]}
-                >
-                  {l}
-                </Text>
-                {language === l && <Check size={18} color="#EA580C" strokeWidth={2.5} />}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
+        onClose={() => setLanguageModalVisible(false)}
+      />
 
       {/* ── Blocklist Modal ────────────────────────────────────────────────── */}
       <Modal

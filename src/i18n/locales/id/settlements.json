@@ -1,0 +1,23 @@
+{
+  "settleUp": "Lunasi",
+  "recordPayment": "Catat Pembayaran",
+  "selectPayment": "Pilih pembayaran",
+  "paymentConfirmed": "Pembayaran berhasil dicatat",
+  "paymentNote": "Catatan pembayaran",
+  "paymentMethod": "Metode pembayaran",
+  "addPaymentNote": "Tambah catatan (opsional)",
+  "paidTo": "Dibayar ke {{name}}",
+  "receivedFrom": "Diterima dari {{name}}",
+  "settlementAmount": "Jumlah pelunasan",
+  "partialPayment": "Pelunasan Sebagian",
+  "fullPayment": "Pelunasan Penuh",
+  "recordedPayment": "{{payer}} membayar {{amount}} ke {{payee}}",
+  "confirmPayment": "Catat Pembayaran",
+  "noSettlements": "Belum ada riwayat pelunasan",
+  "paymentHistory": "Riwayat Pembayaran",
+  "enterAmount": "Masukkan jumlah pembayaran",
+  "cash": "Tunai",
+  "upi": "QRIS / UPI",
+  "bankTransfer": "Transfer Bank",
+  "other": "Lainnya"
+}

@@ -1,0 +1,17 @@
+{
+  "notifications": "Notifications",
+  "newExpense": "Nouvelle dépense ajoutée : {{description}} ({{amount}})",
+  "expenseUpdated": "Dépense mise à jour : {{description}}",
+  "settlementRecorded": "{{payer}} vous a remboursé {{amount}}",
+  "groupInvitation": "Vous avez été invité à rejoindre {{groupName}}",
+  "memberJoined": "{{name}} a rejoint {{groupName}}",
+  "paymentReminder": "Rappel amical : vous devez {{amount}} à {{name}}",
+  "balanceReminder": "Mise à jour du solde dans {{groupName}}",
+  "enableNotifications": "Activer les notifications",
+  "muteGroup": "Mettre le groupe en sourdine",
+  "unmuteGroup": "Réactiver les notifications du groupe",
+  "reminderSettings": "Paramètres des rappels",
+  "notificationPreferences": "Préférences de notification",
+  "markAllAsRead": "Tout marquer comme lu",
+  "noNotifications": "Vous n'avez aucune notification"
+}

@@ -1,0 +1,23 @@
+{
+  "friends": "Friends",
+  "addFriend": "Add Friend",
+  "searchFriends": "Search friends...",
+  "noFriends": "No friends yet",
+  "noFriendsMessage": "Add friends to split one-on-one expenses or see shared balances outside of groups.",
+  "friendRequest": "Friend Request",
+  "pendingRequest": "Pending",
+  "acceptRequest": "Accept",
+  "declineRequest": "Decline",
+  "removeFriend": "Remove Friend",
+  "friendDetails": "Friend Details",
+  "sharedGroups": "Shared Groups",
+  "directExpenses": "Direct Expenses",
+  "addExpenseWithFriend": "Add expense with {{name}}",
+  "confirmRemoveFriend": "Remove Friend?",
+  "confirmRemoveFriendMessage": "Are you sure you want to remove {{name}} from your friends list?",
+  "friendAdded": "Friend added",
+  "friendRemoved": "Friend removed",
+  "settleDirectDebt": "Settle Up",
+  "noSharedExpenses": "No shared expenses with {{name}}",
+  "enterFriendEmail": "Enter friend's email or phone number"
+}

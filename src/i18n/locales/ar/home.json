@@ -1,0 +1,20 @@
+{
+  "myGroups": "مجموعاتي",
+  "noGroups": "لا توجد مجموعات بعد",
+  "noGroupsMessage": "أنشئ مجموعة أو انضم إليها لبدء تقاسم الفواتير والمصاريف.",
+  "createGroup": "إنشاء مجموعة",
+  "joinGroup": "الانضمام لمجموعة",
+  "createFirstGroup": "أنشئ مجموعتك الأولى",
+  "totalBalance": "إجمالي الرصيد",
+  "youOwe": "أنت مدين بـ",
+  "youAreOwed": "مستحق لك",
+  "settledUp": "تم تسوية جميع الحسابات",
+  "recentActivity": "النشاط الأخير",
+  "viewAll": "عرض الكل",
+  "noActivity": "لا يوجد نشاط أخير",
+  "noActivityMessage": "عندما تضيف أنت أو أعضاء المجموعة مصاريف جديدة، ستظهر هنا.",
+  "overall": "الإجمالي",
+  "friendsCount": "الأصدقاء",
+  "groupsCount": "المجموعات",
+  "searchGroups": "البحث في المجموعات..."
+}

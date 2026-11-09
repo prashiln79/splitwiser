@@ -1,0 +1,23 @@
+{
+  "friends": "Amigos",
+  "addFriend": "Adicionar amigo",
+  "searchFriends": "Buscar amigos...",
+  "noFriends": "Nenhum amigo ainda",
+  "noFriendsMessage": "Adicione amigos para dividir despesas individuais ou ver saldos compartilhados fora dos grupos.",
+  "friendRequest": "Pedido de amizade",
+  "pendingRequest": "Pendente",
+  "acceptRequest": "Aceitar",
+  "declineRequest": "Recusar",
+  "removeFriend": "Remover amigo",
+  "friendDetails": "Detalhes do amigo",
+  "sharedGroups": "Grupos em comum",
+  "directExpenses": "Despesas diretas",
+  "addExpenseWithFriend": "Adicionar despesa com {{name}}",
+  "confirmRemoveFriend": "Remover amigo?",
+  "confirmRemoveFriendMessage": "Tem certeza de que deseja remover {{name}} da sua lista de amigos?",
+  "friendAdded": "Amigo adicionado",
+  "friendRemoved": "Amigo removido",
+  "settleDirectDebt": "Quitar contas",
+  "noSharedExpenses": "Nenhuma despesa compartilhada com {{name}}",
+  "enterFriendEmail": "Digite o e-mail ou telefone do amigo"
+}

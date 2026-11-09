@@ -1,0 +1,23 @@
+{
+  "settleUp": "Рассчитаться",
+  "recordPayment": "Записать перевод",
+  "selectPayment": "Выбрать расчет",
+  "paymentConfirmed": "Платеж успешно записан",
+  "paymentNote": "Примечание к платежу",
+  "paymentMethod": "Способ оплаты",
+  "addPaymentNote": "Добавить примечание (необязательно)",
+  "paidTo": "Оплачено: {{name}}",
+  "receivedFrom": "Получено от: {{name}}",
+  "settlementAmount": "Сумма расчета",
+  "partialPayment": "Частичный расчет",
+  "fullPayment": "Полный расчет",
+  "recordedPayment": "{{payer}} перевел(а) {{payee}} {{amount}}",
+  "confirmPayment": "Записать платеж",
+  "noSettlements": "Пока нет истории расчетов",
+  "paymentHistory": "История платежей",
+  "enterAmount": "Введите сумму платежа",
+  "cash": "Наличные",
+  "upi": "СБП / UPI",
+  "bankTransfer": "Банковский перевод",
+  "other": "Другое"
+}

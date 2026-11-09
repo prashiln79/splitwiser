@@ -1,0 +1,23 @@
+{
+  "friends": "الأصدقاء",
+  "addFriend": "إضافة صديق",
+  "searchFriends": "البحث عن أصدقاء...",
+  "noFriends": "لا يوجد أصدقاء بعد",
+  "noFriendsMessage": "أضف أصدقاء لتقاسم المصاريف الفردية أو متابعة الأرصدة المشتركة خارج المجموعات.",
+  "friendRequest": "طلب صداقة",
+  "pendingRequest": "معلق",
+  "acceptRequest": "قبول",
+  "declineRequest": "رفض",
+  "removeFriend": "إزالة الصديق",
+  "friendDetails": "تفاصيل الصديق",
+  "sharedGroups": "المجموعات المشتركة",
+  "directExpenses": "المصاريف المباشرة",
+  "addExpenseWithFriend": "إضافة مصروف مع {{name}}",
+  "confirmRemoveFriend": "إزالة الصديق؟",
+  "confirmRemoveFriendMessage": "هل أنت متأكد من إزالة {{name}} من قائمة أصدقائك؟",
+  "friendAdded": "تمت إضافة الصديق",
+  "friendRemoved": "تمت إزالة الصديق",
+  "settleDirectDebt": "تسوية الحساب",
+  "noSharedExpenses": "لا توجد مصاريف مشتركة مع {{name}}",
+  "enterFriendEmail": "أدخل بريد الصديق الإلكتروني أو رقم الهاتف"
+}

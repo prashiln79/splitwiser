@@ -148,3 +148,31 @@ export const CATEGORIES_METADATA: Record<ExpenseCategory, CategoryMetadata> = {
   },
 };
 
+/**
+ * Returns the localized label for an expense category based on the active i18n locale.
+ * Falls back to canonical English metadata label.
+ */
+export function getCategoryLabel(
+  category: ExpenseCategory,
+  t?: (key: string, options?: any) => string
+): string {
+  if (t) {
+    return t(`categories:${category}`, {
+      defaultValue: CATEGORIES_METADATA[category]?.label || category,
+    });
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const i18n = require('../../i18n').default;
+    return i18n?.t
+      ? i18n.t(`categories:${category}`, {
+          ns: 'categories',
+          defaultValue: CATEGORIES_METADATA[category]?.label || category,
+        })
+      : CATEGORIES_METADATA[category]?.label || category;
+  } catch {
+    return CATEGORIES_METADATA[category]?.label || category;
+  }
+}
+
+

@@ -1,0 +1,21 @@
+{
+  "networkError": "Network error",
+  "networkErrorMessage": "Please check your internet connection and try again.",
+  "syncError": "Synchronization error",
+  "uploadFailed": "Failed to upload image. Please try again.",
+  "downloadFailed": "Failed to download data.",
+  "permissionDenied": "Permission denied",
+  "cameraPermission": "Camera permission is required to take photos.",
+  "galleryPermission": "Photo library permission is required to choose photos.",
+  "groupNotFound": "Group not found or has been deleted.",
+  "expenseNotFound": "Expense not found.",
+  "userNotFound": "User profile not found.",
+  "loadFailed": "Failed to load content. Please pull to refresh.",
+  "saveFailed": "Failed to save changes. Please try again.",
+  "deleteFailed": "Failed to delete item. Please try again.",
+  "unknownError": "An unexpected error occurred.",
+  "tryAgain": "Please try again.",
+  "offlineMode": "You are currently offline.",
+  "offlineMessage": "Changes will automatically sync when you reconnect.",
+  "firebaseError": "Service temporarily unavailable. Please retry shortly."
+}

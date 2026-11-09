@@ -1,0 +1,23 @@
+{
+  "friends": "Друзья",
+  "addFriend": "Добавить друга",
+  "searchFriends": "Поиск друзей...",
+  "noFriends": "Пока нет друзей",
+  "noFriendsMessage": "Добавляйте друзей, чтобы делить личные расходы или отслеживать совместные балансы вне групп.",
+  "friendRequest": "Запрос в друзья",
+  "pendingRequest": "Ожидание",
+  "acceptRequest": "Принять",
+  "declineRequest": "Отклонить",
+  "removeFriend": "Удалить из друзей",
+  "friendDetails": "Информация о друге",
+  "sharedGroups": "Общие группы",
+  "directExpenses": "Прямые расходы",
+  "addExpenseWithFriend": "Добавить расход с {{name}}",
+  "confirmRemoveFriend": "Удалить друга?",
+  "confirmRemoveFriendMessage": "Вы уверены, что хотите удалить {{name}} из списка друзей?",
+  "friendAdded": "Друг добавлен",
+  "friendRemoved": "Друг удален",
+  "settleDirectDebt": "Рассчитаться",
+  "noSharedExpenses": "Нет общих расходов с {{name}}",
+  "enterFriendEmail": "Введите email или телефон друга"
+}

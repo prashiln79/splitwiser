@@ -1,0 +1,22 @@
+{
+  "statistics": "Statistik",
+  "spending": "Pengeluaran",
+  "mySpending": "Pengeluaran Saya",
+  "groupSpending": "Pengeluaran Grup",
+  "categoryBreakdown": "Rincian Kategori",
+  "monthlyTrends": "Tren Bulanan",
+  "totalSpent": "Total Dibelanjakan",
+  "totalPaid": "Total Dibayar",
+  "totalShare": "Total Bagian Saya",
+  "viewMore": "Lihat lebih banyak",
+  "thisMonth": "Bulan Ini",
+  "lastMonth": "Bulan Lalu",
+  "thisYear": "Tahun Ini",
+  "allTime": "Sepanjang Waktu",
+  "noDataForPeriod": "Tidak ada pengeluaran tercatat untuk periode ini",
+  "topCategories": "Kategori Teratas",
+  "spendingByCategory": "Pengeluaran per Kategori",
+  "noExpensesYet": "Tambah pengeluaran untuk melihat grafik dan tren pengeluaran",
+  "balanceHistory": "Riwayat Saldo",
+  "insights": "Wawasan Pengeluaran"
+}

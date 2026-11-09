@@ -1,0 +1,23 @@
+{
+  "friends": "好友",
+  "addFriend": "添加好友",
+  "searchFriends": "搜索好友...",
+  "noFriends": "暂无好友",
+  "noFriendsMessage": "添加好友可记录一对一支出或在群组外查看结余。",
+  "friendRequest": "好友申请",
+  "pendingRequest": "待处理",
+  "acceptRequest": "接受",
+  "declineRequest": "拒绝",
+  "removeFriend": "删除好友",
+  "friendDetails": "好友详情",
+  "sharedGroups": "共同群组",
+  "directExpenses": "直接支出",
+  "addExpenseWithFriend": "与 {{name}} 记账",
+  "confirmRemoveFriend": "删除好友？",
+  "confirmRemoveFriendMessage": "确定要将 {{name}} 从好友列表中移除吗？",
+  "friendAdded": "已添加好友",
+  "friendRemoved": "已删除好友",
+  "settleDirectDebt": "结清账目",
+  "noSharedExpenses": "与 {{name}} 暂无共同支出",
+  "enterFriendEmail": "输入好友的邮箱或手机号"
+}

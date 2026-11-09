@@ -1,0 +1,23 @@
+{
+  "settleUp": "结清账目",
+  "recordPayment": "记录一笔还款",
+  "selectPayment": "选择还款",
+  "paymentConfirmed": "还款记录成功",
+  "paymentNote": "还款备注",
+  "paymentMethod": "付款方式",
+  "addPaymentNote": "添加备注（选填）",
+  "paidTo": "支付给 {{name}}",
+  "receivedFrom": "收到 {{name}} 的付款",
+  "settlementAmount": "结算金额",
+  "partialPayment": "部分结清",
+  "fullPayment": "全额结清",
+  "recordedPayment": "{{payer}} 向 {{payee}} 支付了 {{amount}}",
+  "confirmPayment": "记录支付",
+  "noSettlements": "暂无结算历史",
+  "paymentHistory": "支付记录",
+  "enterAmount": "输入结算金额",
+  "cash": "现金",
+  "upi": "UPI",
+  "bankTransfer": "银行转账",
+  "other": "其他"
+}

@@ -1,0 +1,22 @@
+{
+  "statistics": "统计分析",
+  "spending": "支出分析",
+  "mySpending": "我的支出",
+  "groupSpending": "群组支出",
+  "categoryBreakdown": "类别明细",
+  "monthlyTrends": "月度趋势",
+  "totalSpent": "总花费",
+  "totalPaid": "总付款",
+  "totalShare": "总份额",
+  "viewMore": "查看更多",
+  "thisMonth": "本月",
+  "lastMonth": "上月",
+  "thisYear": "今年",
+  "allTime": "全部时间",
+  "noDataForPeriod": "所选时期内暂无支出记录",
+  "topCategories": "主要支出类别",
+  "spendingByCategory": "各类别支出",
+  "noExpensesYet": "添加支出以查看消费趋势与图表",
+  "balanceHistory": "余额变化历史",
+  "insights": "支出洞察"
+}

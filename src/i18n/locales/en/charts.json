@@ -1,0 +1,22 @@
+{
+  "statistics": "Statistics",
+  "spending": "Spending",
+  "mySpending": "My Spending",
+  "groupSpending": "Group Spending",
+  "categoryBreakdown": "Category Breakdown",
+  "monthlyTrends": "Monthly Trends",
+  "totalSpent": "Total Spent",
+  "totalPaid": "Total Paid",
+  "totalShare": "Total Share",
+  "viewMore": "View more",
+  "thisMonth": "This Month",
+  "lastMonth": "Last Month",
+  "thisYear": "This Year",
+  "allTime": "All Time",
+  "noDataForPeriod": "No expenses recorded for this time period",
+  "topCategories": "Top Categories",
+  "spendingByCategory": "Spending by Category",
+  "noExpensesYet": "Add expenses to visualize spending trends and charts",
+  "balanceHistory": "Balance History",
+  "insights": "Spending Insights"
+}

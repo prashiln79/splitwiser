@@ -1,0 +1,22 @@
+{
+  "statistics": "Статистика",
+  "spending": "Расходы",
+  "mySpending": "Мои расходы",
+  "groupSpending": "Расходы группы",
+  "categoryBreakdown": "По категориям",
+  "monthlyTrends": "Динамика по месяцам",
+  "totalSpent": "Всего потрачено",
+  "totalPaid": "Всего оплачено",
+  "totalShare": "Общая доля",
+  "viewMore": "Подробнее",
+  "thisMonth": "Этот месяц",
+  "lastMonth": "Прошлый месяц",
+  "thisYear": "Этот год",
+  "allTime": "За все время",
+  "noDataForPeriod": "Нет расходов за указанный период",
+  "topCategories": "Основные категории",
+  "spendingByCategory": "Расходы по категориям",
+  "noExpensesYet": "Добавьте расходы, чтобы увидеть аналитику и графики",
+  "balanceHistory": "История баланса",
+  "insights": "Аналитика трат"
+}

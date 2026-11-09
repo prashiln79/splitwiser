@@ -1,0 +1,23 @@
+{
+  "settleUp": "Saldar cuentas",
+  "recordPayment": "Registrar un pago",
+  "selectPayment": "Seleccionar pago",
+  "paymentConfirmed": "Pago registrado con éxito",
+  "paymentNote": "Nota del pago",
+  "paymentMethod": "Método de pago",
+  "addPaymentNote": "Añadir nota (opcional)",
+  "paidTo": "Pagado a {{name}}",
+  "receivedFrom": "Recibido de {{name}}",
+  "settlementAmount": "Monto a saldar",
+  "partialPayment": "Pago parcial",
+  "fullPayment": "Pago total",
+  "recordedPayment": "{{payer}} le pagó {{amount}} a {{payee}}",
+  "confirmPayment": "Registrar pago",
+  "noSettlements": "Sin historial de pagos",
+  "paymentHistory": "Historial de pagos",
+  "enterAmount": "Introduce el monto del pago",
+  "cash": "Efectivo",
+  "upi": "UPI",
+  "bankTransfer": "Transferencia bancaria",
+  "other": "Otro"
+}

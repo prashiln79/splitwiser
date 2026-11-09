@@ -1,0 +1,22 @@
+{
+  "statistics": "الإحصائيات",
+  "spending": "المصاريف",
+  "mySpending": "مصاريفي",
+  "groupSpending": "مصاريف المجموعة",
+  "categoryBreakdown": "توزيع الفئات",
+  "monthlyTrends": "المؤشرات الشهرية",
+  "totalSpent": "إجمالي الإنفاق",
+  "totalPaid": "إجمالي ما دفعته",
+  "totalShare": "إجمالي حصتي",
+  "viewMore": "عرض المزيد",
+  "thisMonth": "هذا الشهر",
+  "lastMonth": "الشهر الماضي",
+  "thisYear": "هذا العام",
+  "allTime": "كل الأوقات",
+  "noDataForPeriod": "لا توجد مصاريف مسجلة لهذه الفترة",
+  "topCategories": "أعلى الفئات إنفاقاً",
+  "spendingByCategory": "الإنفاق حسب الفئة",
+  "noExpensesYet": "أضف مصاريف لمشاهدة الرسوم البيانية ومؤشرات الإنفاق",
+  "balanceHistory": "سجل الرصيد",
+  "insights": "رؤى الإنفاق"
+}

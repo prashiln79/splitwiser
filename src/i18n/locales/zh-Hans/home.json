@@ -1,0 +1,20 @@
+{
+  "myGroups": "我的群组",
+  "noGroups": "暂无群组",
+  "noGroupsMessage": "创建或加入群组，开始分摊账单和支出。",
+  "createGroup": "创建群组",
+  "joinGroup": "加入群组",
+  "createFirstGroup": "创建你的第一个群组",
+  "totalBalance": "总余额",
+  "youOwe": "你欠他人",
+  "youAreOwed": "他人欠你",
+  "settledUp": "已全部结清",
+  "recentActivity": "近期动态",
+  "viewAll": "查看全部",
+  "noActivity": "暂无近期动态",
+  "noActivityMessage": "当你或群组成员添加支出后，动态将显示在此处。",
+  "overall": "整体",
+  "friendsCount": "好友",
+  "groupsCount": "群组",
+  "searchGroups": "搜索群组..."
+}
