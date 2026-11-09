@@ -62,6 +62,7 @@ import { MemberAvatar } from '../components/common/MemberAvatar';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 import { TypedConfirmDialog } from '../components/common/TypedConfirmDialog';
 import { GroupCoverPhotoModal } from '../components/common/GroupCoverPhotoModal';
+import { compressAvatarPhoto } from '../utils/imageCompressor';
 import { getDefaultCoverPhoto } from '../constants/presetCovers';
 import { formatCurrency } from '../utils/currency';
 import { logGroupActivity } from '../services/activityService';
@@ -222,13 +223,16 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      base64: true,
+      base64: false,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
     });
     if (!result.canceled && result.assets?.length > 0) {
-      const base64Url = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      const compressed = await compressAvatarPhoto(result.assets[0].uri);
+      const base64Url = compressed.base64
+        ? `data:image/jpeg;base64,${compressed.base64}`
+        : compressed.uri;
       await updateGroup(groupId, { imageUrl: base64Url });
       await logGroupActivity(
         groupId,

@@ -28,6 +28,7 @@ import { createGroup } from '../services/groups';
 import { createGroupLocal, getLocalGroups } from '../repositories/groupRepository';
 import { networkMonitor } from '../sync/networkMonitor';
 import { GroupCoverPhotoModal } from '../components/common/GroupCoverPhotoModal';
+import { compressAvatarPhoto } from '../utils/imageCompressor';
 import { getDefaultCoverPhoto } from '../constants/presetCovers';
 import { GroupCoverPhoto } from '../types';
 
@@ -61,13 +62,14 @@ export const CreateGroupScreen = ({ navigation }: any) => {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      base64: true,
+      base64: false,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
     });
     if (!result.canceled && result.assets?.length > 0) {
-      setPickedImage({ uri: result.assets[0].uri, base64: result.assets[0].base64 });
+      const compressed = await compressAvatarPhoto(result.assets[0].uri);
+      setPickedImage({ uri: compressed.uri, base64: compressed.base64 });
     }
   };
 

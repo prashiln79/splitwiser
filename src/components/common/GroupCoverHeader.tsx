@@ -84,14 +84,6 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
 
   const hasCover = Boolean(coverImageUrl);
 
-  // Formatted creation date (e.g., "Jul 2019" matching Splitwise screenshot)
-  const createdDateStr = useMemo(() => {
-    if (!group?.createdAt) return '';
-    const d = new Date(group.createdAt);
-    if (isNaN(d.getTime())) return '';
-    return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-  }, [group?.createdAt]);
-
   // Balance status sentence
   const balanceSummary = useMemo(() => {
     const safeNet = typeof netBalance === 'number' && !isNaN(netBalance) ? netBalance : 0;
@@ -207,7 +199,7 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
           {groupDisplayName}
         </Text>
 
-        {/* Member Count & Creation Date (Centered) */}
+        {/* Member Count */}
         <View style={styles.metaRow}>
           <Text
             style={[
@@ -216,7 +208,6 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
             ]}
           >
             {memberCount} {memberCount === 1 ? 'person' : 'people'}
-            {createdDateStr ? ` • Created ${createdDateStr}` : ''}
           </Text>
         </View>
 
@@ -550,9 +541,9 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   coverBodyContent: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 2,
     zIndex: 5,
@@ -560,7 +551,7 @@ const styles = StyleSheet.create({
   groupTitleText: {
     fontSize: 24,
     fontWeight: '800',
-    textAlign: 'center',
+    textAlign: 'left',
     letterSpacing: -0.4,
     lineHeight: 30,
     marginBottom: 6,
@@ -577,13 +568,13 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     marginBottom: 8,
   },
   metaText: {
     fontSize: 13.5,
     fontWeight: '500',
-    textAlign: 'center',
+    textAlign: 'left',
   },
   metaTextDark: {
     color: 'rgba(255, 255, 255, 0.92)',
@@ -602,7 +593,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4.5,
     borderRadius: 14,
     marginBottom: 10,
-    alignSelf: 'center',
+    alignSelf: 'flex-start',
   },
   codeBadgeDark: {
     backgroundColor: 'rgba(0, 0, 0, 0.40)',
@@ -644,12 +635,12 @@ const styles = StyleSheet.create({
   balanceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     marginBottom: 16,
   },
   balanceText: {
     fontSize: 15,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   balanceTextDark: {
     color: '#FFFFFF',

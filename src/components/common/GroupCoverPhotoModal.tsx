@@ -33,6 +33,7 @@ import {
 } from '../../constants/presetCovers';
 import { GroupCoverService } from '../../services/groupCoverService';
 import { MemberAvatar } from './MemberAvatar';
+import { compressCoverPhoto } from '../../utils/imageCompressor';
 
 interface GroupCoverPhotoModalProps {
   visible: boolean;
@@ -78,6 +79,7 @@ export const GroupCoverPhotoModal: React.FC<GroupCoverPhotoModalProps> = ({
   } | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
 
   // Active cover currently used (no default cover if none set)
   const activeCoverUrl = useMemo(() => {
@@ -96,7 +98,7 @@ export const GroupCoverPhotoModal: React.FC<GroupCoverPhotoModalProps> = ({
     return PRESET_COVERS.filter((item) => item.category === selectedCategory);
   }, [selectedCategory]);
 
-  // Pick image from gallery with 16:9 landscape cropping
+  // Pick image from gallery with 16:9 landscape cropping and compression
   const handlePickFromGallery = async () => {
     if (Platform.OS === 'ios') {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -107,27 +109,35 @@ export const GroupCoverPhotoModal: React.FC<GroupCoverPhotoModalProps> = ({
     }
 
     try {
+      // Don't request base64 from picker directly - large gallery photos can exhaust memory
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [16, 9],
         quality: 0.85,
-        base64: true,
+        base64: false,
       });
 
       if (!result.canceled && result.assets?.length > 0) {
+        setIsProcessingImage(true);
         const asset = result.assets[0];
+
+        // Downscale to 1280px wide and optimize quality to prevent payload/Firestore failures
+        const compressed = await compressCoverPhoto(asset.uri);
+
         if (Platform.OS !== 'web') {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         }
         setCandidateCover({
           type: 'custom',
-          imageUrl: asset.uri,
-          base64: asset.base64,
+          imageUrl: compressed.uri,
+          base64: compressed.base64,
         });
       }
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Failed to select image.');
+    } finally {
+      setIsProcessingImage(false);
     }
   };
 
@@ -144,22 +154,29 @@ export const GroupCoverPhotoModal: React.FC<GroupCoverPhotoModalProps> = ({
         allowsEditing: true,
         aspect: [16, 9],
         quality: 0.85,
-        base64: true,
+        base64: false,
       });
 
       if (!result.canceled && result.assets?.length > 0) {
+        setIsProcessingImage(true);
         const asset = result.assets[0];
+
+        // Compress and optimize to lightweight resolution
+        const compressed = await compressCoverPhoto(asset.uri);
+
         if (Platform.OS !== 'web') {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         }
         setCandidateCover({
           type: 'custom',
-          imageUrl: asset.uri,
-          base64: asset.base64,
+          imageUrl: compressed.uri,
+          base64: compressed.base64,
         });
       }
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Failed to capture photo.');
+    } finally {
+      setIsProcessingImage(false);
     }
   };
 
@@ -301,6 +318,25 @@ export const GroupCoverPhotoModal: React.FC<GroupCoverPhotoModalProps> = ({
                   <Text style={styles.previewSubtitleEmpty}>No cover photo selected</Text>
                 )}
               </View>
+
+              {isProcessingImage && (
+                <View
+                  style={[
+                    StyleSheet.absoluteFill,
+                    {
+                      backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      zIndex: 10,
+                    },
+                  ]}
+                >
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '600', marginTop: 8 }}>
+                    Optimizing image...
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
 

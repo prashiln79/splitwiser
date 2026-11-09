@@ -38,6 +38,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../context/AuthContext';
 import { MemberAvatar } from '../components/common/MemberAvatar';
+import { compressAvatarPhoto } from '../utils/imageCompressor';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 import { QrCodeModal } from '../components/common/QrCodeModal';
 import { submitSupportTicket } from '../services/support';
@@ -134,12 +135,11 @@ export const AccountScreen = ({ navigation }: any) => {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
-        base64: true,
+        base64: false,
       });
       if (!res.canceled && res.assets && res.assets.length > 0) {
-        const asset = res.assets[0];
-        const mime = asset.mimeType ?? 'image/jpeg';
-        const imageUrl = asset.base64 ? `data:${mime};base64,${asset.base64}` : asset.uri;
+        const compressed = await compressAvatarPhoto(res.assets[0].uri);
+        const imageUrl = compressed.base64 ? `data:image/jpeg;base64,${compressed.base64}` : compressed.uri;
         await updateProfile({ imageUrl });
         hapticsService.notification(Haptics.NotificationFeedbackType.Success);
       }
