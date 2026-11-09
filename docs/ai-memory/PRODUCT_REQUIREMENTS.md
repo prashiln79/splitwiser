@@ -83,6 +83,7 @@
 
 | Area | Requirement |
 |---|---|
+| **Target Platform** | **Android Only** (Android 15 / API 35+, Google Play Services, Package `com.splitwiser.app`). |
 | **Performance** | SQLite queries must return within 50ms. Screen transitions must render at 60fps. |
 | **Offline First** | Full read/write functionality without network connectivity. Automatic sync on reconnect. |
 | **Reliability** | Zero penny rounding error. Remainder cents must always be allocated deterministically. |

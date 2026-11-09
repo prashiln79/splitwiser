@@ -33,6 +33,7 @@
 ## ⚡ Quick Reference Card
 
 ### Core Tech Stack
+- **Target Platform**: **Android Only** (Android 15 / API 35+, Google Play Services, APK/AAB local build profiles)
 - **Framework**: React Native 0.88.1, Expo SDK 58, React 19.3.0
 - **Language**: TypeScript 5.3+ (Strict Mode)
 - **Local Database**: `expo-sqlite` (WAL Mode enabled, persistent local cache)
@@ -42,17 +43,18 @@
 - **Haptics**: `expo-haptics` managed via centralized `hapticsService`
 
 ### Critical Immutable Rules
-1. **100% Free / No Paywalls**: Splitwiser has zero Pro subscriptions, zero feature locks, and zero advertisements.
-2. **Integer Minor Currency Units**: All financial calculations are stored in integer cents/paise (`toCents`, `fromCents`) to eliminate floating-point arithmetic drift.
-3. **Payer Contributions vs. Participant Shares**: Who paid and who consumed are strictly decoupled.
-4. **Manual Category Protection**: User-selected categories are NEVER overwritten by automatic NLP category detection.
-5. **Avatar vs. Cover Separation**: Group avatars (circular identifiers) and Group cover photos (horizontal header banners) are completely independent.
-6. **User Profile Picture Priority**:
+1. **Target Platform: Android Exclusive**: The project is engineered, tested, and targeted exclusively for Android (Google Play Services, Android 15/API 35, Material Design, local EAS APK/AAB builds). iOS deployment is intentionally out of scope.
+2. **100% Free / No Paywalls**: Splitwiser has zero Pro subscriptions, zero feature locks, and zero advertisements.
+3. **Integer Minor Currency Units**: All financial calculations are stored in integer cents/paise (`toCents`, `fromCents`) to eliminate floating-point arithmetic drift.
+4. **Payer Contributions vs. Participant Shares**: Who paid and who consumed are strictly decoupled.
+5. **Manual Category Protection**: User-selected categories are NEVER overwritten by automatic NLP category detection.
+6. **Avatar vs. Cover Separation**: Group avatars (circular identifiers) and Group cover photos (horizontal header banners) are completely independent.
+7. **User Profile Picture Priority**:
    - 1. Manually uploaded custom photo (`photoSource === 'custom'`)
    - 2. Google account photo (`photoSource === 'google'`)
    - 3. Initials fallback (`photoSource === 'none'`)
    - Subsequent Google logins NEVER overwrite a custom uploaded avatar.
-7. **Offline-First Synchronization**: Local writes commit immediately to SQLite and queue mutations in `sync_queue` for two-way synchronization with Firestore.
+8. **Offline-First Synchronization**: Local writes commit immediately to SQLite and queue mutations in `sync_queue` for two-way synchronization with Firestore.
 
 ---
 

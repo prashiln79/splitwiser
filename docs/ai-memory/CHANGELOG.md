@@ -25,6 +25,8 @@ All notable changes are documented in this file. Changes are listed in reverse c
   - `src/services/exportService.ts`: Added CSV formula injection defense (`'`, `+`, `-`, `@`, `\t`, `\r`) and bounded export batch sizes to 5,000 rows.
   - `tests/limitsValidation.test.ts`: Added 8 test suites covering zero/negative/overflow amounts, currency decimal precisions, safe integer bounds, and extreme shares.
 
+- **Target Platform Scope Refined**: Formally documented and constrained the application architecture as **Android Only** (Android 15 / API 35+, Google Play Services, package `com.splitwiser.app`, local EAS APK/AAB build workflows), with iOS explicitly marked out of scope.
+
 - **Automated Unit Tests for Profile Photo System** (`tests/profilePhoto.test.ts`):
   - 10 comprehensive test scenarios covering Google login sync, custom upload priority, subsequent Google login protection, URL validation, and fallback chain.
 

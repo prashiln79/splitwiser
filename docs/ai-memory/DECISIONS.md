@@ -86,3 +86,15 @@ This document records the permanent, immutable technical and product decisions g
 - **Decision**: All application thresholds and boundary conditions are centralized in `src/constants/limits.ts` (`APP_LIMITS`). Amounts are strictly bounded to 1 Billion major units and verified using safe integer minor units. Currency decimal precisions (0, 2, 3 digits) are enforced. Text inputs enforce hard `maxLength` boundaries. CSV exports sanitize formula injection characters (`=`, `+`, `-`, `@`, `\t`, `\r`).
 - **Consequences**: Deterministic, crash-resilient input behavior across all screens and models.
 
+---
+
+## ADR-011: Target Platform — Android Only
+- **Status**: **Accepted & Permanent**
+- **Context**: The project's target deployment, distribution model, hardware optimization, and testing requirements are focused entirely on Android. Maintaining dual-platform abstractions (such as iOS Info.plist, APNs, Xcode schemes) introduces unnecessary maintenance overhead.
+- **Decision**: Splitwiser is strictly an **Android-exclusive** project. All features, native permissions, Google Play Services integrations, build scripts (`build:apk`, `build:aab`), and UI navigation patterns are built and validated exclusively for Android (Android 15 / API 35+, package `com.splitwiser.app`).
+- **Consequences**:
+  - Development and QA focus 100% on Android OS.
+  - Native Google Sign-In relies directly on Android Google Play Services (`google-services.json`).
+  - Builds target local APK and production AAB files via EAS.
+  - iOS support is explicitly excluded and out of scope.
+

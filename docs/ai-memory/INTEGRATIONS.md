@@ -7,7 +7,7 @@ This document specifies all third-party SDK integrations, hardware capabilities,
 ## 1. Google Sign-In Integration
 
 ### Library: `@react-native-google-signin/google-signin` (v13.3.1)
-Splitwiser integrates official Google Play Services authentication for Android and Google Sign-In for iOS.
+Splitwiser integrates official Google Play Services authentication for Android.
 
 - **Client Configuration (`src/config/firebase.ts`)**:
   ```typescript
@@ -19,10 +19,7 @@ Splitwiser integrates official Google Play Services authentication for Android a
 - **Native Android Linking**: Configured in `app.json` via plugin:
   ```json
   [
-    "@react-native-google-signin/google-signin",
-    {
-      "iosUrlScheme": "com.googleusercontent.apps.844099376199-fbbikh2f19e2qifrrjf9q29m9jjhv55k"
-    }
+    "@react-native-google-signin/google-signin"
   ]
   ```
 - **Workflow**:
@@ -84,8 +81,9 @@ Splitwiser integrates official Google Play Services authentication for Android a
 - `android.permission.INTERNET`: Required for Firebase and Google OAuth network communication.
 - `android.permission.ACCESS_NETWORK_STATE`: Monitors network transitions for the offline sync engine.
 
-### Package Identity
+### Package Identity & Platform Target
+- **Target Platform**: **Android Exclusive**
 - **Android Package**: `com.splitwiser.app`
-- **iOS Bundle Identifier**: `com.splitwiser.app`
-- **Target SDK**: Android 35 (Android 15 ready), iOS 17+
+- **Target SDK**: Android 35 (Android 15 ready, min SDK 24)
+- **Architecture**: `arm64-v8a`, `armeabi-v7a`, `x86_64`
 

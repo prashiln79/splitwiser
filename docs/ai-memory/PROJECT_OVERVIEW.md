@@ -2,9 +2,9 @@
 
 ## 1. Executive Summary
 
-**Splitwiser** is a modern, cross-platform mobile expense-sharing and group bill-splitting application built with **React Native**, **Expo SDK 58**, **TypeScript**, and **Firebase**.
+**Splitwiser** is a modern, Android-targeted mobile expense-sharing and group bill-splitting application built with **React Native**, **Expo SDK 58**, **TypeScript**, and **Firebase**.
 
-Inspired by Splitwise, Splitwiser provides an intuitive, high-performance, and delightful experience for roommates, travel groups, couples, and friends to track shared expenses, compute bilateral or simplified group balances, record settlements, and analyze spending patterns.
+Inspired by Splitwise, Splitwiser provides an intuitive, high-performance, and delightful experience for roommates, travel groups, couples, and friends to track shared expenses, compute bilateral or simplified group balances, record settlements, and analyze spending patterns. The application is architected and optimized exclusively for the Android ecosystem (Android 15 / API 35+, Google Play Services, Material UI, APK/AAB distribution).
 
 ### The Splitwiser Mission
 Unlike commercial expense splitting alternatives that have paywalled core features (such as receipt scanning, charts, search, export, and currency switching) behind subscription tiers ($40+/year), **Splitwiser is 100% free forever**. Every single user receives access to every feature without restrictions, upsells, or advertisements.
@@ -15,6 +15,7 @@ Unlike commercial expense splitting alternatives that have paywalled core featur
 
 | Layer | Technologies |
 |---|---|
+| **Target Platform** | **Android Only** (Android 15 / API 35+, Google Play Services, Package `com.splitwiser.app`) |
 | **Mobile Runtime** | React Native 0.88.1, React 19.3.0, Expo SDK ~58.0.0 |
 | **Language** | TypeScript ~5.3.3 |
 | **Authentication** | Firebase Authentication (Anonymous guest accounts, Google Sign-In with OAuth credentials) |

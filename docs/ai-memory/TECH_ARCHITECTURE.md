@@ -86,7 +86,7 @@ AppNavigator (Root Stack)
 ```
 
 ### Navigation Design Rationale
-- **Native Stack Performance**: Uses `@react-navigation/native-stack` powered by `react-native-screens` for genuine native screen transitions (iOS UIKit `UINavigationController` and Android Jetpack Navigation).
+- **Native Stack Performance**: Uses `@react-navigation/native-stack` powered by `react-native-screens` for genuine native Android Fragment and Jetpack Navigation screen transitions.
 - **Smooth Splash Screen Dismissal**: `AppNavigator` coordinates with `expo-splash-screen` to hold the native splash screen until authentication state and initial SQLite tables are warmed up, eliminating UI flickering.
 
 ---
@@ -183,4 +183,19 @@ Firebase Storage Upload:
 1. **Authentication State Persistence**: Handled via `firebase/auth` configured with React Native `AsyncStorage` persistence.
 2. **Firestore Namespacing**: All application documents live strictly under the `/splitwiser/data/` root namespace to isolate Splitwiser data from other platform apps.
 3. **Client-Side Validation**: All monetary totals, split allocations, and participant permissions are validated in TypeScript before persistence.
+
+---
+
+## 7. Android Platform Architecture & Build System
+
+Splitwiser is targeted exclusively for the **Android OS ecosystem**.
+
+- **Target SDK**: Android 35 (Android 15 ready)
+- **Compile SDK**: Android 35
+- **Package Name**: `com.splitwiser.app`
+- **Native Services**: Google Play Services (OAuth Authentication via `google-services.json`)
+- **Build Targets**:
+  - `npm run build:apk`: Builds a local standalone preview APK for direct sideloading and testing on Android devices.
+  - `npm run build:aab`: Builds a production Android App Bundle (AAB) for Google Play Store publishing.
+- **Orientation & Hardware**: Locked to `portrait`, fully utilizing Android hardware back-button handling, safe area window insets (`react-native-safe-area-context`), and native Android vibration channels.
 
