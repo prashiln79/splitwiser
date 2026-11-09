@@ -106,3 +106,4 @@ All notable changes are documented in this file. Changes are listed in reverse c
 - Firebase Auth, Firestore, and Storage integration.
 - Light/Dark theme support.
 - Safe area inset handling for iOS notched devices and Android navigation bars.
+

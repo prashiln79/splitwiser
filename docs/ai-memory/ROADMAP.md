@@ -60,3 +60,4 @@ This document tracks the prioritized engineering and product roadmap, organized 
 | **UPI/PhonePe/GPay Deep Link** | P2 | Planned | Auto-generate a UPI payment deep link when recording a settlement, allowing one-tap payment launch. |
 | **WhatsApp/Telegram Bot** | P3 | Planned | Record expenses from WhatsApp or Telegram group chats via a @SplitBot integration. |
 | **AI Expense Coach** | P3 | Planned | Personalized spending insights: "You spent 40% more on dining this month vs. last month". |
+
