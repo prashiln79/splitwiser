@@ -199,102 +199,15 @@ export const CATEGORIES_CONFIG: Record<string, CategoryConfig> = {
   },
 };
 
+import {
+  detectCategory as detectCategoryEngine,
+  detectCategoryDetailed,
+} from '../../services/categoryDetector';
+
+export { detectCategoryDetailed };
+
 export function detectCategory(description: string, tags?: string[]): ExpenseCategory {
-  if (tags && tags.length > 0) {
-    const firstTag = tags[0];
-    if (CATEGORIES_CONFIG[firstTag]) {
-      return firstTag as ExpenseCategory;
-    }
-  }
-
-  const desc = (description || '').toLowerCase();
-
-  // Coffee & Cafes
-  if (/coffee|starbucks|tea\b|chai|latte|boba|espresso|cappuccino|brew|roast|cafe/.test(desc)) {
-    return 'Coffee';
-  }
-  // Drinks & Nightlife
-  if (/beer|alcohol|wine|cocktail|cocktails|liquor|pub|bar\b|brewery|booze|tequila|whiskey|vodka|gin|rum|scotch|champagne/.test(desc)) {
-    return 'Drinks';
-  }
-  // Fuel & Gas
-  if (/petrol|diesel|fuel|gas station|cng|octane/.test(desc)) {
-    return 'Fuel';
-  }
-  // Fitness & Sports
-  if (/gym|workout|trainer|sports|football|cricket|turf|badminton|tennis|swimming|yoga|crossfit|marathon|fitness/.test(desc)) {
-    return 'Fitness';
-  }
-  // Subscriptions & Streaming
-  if (/subscription|subscriptions|netflix|spotify|prime video|youtube premium|icloud|hotstar|hulu|disney|hbo|chatgpt|patreon|saas|software|apple music/.test(desc)) {
-    return 'Subscriptions';
-  }
-  // Gaming
-  if (/gaming|steam|playstation|ps5|ps4|xbox|nintendo|gta|discord|roblox|vbucks|skins|esports/.test(desc)) {
-    return 'Gaming';
-  }
-  // Pets & Animals
-  if (/pet food|pets?\b|dogs?\b|cats?\b|vet\b|veterinary|puppy|kitten|pedigree|leash|grooming/.test(desc)) {
-    return 'Pets';
-  }
-  // Food & Dining
-  if (/dinner|lunch|breakfast|food|restaurant|pizza|burger|meal|eat|bakery|snacks?\b|sushi|zomato|swiggy|biryani|sandwich|pasta|dessert|ice cream|mcdonalds|kfc|domino|dominos|subway|tacos|shawarma|rolls/.test(desc)) {
-    return 'Food';
-  }
-  // Groceries & Supermarket
-  if (/grocery|groceries|supermarket|vegetables|fruits|milk|mart|instamart|blinkit|zepto|bigbasket|veggies|bread|eggs|\bration\b|dairy|costco|walmart/.test(desc)) {
-    return 'Groceries';
-  }
-  // Transport & Cab
-  if (/cab|uber|ola|auto\b|metro|train|bus\b|taxi|toll|parking|fare|ride|rapido|drive|car rental/.test(desc)) {
-    return 'Transport';
-  }
-  // Travel & Trips
-  if (/trip|hotel|airbnb|vacation|stay|flights?\b|resort|tour|luggage|hostel|booking|airline|plane ticket/.test(desc)) {
-    return 'Travel';
-  }
-  // Rent & Housing
-  if (/rent|deposit|lease|roommate|pg\b|apartment|broker|flat rent/.test(desc)) {
-    return 'Rent';
-  }
-  // Bills & Utilities
-  if (/wifi|bills?\b|electricity|water|recharge|internet|broadband|power|dth|maintenance|phone bill|utility/.test(desc)) {
-    return 'Utilities';
-  }
-  // Health & Medical
-  if (/medicine|doctor|pharmacy|hospital|clinic|dental|dentist|teeth|medical|pills|tablets|health checkup|optician|glasses/.test(desc)) {
-    return 'Health';
-  }
-  // Personal Care & Beauty
-  if (/salon|haircut|spa|barber|skincare|cosmetics|makeup|facial|massage|manicure|pedicure|beauty|parlour|parlor/.test(desc)) {
-    return 'PersonalCare';
-  }
-  // Education & Learning
-  if (/books?\b|course|tuition|class|school|college|exam|study|textbook|udemy|coursera|fees|coaching|tutorial|library/.test(desc)) {
-    return 'Education';
-  }
-  // Electronics & Tech
-  if (/laptop|smartphones?\b|phones?\b|iphone|ipad|electronics|charger|cable|mouse|keyboard|monitor|headphones|earphones|airpods|gadget|hardware|computer|macbook/.test(desc)) {
-    return 'Tech';
-  }
-  // Gifts & Flowers
-  if (/gifts?\b|presents?\b|flowers|bouquet/.test(desc)) {
-    return 'Gift';
-  }
-  // Celebrations & Party
-  if (/party|birthday|anniversary|celebration|wedding|bachelor|bachelorette|festival|event|nightclub/.test(desc)) {
-    return 'Party';
-  }
-  // Shopping & Fashion
-  if (/shopping|clothes|shoes|amazon|flipkart|myntra|mall|zara|h&m|store|buy|purchase|dress|shirt|jeans|hoodie|jacket/.test(desc)) {
-    return 'Shopping';
-  }
-  // Repairs & Services
-  if (/repair|plumber|electrician|cleaning|maid|laundry|dry clean|mechanic|service|carpenter|car wash/.test(desc)) {
-    return 'Services';
-  }
-
-  return 'General';
+  return detectCategoryEngine(description, tags);
 }
 
 interface CategoryIconProps {
