@@ -7,11 +7,12 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "npm run test:balances && npm run test:covers && npm run test:settings",
+    "test": "npm run test:balances && npm run test:covers && npm run test:settings && npm run test:splitmath",
     "ts:check": "tsc --noEmit",
     "test:balances": "npx tsx tests/balanceCalculator.test.ts",
     "test:covers": "npx tsx tests/coverPhoto.test.ts",
     "test:settings": "npx tsx tests/groupSettings.test.ts",
+    "test:splitmath": "npx tsx tests/splitMath.test.ts",
     "build:apk": "mkdir -p build && npm_config_cache=$HOME/.npm-user-cache ANDROID_HOME=$HOME/Library/Android/sdk ANDROID_SDK_ROOT=$HOME/Library/Android/sdk eas build -p android --profile preview --local --output=./build/splitwiser-preview.apk",
     "build:aab": "mkdir -p build && npm_config_cache=$HOME/.npm-user-cache ANDROID_HOME=$HOME/Library/Android/sdk ANDROID_SDK_ROOT=$HOME/Library/Android/sdk eas build -p android --profile production --local --output=./build/splitwiser-production.aab"
   },

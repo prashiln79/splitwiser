@@ -198,13 +198,15 @@ export const ExpensePreferencesModal: React.FC<ExpensePreferencesModalProps> = (
             {/* Default Split Method */}
             <Text style={styles.sectionHeading}>Default Split Method</Text>
             <View style={styles.boxContainer}>
-              {(['equal', 'unequal', 'percentage', 'shares'] as SplitType[]).map((type) => {
+              {(['equal', 'unequal', 'percentage', 'shares', 'adjustment', 'itemized'] as SplitType[]).map((type) => {
                 const isSelected = defaultSplit === type;
                 const labels: Record<SplitType, { title: string; subtitle: string }> = {
                   equal: { title: 'Split Equally', subtitle: 'Divides total equally among all participants' },
                   unequal: { title: 'Exact Amounts', subtitle: 'Specify custom numerical amounts per person' },
                   percentage: { title: 'Percentages', subtitle: 'Split by exact percent portions (100%)' },
                   shares: { title: 'By Shares', subtitle: 'Specify ratios or portion weights (e.g. 1 share, 2 shares)' },
+                  adjustment: { title: 'Adjustments', subtitle: 'Base equal split plus custom per-person adjustments' },
+                  itemized: { title: 'Itemized Receipt', subtitle: 'Assign individual items, tax, and tip directly' },
                 };
                 return (
                   <TouchableOpacity

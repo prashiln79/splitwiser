@@ -267,7 +267,11 @@ export const AccountScreen = ({ navigation }: any) => {
           <Text style={styles.sectionHeader}>Preferences</Text>
           <View style={styles.sectionBody}>
             {/* Haptic feedback */}
-            <View style={styles.settingItemRow}>
+            <TouchableOpacity
+              style={styles.settingItemRow}
+              onPress={() => handleToggleHaptics(!hapticsEnabled)}
+              activeOpacity={0.8}
+            >
               <View style={styles.settingItemLeft}>
                 {hapticsEnabled ? (
                   <Vibrate size={19} color="#059669" strokeWidth={2} style={styles.rowIcon} />
@@ -285,7 +289,7 @@ export const AccountScreen = ({ navigation }: any) => {
                 trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
                 thumbColor={hapticsEnabled ? '#059669' : '#F3F4F6'}
               />
-            </View>
+            </TouchableOpacity>
 
             {/* Email settings */}
             <TouchableOpacity

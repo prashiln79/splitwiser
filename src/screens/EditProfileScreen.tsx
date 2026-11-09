@@ -88,6 +88,28 @@ export const EditProfileScreen = ({ navigation }: any) => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const isEditing =
+    isEditingName || isEditingEmail || isEditingPhone || isEditingPassword;
+  const hasChanges =
+    name.trim() !== (user?.name ?? '').trim() ||
+    email.trim() !== (user?.email ?? '').trim() ||
+    phone.trim() !== (user?.phone ?? '').trim() ||
+    currency !== (user?.currency || 'INR') ||
+    timezone !==
+      (user?.timezone ||
+        '(GMT+05:30) Chennai, Kolkata, Mumbai, New Delhi') ||
+    language !== (user?.language || 'English');
+
+  const isEditingOrChanged = isEditing || hasChanges;
+
+  const handleDonePress = () => {
+    if (isEditingOrChanged) {
+      handleSaveChanges();
+    } else {
+      navigation.goBack();
+    }
+  };
+
   const handleSaveChanges = async () => {
     if (!name.trim()) {
       Alert.alert('Name Required', 'Your full name cannot be blank.');
@@ -136,7 +158,27 @@ export const EditProfileScreen = ({ navigation }: any) => {
           <ArrowLeft size={24} color="#111827" strokeWidth={2.2} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Account settings</Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          onPress={handleDonePress}
+          disabled={isSubmitting || (isEditing && !name.trim())}
+          style={styles.doneBtn}
+          accessibilityLabel="Done"
+          accessibilityRole="button"
+          activeOpacity={0.7}
+        >
+          {isSubmitting ? (
+            <ActivityIndicator size="small" color="#059669" />
+          ) : (
+            <Text
+              style={[
+                styles.doneBtnText,
+                { color: isEditingOrChanged ? '#059669' : '#9E9E9E' },
+              ]}
+            >
+              Done
+            </Text>
+          )}
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -575,15 +617,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   headerBackBtn: {
-    width: 40,
+    width: 44,
     height: 40,
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#111827',
+  },
+  doneBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    minWidth: 44,
+  },
+  doneBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
   },
   scrollContent: {
     paddingHorizontal: 20,

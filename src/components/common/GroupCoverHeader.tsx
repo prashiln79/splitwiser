@@ -8,8 +8,9 @@ import {
   Platform,
   Animated,
   ScrollView,
+  Share,
 } from 'react-native';
-import { ArrowLeft, Settings, Camera, Gem } from 'lucide-react-native';
+import { ArrowLeft, Settings, Camera, Gem, Share2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Group, OptimizedSettlement } from '../../types';
@@ -40,6 +41,7 @@ export interface GroupCoverHeaderProps {
   netBalance: number;
   settlements?: OptimizedSettlement[];
   currentUserId?: string;
+  onShareCode?: () => void;
   children?: React.ReactNode;
 }
 
@@ -50,9 +52,28 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
   netBalance,
   settlements = [],
   currentUserId = '',
+  onShareCode,
   children,
 }) => {
   const insets = useSafeAreaInsets();
+
+  const handleShareCode = async () => {
+    if (onShareCode) {
+      onShareCode();
+      return;
+    }
+    if (!group?.joinCode) return;
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    try {
+      await Share.share({
+        message: `Join our "${group.name}" group on Splitwiser! Use code: ${group.joinCode}`,
+      });
+    } catch {
+      // Ignored
+    }
+  };
 
   // Resolved cover image URL: only if explicitly set via coverPhoto or bannerUrl (no default)
   const coverImageUrl = useMemo(() => {
@@ -198,6 +219,43 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
             {createdDateStr ? ` • Created ${createdDateStr}` : ''}
           </Text>
         </View>
+
+        {/* Group Join Code Pill */}
+        {group?.joinCode ? (
+          <TouchableOpacity
+            style={[
+              styles.codeBadge,
+              hasCover ? styles.codeBadgeDark : styles.codeBadgeLight,
+            ]}
+            onPress={handleShareCode}
+            activeOpacity={0.75}
+            accessibilityLabel={`Group join code: ${group.joinCode}. Tap to share.`}
+            accessibilityRole="button"
+          >
+            <Share2
+              size={11}
+              color={hasCover ? '#FFFFFF' : '#059669'}
+              strokeWidth={2.4}
+              style={{ marginRight: 5 }}
+            />
+            <Text
+              style={[
+                styles.codeBadgePrefix,
+                hasCover ? styles.codeBadgePrefixDark : styles.codeBadgePrefixLight,
+              ]}
+            >
+              Code:{' '}
+            </Text>
+            <Text
+              style={[
+                styles.codeBadgeValue,
+                hasCover ? styles.codeBadgeValueDark : styles.codeBadgeValueLight,
+              ]}
+            >
+              {group.joinCode}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
 
         {/* Current Balance Summary Sentence */}
         <View style={styles.balanceRow}>
@@ -535,6 +593,53 @@ const styles = StyleSheet.create({
   },
   metaTextLight: {
     color: '#6B7280',
+  },
+  codeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 4.5,
+    borderRadius: 14,
+    marginBottom: 10,
+    alignSelf: 'center',
+  },
+  codeBadgeDark: {
+    backgroundColor: 'rgba(0, 0, 0, 0.40)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+  },
+  codeBadgeLight: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  codeBadgePrefix: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  codeBadgePrefixDark: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    textShadowColor: 'rgba(0, 0, 0, 0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  codeBadgePrefixLight: {
+    color: '#065F46',
+  },
+  codeBadgeValue: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  codeBadgeValueDark: {
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0, 0, 0, 0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  codeBadgeValueLight: {
+    color: '#059669',
   },
   balanceRow: {
     flexDirection: 'row',

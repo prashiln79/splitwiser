@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -47,6 +47,21 @@ import {
 } from '../components/common/CategoryIcon';
 import { GroupMember, ExpenseSplit, SplitType, Group } from '../types';
 import { formatCurrency } from '../utils/currency';
+import { PayerSelectionModal } from '../components/expense/PayerSelectionModal';
+import {
+  SplitConfigurationModal,
+  SplitConfigurationData,
+} from '../components/expense/SplitConfigurationModal';
+import {
+  toCents,
+  fromCents,
+  formatCents,
+  distributeCentsEqually,
+  distributeCentsByShares,
+  distributeCentsByPercentages,
+  calculateAdjustmentSplits,
+  calculateItemizedSplits,
+} from '../utils/splitMath';
 
 const CURRENCIES = [
   { symbol: '₹', label: 'INR (₹)' },
@@ -84,6 +99,9 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
   }, [expenseToEdit]);
 
   // Form states
+  const descriptionInputRef = useRef<any>(null);
+  const amountInputRef = useRef<any>(null);
+
   const [description, setDescription] = useState(expenseToEdit?.description ?? '');
   const [amount, setAmount] = useState(expenseToEdit ? String(expenseToEdit.amount) : '');
   const [currency, setCurrency] = useState(expenseToEdit?.currency || '₹');
@@ -104,6 +122,12 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
   const [shares, setShares] = useState<Record<string, string>>({});
   const [exactAmounts, setExactAmounts] = useState<Record<string, string>>({});
   const [selectedMembers, setSelectedMembers] = useState<Record<string, boolean>>({});
+  const [adjustments, setAdjustments] = useState<Record<string, string>>({});
+  const [itemizedItems, setItemizedItems] = useState<
+    { id: string; title: string; amount: string; assignedMemberIds: string[] }[]
+  >([]);
+  const [itemizedTax, setItemizedTax] = useState<string>('');
+  const [itemizedTip, setItemizedTip] = useState<string>('');
 
   // Additional details (date, receipt photo, notes)
   const [expenseDate, setExpenseDate] = useState<Date>(
@@ -128,6 +152,14 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
   const detectedCategory = useMemo(() => detectCategory(description), [description]);
   const activeCategory: ExpenseCategory = manualCategory || detectedCategory || 'General';
 
+  // Directly focus on description input on click / screen mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      descriptionInputRef.current?.focus();
+    }, 150);
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     if (!user) return;
 
@@ -148,6 +180,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
       const initExactAmounts: Record<string, string> = {};
       const initSelected: Record<string, boolean> = {};
       const initPayerAmounts: Record<string, string> = {};
+      const initAdjustments: Record<string, string> = {};
 
       normalizedList.forEach((m, index) => {
         initShares[m.userId] = '1';
@@ -157,7 +190,18 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         initExactAmounts[m.userId] = '0.00';
         initSelected[m.userId] = true;
         initPayerAmounts[m.userId] = '0.00';
+        initAdjustments[m.userId] = '0.00';
       });
+
+      // Default itemized list
+      setItemizedItems([
+        {
+          id: '1',
+          title: 'Item 1',
+          amount: expenseToEdit ? String(expenseToEdit.amount) : '',
+          assignedMemberIds: normalizedList.map((m) => m.userId),
+        },
+      ]);
 
       // If editing an existing expense, prefill splits & payers
       if (expenseToEdit && expenseToEdit.splits && expenseToEdit.splits.length > 0) {
@@ -203,6 +247,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
       setExactAmounts(initExactAmounts);
       setSelectedMembers(initSelected);
       setPayerAmounts(initPayerAmounts);
+      setAdjustments(initAdjustments);
 
       if (payerTags.length === 0) {
         if (expenseToEdit?.paidBy || expenseToEdit?.createdBy) {
@@ -382,89 +427,121 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
     try {
       let splits: ExpenseSplit[] = [];
       let finalSplitType: SplitType = splitMethod;
+      const totalExpenseCents = toCents(numericAmount);
 
       if (splitMethod === 'equal') {
         const included = Object.keys(selectedMembers).filter((uid) => selectedMembers[uid]);
         if (included.length === 0) throw new Error('Please select at least one member to split with.');
 
-        const count = included.length;
-        const totalCents = Math.round(numericAmount * 100);
-        const baseCents = Math.floor(totalCents / count);
-        let remainderCents = totalCents - baseCents * count;
-
-        splits = included.map((uid, i) => {
-          let cents = baseCents;
-          if (i < remainderCents) {
-            cents += 1;
-          }
-          return {
-            userId: uid,
-            amount: cents / 100,
-            type: 'equal',
-          };
-        });
+        const distributed = distributeCentsEqually(totalExpenseCents, included.length);
+        splits = included.map((uid, i) => ({
+          userId: uid,
+          amount: fromCents(distributed[i]),
+          type: 'equal',
+        }));
       } else if (splitMethod === 'shares') {
         if (sharesTotal <= 0) {
           throw new Error('Please allocate at least one share.');
         }
 
-        const calculatedSplits = members
-          .map((m) => {
-            const sCount = parseInt(shares[m.userId] || '0', 10);
-            if (sCount <= 0) return null;
-            const raw = (numericAmount * sCount) / sharesTotal;
-            return {
-              userId: m.userId,
-              raw,
-              amount: Math.floor(raw * 100) / 100,
-              type: 'shares' as SplitType,
-            };
-          })
-          .filter(Boolean) as { userId: string; raw: number; amount: number; type: SplitType }[];
-
-        const currentSum = calculatedSplits.reduce((acc, s) => acc + s.amount, 0);
-        let remainderCents = Math.round((numericAmount - currentSum) * 100);
-
-        splits = calculatedSplits.map((s) => {
-          let adjusted = s.amount;
-          if (remainderCents > 0) {
-            adjusted = Math.round((adjusted + 0.01) * 100) / 100;
-            remainderCents -= 1;
-          }
-          return {
-            userId: s.userId,
-            amount: adjusted,
+        const memberSharesList = members.map((m) => ({
+          id: m.userId,
+          shares: parseInt(shares[m.userId] || '0', 10) || 0,
+        }));
+        const distributed = distributeCentsByShares(totalExpenseCents, memberSharesList);
+        splits = distributed
+          .filter((d) => d.cents > 0)
+          .map((d) => ({
+            userId: d.id,
+            amount: fromCents(d.cents),
             type: 'shares',
-          };
-        });
+          }));
         finalSplitType = 'shares';
       } else if (splitMethod === 'unequal') {
-        if (Math.abs(exactTotal - numericAmount) > 0.05) {
+        const exactSumCents = Object.values(exactAmounts).reduce((sum, v) => sum + toCents(v), 0);
+        if (Math.abs(exactSumCents - totalExpenseCents) !== 0) {
           throw new Error(
-            `Exact amounts sum to ${currency}${exactTotal.toFixed(2)}, but total is ${currency}${numericAmount.toFixed(2)}.`
+            `Exact amounts sum to ${currency}${fromCents(exactSumCents).toFixed(2)}, but total is ${currency}${numericAmount.toFixed(2)}.`
           );
         }
-        splits = Object.entries(exactAmounts)
-          .filter(([, v]) => parseFloat(v || '0') > 0)
-          .map(([uid, v]) => ({
-            userId: uid,
-            amount: Math.round(parseFloat(v) * 100) / 100,
+        splits = members
+          .filter((m) => toCents(exactAmounts[m.userId]) > 0)
+          .map((m) => ({
+            userId: m.userId,
+            amount: fromCents(toCents(exactAmounts[m.userId])),
             type: 'unequal',
           }));
         finalSplitType = 'unequal';
       } else if (splitMethod === 'percentage') {
-        if (Math.abs(percentageTotal - 100) > 0.1) {
+        if (Math.abs(percentageTotal - 100) > 0.05) {
           throw new Error(
             `Percentages must add up to 100%. Currently: ${percentageTotal.toFixed(1)}%`
           );
         }
-        splits = Object.entries(percentages)
-          .filter(([, v]) => parseFloat(v || '0') > 0)
-          .map(([uid, v]) => ({
-            userId: uid,
-            amount: Math.round(numericAmount * (parseFloat(v) / 100) * 100) / 100,
+        const pctList = members.map((m) => ({
+          id: m.userId,
+          pct: parseFloat(percentages[m.userId] || '0') || 0,
+        }));
+        const distributed = distributeCentsByPercentages(totalExpenseCents, pctList);
+        splits = distributed
+          .filter((d) => d.cents > 0)
+          .map((d) => ({
+            userId: d.id,
+            amount: fromCents(d.cents),
             type: 'percentage',
           }));
+        finalSplitType = 'percentage';
+      } else if (splitMethod === 'adjustment') {
+        const adjMap: Record<string, number> = {};
+        members.forEach((m) => {
+          adjMap[m.userId] = toCents(adjustments[m.userId] || '0');
+        });
+        const included = members.filter((m) => selectedMembers[m.userId]).map((m) => m.userId);
+        const adjRes = calculateAdjustmentSplits(
+          totalExpenseCents,
+          included.length > 0 ? included : members.map((m) => m.userId),
+          adjMap
+        );
+        if (!adjRes.isValid) {
+          throw new Error(adjRes.errorMessage || 'Adjustments must balance to 0.');
+        }
+        splits = adjRes.splits
+          .filter((s) => s.cents > 0)
+          .map((s) => ({
+            userId: s.id,
+            amount: fromCents(s.cents),
+            type: 'adjustment',
+          }));
+        finalSplitType = 'adjustment';
+      } else if (splitMethod === 'itemized') {
+        const billItems = itemizedItems.map((it) => ({
+          id: it.id,
+          title: it.title,
+          amountCents: toCents(it.amount),
+          assignedMemberIds: it.assignedMemberIds,
+        }));
+        const itemRes = calculateItemizedSplits(
+          billItems,
+          toCents(itemizedTax),
+          toCents(itemizedTip),
+          members.map((m) => m.userId)
+        );
+        if (!itemRes.isValid) {
+          throw new Error(itemRes.errorMessage || 'Itemized items allocation incomplete.');
+        }
+        if (Math.abs(totalExpenseCents - itemRes.grandTotalCents) !== 0) {
+          throw new Error(
+            `Itemized total (${currency}${fromCents(itemRes.grandTotalCents).toFixed(2)}) must equal expense amount (${currency}${numericAmount.toFixed(2)}).`
+          );
+        }
+        splits = members
+          .filter((m) => itemRes.memberTotals[m.userId]?.totalCents > 0)
+          .map((m) => ({
+            userId: m.userId,
+            amount: fromCents(itemRes.memberTotals[m.userId].totalCents),
+            type: 'itemized',
+          }));
+        finalSplitType = 'itemized';
       }
 
       const tags: string[] = [activeCategory];
@@ -526,9 +603,12 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
 
   const splitLabel = useMemo(() => {
     if (splitMethod === 'equal') return 'equally';
-    if (splitMethod === 'shares') return 'by shares';
     if (splitMethod === 'unequal') return 'unequally';
-    return 'by percentages';
+    if (splitMethod === 'percentage') return 'by percentage';
+    if (splitMethod === 'shares') return 'by shares';
+    if (splitMethod === 'adjustment') return 'by adjustment';
+    if (splitMethod === 'itemized') return 'itemized';
+    return 'equally';
   }, [splitMethod]);
 
   const isToday = useMemo(() => {
@@ -688,11 +768,15 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
 
             <View style={styles.descriptionInputWrapper}>
               <TextInput
+                ref={descriptionInputRef}
                 style={styles.descriptionInput}
                 placeholder="Enter a description"
                 placeholderTextColor="#9CA3AF"
                 value={description}
                 onChangeText={setDescription}
+                autoFocus={true}
+                returnKeyType="next"
+                onSubmitEditing={() => amountInputRef.current?.focus()}
                 accessibilityLabel="Expense description"
               />
             </View>
@@ -717,6 +801,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
 
             <View style={styles.amountInputWrapper}>
               <TextInput
+                ref={amountInputRef}
                 style={styles.amountInput}
                 value={amount}
                 onChangeText={handleAmountChange}
@@ -766,12 +851,20 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
               </TouchableOpacity>
             </View>
 
-            {/* Quick inline equal-split summary (Splitwise verified) */}
-            {splitMethod === 'equal' && numericAmount > 0 && (
-              <Text style={styles.equalSummaryText}>
-                ({currency}{equalSharePerPerson.toFixed(2)}/person)
-              </Text>
-            )}
+            {/* Quick inline context summary */}
+            <Text style={styles.equalSummaryText}>
+              {splitMethod === 'equal' && numericAmount > 0
+                ? `(${currency}${equalSharePerPerson.toFixed(2)}/person · ${equalSplitsCount} included)`
+                : splitMethod === 'unequal'
+                ? `(Exact amounts · ${currency}${exactTotal.toFixed(2)} allocated)`
+                : splitMethod === 'percentage'
+                ? `(Percentages · ${percentageTotal.toFixed(0)}% allocated)`
+                : splitMethod === 'shares'
+                ? `(${sharesTotal} total shares)`
+                : splitMethod === 'adjustment'
+                ? `(Adjusted equal shares · ${equalSplitsCount} members)`
+                : `(${itemizedItems.length} items itemized)`}
+            </Text>
           </View>
 
           {/* 6. Contextual Split Breakdown */}
@@ -1030,6 +1123,85 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                 })}
               </View>
             )}
+
+            {/* Adjustment Split */}
+            {splitMethod === 'adjustment' && (
+              <View>
+                <View style={styles.validationRow}>
+                  <Text style={styles.validationText}>
+                    Adjusted equal split ({equalSplitsCount} members)
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setSplitModalVisible(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.selectAllBtnText}>Modify in options</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {members.map((m) => {
+                  const isMe = m.userId === user?.uid;
+                  const adj = parseFloat(adjustments[m.userId] || '0') || 0;
+                  const share = Math.max(0, equalSharePerPerson + adj);
+                  return (
+                    <View key={m.userId} style={styles.memberCheckRow}>
+                      <View style={styles.memberCheckLeft}>
+                        <MemberAvatar name={m.userName} size={36} imageUrl={m.imageUrl} />
+                        <View>
+                          <Text style={styles.memberName}>
+                            {isMe ? `${m.userName} (You)` : m.userName}
+                          </Text>
+                          <Text style={styles.calcShareText}>
+                            Base: {currency}{equalSharePerPerson.toFixed(2)}{' '}
+                            {adj !== 0 ? `(${adj > 0 ? '+' : ''}${currency}${adj.toFixed(2)})` : ''}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.memberShareAmount}>
+                        {currency}{share.toFixed(2)}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* Itemized Split */}
+            {splitMethod === 'itemized' && (
+              <View>
+                <View style={styles.validationRow}>
+                  <Text style={styles.validationText}>
+                    {itemizedItems.length} itemized {itemizedItems.length === 1 ? 'item' : 'items'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setSplitModalVisible(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.selectAllBtnText}>Edit in options</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {members.map((m) => {
+                  const isMe = m.userId === user?.uid;
+                  return (
+                    <View key={m.userId} style={styles.memberCheckRow}>
+                      <View style={styles.memberCheckLeft}>
+                        <MemberAvatar name={m.userName} size={36} imageUrl={m.imageUrl} />
+                        <Text style={styles.memberName}>
+                          {isMe ? `${m.userName} (You)` : m.userName}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => setSplitModalVisible(true)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.selectAllBtnText}>View breakdown</Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
           </View>
 
           {/* 7. Bottom Toolbar: Group Context, Date, Camera, Notes */}
@@ -1235,328 +1407,62 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
       </Modal>
 
       {/* ── Contextual Modal 2: Payer Selector (Single & Multiple) ────────── */}
-      <Modal
+      <PayerSelectionModal
         visible={payerModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPayerModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setPayerModalVisible(false)}
-        >
-          <View style={styles.selectionDialog}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Who paid?</Text>
-              <TouchableOpacity
-                onPress={() => setPayerModalVisible(false)}
-                style={styles.modalCloseBtn}
-              >
-                <X size={20} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
+        onClose={() => setPayerModalVisible(false)}
+        members={members}
+        currentUserId={user?.uid || ''}
+        payerId={payerId}
+        payerAmounts={payerAmounts}
+        totalAmount={numericAmount}
+        currency={currency}
+        onSelectSinglePayer={(uid) => {
+          setPayerId(uid);
+          setPayerMode('single');
+        }}
+        onConfirmMultiplePayers={(amounts) => {
+          setPayerAmounts(amounts);
+          setPayerId('__MULTIPLE__');
+          setPayerMode('multiple');
+        }}
+      />
 
-            {/* Segmented Control: Single person vs Multiple people */}
-            <View style={styles.segmentedControl}>
-              <TouchableOpacity
-                style={[
-                  styles.segmentedBtn,
-                  payerMode === 'single' && styles.segmentedBtnActive,
-                ]}
-                onPress={() => setPayerMode('single')}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.segmentedBtnText,
-                    payerMode === 'single' && styles.segmentedBtnTextActive,
-                  ]}
-                >
-                  Single person
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.segmentedBtn,
-                  payerMode === 'multiple' && styles.segmentedBtnActive,
-                ]}
-                onPress={() => setPayerMode('multiple')}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.segmentedBtnText,
-                    payerMode === 'multiple' && styles.segmentedBtnTextActive,
-                  ]}
-                >
-                  Multiple people
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {payerMode === 'single' ? (
-              <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
-                {members.map((m) => {
-                  const isSelected = m.userId === payerId;
-                  const isMe = m.userId === user?.uid;
-                  return (
-                    <TouchableOpacity
-                      key={m.userId}
-                      style={[
-                        styles.selectionOptionRow,
-                        isSelected && styles.selectionOptionRowSelected,
-                      ]}
-                      onPress={() => {
-                        if (Platform.OS !== 'web') {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                        }
-                        setPayerId(m.userId);
-                        setPayerModalVisible(false);
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.selectionOptionLeft}>
-                        <MemberAvatar name={m.userName} size={36} />
-                        <Text
-                          style={[
-                            styles.selectionOptionText,
-                            isSelected && styles.selectionOptionTextSelected,
-                          ]}
-                        >
-                          {isMe ? `${m.userName} (You)` : m.userName}
-                        </Text>
-                      </View>
-                      {isSelected && (
-                        <Check size={20} color="#059669" strokeWidth={2.5} />
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            ) : (
-              <View>
-                {/* Live Validation for Multiple Payers */}
-                <View style={[styles.validationRow, { marginHorizontal: 0, marginTop: 4, marginBottom: 10 }]}>
-                  <Text style={styles.validationText}>
-                    {currency}{totalPaidAmount.toFixed(2)} of {currency}{numericAmount.toFixed(2)}
-                  </Text>
-                  {Math.abs(totalPaidAmount - numericAmount) < 0.05 ? (
-                    <View style={[styles.validPill, { backgroundColor: '#ECFDF5' }]}>
-                      <Check size={12} color="#059669" strokeWidth={2.5} />
-                      <Text style={[styles.validPillText, { color: '#059669' }]}>
-                        Balanced
-                      </Text>
-                    </View>
-                  ) : (
-                    <View style={[styles.validPill, { backgroundColor: '#FEF2F2' }]}>
-                      <AlertCircle size={12} color="#E11D48" strokeWidth={2.5} />
-                      <Text style={[styles.validPillText, { color: '#E11D48' }]}>
-                        {totalPaidAmount < numericAmount
-                          ? `${currency}${(numericAmount - totalPaidAmount).toFixed(2)} left`
-                          : `${currency}${(totalPaidAmount - numericAmount).toFixed(2)} over`}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false}>
-                  {members.map((m) => (
-                    <View key={`payer-${m.userId}`} style={styles.memberCheckRow}>
-                      <View style={styles.memberCheckLeft}>
-                        <MemberAvatar name={m.userName} size={34} />
-                        <Text style={styles.memberName}>
-                          {m.userId === user?.uid ? `${m.userName} (You)` : m.userName}
-                        </Text>
-                      </View>
-                      <View style={styles.inputWrapper}>
-                        <Text style={styles.currencyPrefix}>{currency}</Text>
-                        <TextInput
-                          style={styles.exactInput}
-                          value={payerAmounts[m.userId] || ''}
-                          onChangeText={(val) =>
-                            setPayerAmounts((prev) => ({ ...prev, [m.userId]: val }))
-                          }
-                          keyboardType="decimal-pad"
-                          placeholder="0.00"
-                          placeholderTextColor="#9CA3AF"
-                        />
-                      </View>
-                    </View>
-                  ))}
-                </ScrollView>
-
-                <TouchableOpacity
-                  style={[
-                    styles.primaryModalBtn,
-                    Math.abs(totalPaidAmount - numericAmount) >= 0.05 && { opacity: 0.6 },
-                  ]}
-                  onPress={() => {
-                    if (Math.abs(totalPaidAmount - numericAmount) >= 0.05) {
-                      Alert.alert(
-                        'Amounts Do Not Match',
-                        `Total paid is ${currency}${totalPaidAmount.toFixed(2)}, but expense is ${currency}${numericAmount.toFixed(2)}.`
-                      );
-                      return;
-                    }
-                    if (Platform.OS !== 'web') {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                    }
-                    setPayerId('__MULTIPLE__');
-                    setPayerModalVisible(false);
-                  }}
-                  activeOpacity={0.85}
-                >
-                  <Text style={styles.primaryModalBtnText}>Confirm Multiple Payers</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* ── Contextual Modal 3: Split Method Selector ──────────────────────── */}
-      <Modal
+      {/* ── Contextual Modal 3: Split Configuration (6 Methods & Summary) ── */}
+      <SplitConfigurationModal
         visible={splitModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSplitModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setSplitModalVisible(false)}
-        >
-          <View style={styles.selectionDialog}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Choose split options</Text>
-              <TouchableOpacity
-                onPress={() => setSplitModalVisible(false)}
-                style={styles.modalCloseBtn}
-              >
-                <X size={20} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Split Equally */}
-            <TouchableOpacity
-              style={[
-                styles.splitMethodOption,
-                splitMethod === 'equal' && styles.splitMethodOptionSelected,
-              ]}
-              onPress={() => {
-                if (Platform.OS !== 'web') {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                }
-                setSplitMethod('equal');
-                setSplitModalVisible(false);
-              }}
-              activeOpacity={0.7}
-            >
-              <View style={styles.splitMethodIconCircle}>
-                <Divide size={20} color="#059669" strokeWidth={2.2} />
-              </View>
-              <View style={styles.splitMethodTextCol}>
-                <Text style={styles.splitMethodTitle}>Split equally</Text>
-                <Text style={styles.splitMethodSub}>
-                  Split evenly between all or selected members
-                </Text>
-              </View>
-              {splitMethod === 'equal' && (
-                <Check size={20} color="#059669" strokeWidth={2.5} />
-              )}
-            </TouchableOpacity>
-
-            {/* Split by Shares */}
-            <TouchableOpacity
-              style={[
-                styles.splitMethodOption,
-                splitMethod === 'shares' && styles.splitMethodOptionSelected,
-              ]}
-              onPress={() => {
-                if (Platform.OS !== 'web') {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                }
-                setSplitMethod('shares');
-                setSplitModalVisible(false);
-              }}
-              activeOpacity={0.7}
-            >
-              <View style={styles.splitMethodIconCircle}>
-                <Scale size={20} color="#059669" strokeWidth={2.2} />
-              </View>
-              <View style={styles.splitMethodTextCol}>
-                <Text style={styles.splitMethodTitle}>Split by shares</Text>
-                <Text style={styles.splitMethodSub}>
-                  Allocate proportional shares (e.g. 1 share, 2 shares)
-                </Text>
-              </View>
-              {splitMethod === 'shares' && (
-                <Check size={20} color="#059669" strokeWidth={2.5} />
-              )}
-            </TouchableOpacity>
-
-            {/* Split by Exact Amounts */}
-            <TouchableOpacity
-              style={[
-                styles.splitMethodOption,
-                splitMethod === 'unequal' && styles.splitMethodOptionSelected,
-              ]}
-              onPress={() => {
-                if (Platform.OS !== 'web') {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                }
-                setSplitMethod('unequal');
-                setSplitModalVisible(false);
-              }}
-              activeOpacity={0.7}
-            >
-              <View style={styles.splitMethodIconCircle}>
-                <Hash size={20} color="#059669" strokeWidth={2.2} />
-              </View>
-              <View style={styles.splitMethodTextCol}>
-                <Text style={styles.splitMethodTitle}>Split by exact amounts</Text>
-                <Text style={styles.splitMethodSub}>
-                  Specify the exact dollar or rupee amount each person owes
-                </Text>
-              </View>
-              {splitMethod === 'unequal' && (
-                <Check size={20} color="#059669" strokeWidth={2.5} />
-              )}
-            </TouchableOpacity>
-
-            {/* Split by Percentages */}
-            <TouchableOpacity
-              style={[
-                styles.splitMethodOption,
-                splitMethod === 'percentage' && styles.splitMethodOptionSelected,
-              ]}
-              onPress={() => {
-                if (Platform.OS !== 'web') {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                }
-                setSplitMethod('percentage');
-                setSplitModalVisible(false);
-              }}
-              activeOpacity={0.7}
-            >
-              <View style={styles.splitMethodIconCircle}>
-                <Percent size={20} color="#059669" strokeWidth={2.2} />
-              </View>
-              <View style={styles.splitMethodTextCol}>
-                <Text style={styles.splitMethodTitle}>Split by percentages</Text>
-                <Text style={styles.splitMethodSub}>
-                  Enter the percentage of the total each person owes
-                </Text>
-              </View>
-              {splitMethod === 'percentage' && (
-                <Check size={20} color="#059669" strokeWidth={2.5} />
-              )}
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+        onClose={() => setSplitModalVisible(false)}
+        members={members}
+        currentUserId={user?.uid || ''}
+        totalAmount={numericAmount}
+        currency={currency}
+        initialSplitMethod={splitMethod}
+        totalPaidAmount={payerId === '__MULTIPLE__' ? totalPaidAmount : numericAmount}
+        initialData={{
+          splitMethod,
+          selectedMembers,
+          exactAmounts,
+          percentages,
+          shares,
+          adjustments,
+          itemizedItems,
+          itemizedTax,
+          itemizedTip,
+        }}
+        onConfirmSplit={(data, newTotalAmount) => {
+          setSplitMethod(data.splitMethod);
+          setSelectedMembers(data.selectedMembers);
+          setExactAmounts(data.exactAmounts);
+          setPercentages(data.percentages);
+          setShares(data.shares);
+          setAdjustments(data.adjustments);
+          setItemizedItems(data.itemizedItems);
+          setItemizedTax(data.itemizedTax);
+          setItemizedTip(data.itemizedTip);
+          if (newTotalAmount !== undefined && newTotalAmount > 0) {
+            setAmount(newTotalAmount.toFixed(2));
+          }
+        }}
+      />
 
       {/* ── Contextual Modal 4: Currency Picker ────────────────────────────── */}
       <Modal
@@ -1964,18 +1870,20 @@ const styles = StyleSheet.create({
   paidByRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     flexWrap: 'wrap',
+    gap: 4,
   },
   paidByText: {
-    fontSize: 15,
-    color: '#4B5563',
+    fontSize: 16,
+    color: '#374151',
     fontWeight: '500',
   },
   pillButton: {
     backgroundColor: '#FFFFFF',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#D1D5DB',
-    borderRadius: 6,
+    borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 5,
     shadowColor: '#000',
@@ -1986,14 +1894,15 @@ const styles = StyleSheet.create({
   },
   pillButtonText: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
+    fontWeight: '700',
+    color: '#059669',
   },
   equalSummaryText: {
     fontSize: 13,
     color: '#6B7280',
     fontWeight: '500',
-    marginTop: 6,
+    marginTop: 8,
+    textAlign: 'center',
   },
   // 6. Split breakdown section
   splitBreakdownSection: {

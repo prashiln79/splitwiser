@@ -567,6 +567,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
       netBalance={netBalance}
       settlements={settlements}
       currentUserId={user?.uid || ''}
+      onShareCode={handleShareCode}
     >
       <GroupPillTabs
         activeTabIndex={activeTabIndex}
