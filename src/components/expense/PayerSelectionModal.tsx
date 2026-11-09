@@ -16,6 +16,7 @@ import * as Haptics from 'expo-haptics';
 import { GroupMember } from '../../types';
 import { MemberAvatar } from '../common/MemberAvatar';
 import { toCents, fromCents, formatCents, distributeCentsEqually } from '../../utils/splitMath';
+import { useAppTheme, ThemeColors } from '../../theme';
 
 interface PayerSelectionModalProps {
   visible: boolean;
@@ -42,6 +43,8 @@ export const PayerSelectionModal: React.FC<PayerSelectionModalProps> = ({
   onSelectSinglePayer,
   onConfirmMultiplePayers,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [mode, setMode] = useState<'single' | 'multiple'>(
     payerId === '__MULTIPLE__' ? 'multiple' : 'single'
   );
@@ -353,246 +356,247 @@ export const PayerSelectionModal: React.FC<PayerSelectionModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  keyboardWrap: {
-    width: '100%',
-    maxWidth: 420,
-  },
-  dialogContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    width: '100%',
-    maxHeight: '90%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 19,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  modalSubtitle: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  closeBtn: {
-    padding: 4,
-  },
-  segmentedControl: {
-    flexDirection: 'row',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    padding: 3,
-    marginBottom: 16,
-  },
-  segmentBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 9,
-    borderRadius: 10,
-  },
-  segmentBtnActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  segmentText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  segmentTextActive: {
-    color: '#059669',
-    fontWeight: '700',
-  },
-  membersScrollView: {
-    maxHeight: 320,
-  },
-  singlePayerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
-  },
-  singlePayerRowSelected: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#A7F3D0',
-  },
-  payerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  payerMeta: {
-    flex: 1,
-  },
-  payerName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  payerNameSelected: {
-    color: '#065F46',
-    fontWeight: '700',
-  },
-  payerStatusText: {
-    fontSize: 12,
-    color: '#059669',
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  checkCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#059669',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  multipleContainer: {
-    width: '100%',
-  },
-  validationStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    marginBottom: 10,
-  },
-  validationAmounts: {
-    flex: 1,
-  },
-  validationText: {
-    fontSize: 13,
-    color: '#4B5563',
-    fontWeight: '500',
-  },
-  validationValue: {
-    fontWeight: '700',
-    color: '#111827',
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 99,
-  },
-  statusBadgeBalanced: {
-    backgroundColor: '#ECFDF5',
-  },
-  statusBadgeUnbalanced: {
-    backgroundColor: '#FEF2F2',
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  quickActionRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginBottom: 8,
-  },
-  splitEvenlyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  splitEvenlyBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#059669',
-  },
-  multipleScrollView: {
-    maxHeight: 220,
-  },
-  multiPayerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
-  },
-  amountInputBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: '#FFFFFF',
-    width: 105,
-  },
-  currencyPrefix: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginRight: 4,
-  },
-  multiAmountInput: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-    flex: 1,
-    textAlign: 'right',
-    padding: 0,
-  },
-  confirmBtn: {
-    backgroundColor: '#059669',
-    borderRadius: 12,
-    paddingVertical: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 14,
-  },
-  confirmBtnDisabled: {
-    backgroundColor: '#9CA3AF',
-    opacity: 0.7,
-  },
-  confirmBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 16,
+    },
+    keyboardWrap: {
+      width: '100%',
+      maxWidth: 420,
+    },
+    dialogContainer: {
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      padding: 20,
+      width: '100%',
+      maxHeight: '90%',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: isDark ? 0.4 : 0.15,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 16,
+    },
+    modalTitle: {
+      fontSize: 19,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    modalSubtitle: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    closeBtn: {
+      padding: 4,
+    },
+    segmentedControl: {
+      flexDirection: 'row',
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+      borderRadius: 12,
+      padding: 3,
+      marginBottom: 16,
+    },
+    segmentBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 9,
+      borderRadius: 10,
+    },
+    segmentBtnActive: {
+      backgroundColor: colors.surface,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    segmentText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    segmentTextActive: {
+      color: colors.primary,
+      fontWeight: '700',
+    },
+    membersScrollView: {
+      maxHeight: 320,
+    },
+    singlePayerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      borderRadius: 12,
+      marginBottom: 6,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    singlePayerRowSelected: {
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#ECFDF5',
+      borderColor: isDark ? 'rgba(5, 150, 105, 0.3)' : '#A7F3D0',
+    },
+    payerLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      flex: 1,
+    },
+    payerMeta: {
+      flex: 1,
+    },
+    payerName: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    payerNameSelected: {
+      color: colors.primary,
+      fontWeight: '700',
+    },
+    payerStatusText: {
+      fontSize: 12,
+      color: colors.primary,
+      fontWeight: '500',
+      marginTop: 2,
+    },
+    checkCircle: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    multipleContainer: {
+      width: '100%',
+    },
+    validationStrip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 10,
+    },
+    validationAmounts: {
+      flex: 1,
+    },
+    validationText: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      fontWeight: '500',
+    },
+    validationValue: {
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    statusBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 99,
+    },
+    statusBadgeBalanced: {
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
+    },
+    statusBadgeUnbalanced: {
+      backgroundColor: isDark ? 'rgba(225, 29, 72, 0.2)' : '#FEF2F2',
+    },
+    statusText: {
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    quickActionRow: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      marginBottom: 8,
+    },
+    splitEvenlyBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    splitEvenlyBtnText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    multipleScrollView: {
+      maxHeight: 220,
+    },
+    multiPayerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    amountInputBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
+      width: 105,
+    },
+    currencyPrefix: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textMuted,
+      marginRight: 4,
+    },
+    multiAmountInput: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      flex: 1,
+      textAlign: 'right',
+      padding: 0,
+    },
+    confirmBtn: {
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      paddingVertical: 13,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 14,
+    },
+    confirmBtnDisabled: {
+      backgroundColor: isDark ? colors.surfaceSecondary : '#9CA3AF',
+      opacity: 0.7,
+    },
+    confirmBtnText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+  });
 

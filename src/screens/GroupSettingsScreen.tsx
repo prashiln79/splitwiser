@@ -57,6 +57,7 @@ import { getGroupSettlementsLocal } from '../repositories/settlementRepository';
 import { networkMonitor } from '../sync/networkMonitor';
 import { getOptimizedSettlements, calculateGroupSettlements } from '../utils/balanceCalculator';
 import { useAuth } from '../context/AuthContext';
+import { useAppTheme, ThemeColors } from '../theme';
 import { AppHeader } from '../components/common/AppHeader';
 import { MemberAvatar } from '../components/common/MemberAvatar';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
@@ -86,7 +87,9 @@ import { ExpensePreferencesModal } from '../components/groupSettings/ExpensePref
 const GroupSettingsScreen = ({ route, navigation }: any) => {
   const { groupId } = route.params;
   const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   const [loading, setLoading] = useState(true);
   const [members, setMembers] = useState<GroupMember[]>([]);
@@ -867,7 +870,7 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
                 onPress={() => setConfirmArchiveVisible(true)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.rowIcon, { backgroundColor: '#FFFBEB' }]}>
+                <View style={[styles.rowIcon, { backgroundColor: isDark ? 'rgba(217, 119, 6, 0.2)' : '#FFFBEB' }]}>
                   {isArchived ? (
                     <ArchiveRestore size={16} color="#D97706" />
                   ) : (
@@ -884,7 +887,7 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
                       : 'Hide from active list while preserving expenses'}
                   </Text>
                 </View>
-                <ChevronRight size={18} color="#D1D5DB" />
+                <ChevronRight size={18} color={colors.textMuted} />
               </TouchableOpacity>
             )}
 
@@ -893,14 +896,14 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
               onPress={() => setConfirmLeaveVisible(true)}
               activeOpacity={0.7}
             >
-              <View style={[styles.rowIcon, { backgroundColor: '#FEF2F2' }]}>
+              <View style={[styles.rowIcon, { backgroundColor: isDark ? 'rgba(220, 38, 38, 0.2)' : '#FEF2F2' }]}>
                 <LogOut size={16} color="#DC2626" />
               </View>
               <View style={styles.rowMeta}>
                 <Text style={[styles.rowTitle, { color: '#DC2626' }]}>Leave Group</Text>
                 <Text style={styles.rowSubtitle}>Remove yourself from this group</Text>
               </View>
-              <ChevronRight size={18} color="#D1D5DB" />
+              <ChevronRight size={18} color={colors.textMuted} />
             </TouchableOpacity>
 
             {isAdmin && (
@@ -909,14 +912,14 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
                 onPress={() => setConfirmDeleteVisible(true)}
                 activeOpacity={0.7}
               >
-                <View style={[styles.rowIcon, { backgroundColor: '#FEF2F2' }]}>
+                <View style={[styles.rowIcon, { backgroundColor: isDark ? 'rgba(220, 38, 38, 0.2)' : '#FEF2F2' }]}>
                   <Trash2 size={16} color="#DC2626" />
                 </View>
                 <View style={styles.rowMeta}>
                   <Text style={[styles.rowTitle, { color: '#DC2626' }]}>Delete Group</Text>
                   <Text style={styles.rowSubtitle}>Permanently remove group and records</Text>
                 </View>
-                <ChevronRight size={18} color="#D1D5DB" />
+                <ChevronRight size={18} color={colors.textMuted} />
               </TouchableOpacity>
             )}
           </View>
@@ -1099,16 +1102,16 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   loaderContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   scrollContent: {
     paddingHorizontal: 16,
@@ -1117,10 +1120,10 @@ const styles = StyleSheet.create({
 
   // Profile Header Card
   profileHeaderCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     overflow: 'hidden',
     marginBottom: 20,
     shadowColor: '#000',
@@ -1132,7 +1135,7 @@ const styles = StyleSheet.create({
   headerCoverPreview: {
     width: '100%',
     height: 100,
-    backgroundColor: '#1E293B',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#1E293B',
     position: 'relative',
   },
   coverScrim: {
@@ -1167,7 +1170,7 @@ const styles = StyleSheet.create({
   groupMainTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#111827',
+    color: colors.textPrimary,
     letterSpacing: -0.3,
   },
   tagRow: {
@@ -1190,7 +1193,7 @@ const styles = StyleSheet.create({
   archivedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#FEF2F2',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 10,
@@ -1204,7 +1207,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#ECFDF5',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1216,17 +1219,17 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#6B7280',
+    color: colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
     marginBottom: 8,
     paddingHorizontal: 4,
   },
   cardContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     overflow: 'hidden',
   },
   settingRow: {
@@ -1235,7 +1238,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 13,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
   },
   lastRow: {
     borderBottomWidth: 0,
@@ -1244,7 +1247,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -1256,22 +1259,22 @@ const styles = StyleSheet.create({
   rowTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   rowSubtitle: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textMuted,
     marginTop: 2,
   },
   rowCodeText: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#059669',
+    color: colors.primary,
     letterSpacing: 1,
     marginTop: 2,
   },
   codeShareBtn: {
-    backgroundColor: '#059669',
+    backgroundColor: colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 14,
@@ -1288,7 +1291,7 @@ const styles = StyleSheet.create({
   },
   avatarPileItem: {
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: colors.surface,
     borderRadius: 14,
   },
 });

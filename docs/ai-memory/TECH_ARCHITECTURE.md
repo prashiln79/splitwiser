@@ -258,3 +258,65 @@ Splitwiser features a comprehensive, offline-first multilingual system supportin
 4. **Canonical Category Identifiers**: Database category IDs (`Food`, `Coffee`, etc.) remain permanent and unchanged; only UI presentation is localized via `getCategoryLabel(category)`.
 5. **Arabic RTL Support**: Native direction flipping via React Native `I18nManager` when switching between LTR languages and Arabic.
 6. **Per-Recipient Push Notifications**: Remote notification payloads utilize user-specific language preferences stored in Firestore profiles.
+
+---
+
+## 9. Application Appearance & Theme Architecture
+
+Splitwiser implements a unified, triple-mode design system with 100% component and screen coverage across the entire application.
+
+```
+                    ┌────────────────────────────────────────┐
+                    │      Appearance Mode Selection         │
+                    │   Account → Preferences → Appearance   │
+                    └───────────────────┬────────────────────┘
+                                        │
+             ┌──────────────────────────┴──────────────────────────┐
+             ▼                                                     ▼
+┌──────────────────────────┐                             ┌───────────────────┐
+│ Manual Explicit Mode     │                             │  System Default   │
+│ ('light' | 'dark')       │                             │     ('system')    │
+└────────────┬─────────────┘                             └─────────┬─────────┘
+             │                                                     │
+             │                                          Appearance.getColorScheme()
+             │                                          + addChangeListener
+             │                                                     │
+             └──────────────────────────┬──────────────────────────┘
+                                        │
+                                        ▼
+                         ┌─────────────────────────────┐
+                         │   Resolved Theme (2 tiers)  │
+                         │      'light'  |  'dark'     │
+                         └──────────────┬──────────────┘
+                                        │
+                         ┌──────────────┴──────────────┐
+                         ▼                             ▼
+              Light Theme Tokens              Dark Theme Tokens
+              • Background: #F8FAFC           • Background: #0B1120
+              • Surface: #FFFFFF              • Surface: #151F32
+              • Primary: #059669              • Primary: #10B981
+              • Text: #0F172A                 • Text: #F8FAFC
+              • Income: #10B981               • Income: #34D399
+              • Expense: #EF4444              • Expense: #F87171
+                         │                             │
+                         └──────────────┬──────────────┘
+                                        │
+                                        ▼
+                    ┌────────────────────────────────────────┐
+                    │   Centralized State & Android Native   │
+                    │   • ThemeProvider & useAppTheme()      │
+                    │   • NavigationContainer (navTheme)     │
+                    │   • Android StatusBar Dynamic Sync     │
+                    │   • AsyncStorage & Firestore Sync      │
+                    │   • Zero App Restart Required          │
+                    └────────────────────────────────────────┘
+```
+
+### Key Architectural Tenets
+1. **Triple-Mode Architecture**: Supports `light`, `dark`, and `system` (default). System mode immediately reacts to Android system dark/light theme toggles without user intervention.
+2. **Instant Re-rendering Without Restart**: Dynamic state recalculates `resolvedTheme` and dispatches semantic tokens immediately via React Context.
+3. **Android Native Integration**: Dynamically sets `expo-status-bar` style (`light` / `dark`) and Android native `StatusBar.setBackgroundColor` to match the active background token.
+4. **Financial Semantics Preserved**: Emerald green (`#10B981` / `#34D399`) denotes positive/owed balances, Red (`#EF4444` / `#F87171`) denotes debts/negative balances, and Slate text denotes settled balances across both modes.
+5. **Brand Identity Retained**: Emerald primary color (`#059669` light / `#10B981` dark) remains consistent throughout the entire UI.
+6. **Persistence & Cloud Sync**: Persisted in `AsyncStorage` (`@splitwiser_appearance_mode`) for instantaneous offline startup, and synced to Firestore `users/{uid}.appearance` on login without affecting Google Auth data.
+7. **Clean `createStyles` Memoization Pattern**: Screens and modals use `const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark])` to eliminate memory churn while guaranteeing complete theme token coverage.

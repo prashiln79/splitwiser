@@ -27,6 +27,7 @@ import {
   shareGroupExport,
 } from '../../services/exportService';
 import { formatCurrency } from '../../utils/currency';
+import { useAppTheme, ThemeColors } from '../../theme';
 
 interface GroupExportModalProps {
   visible: boolean;
@@ -45,6 +46,8 @@ export const GroupExportModal: React.FC<GroupExportModalProps> = ({
   settlements,
   onClose,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [format, setFormat] = useState<ExportFormat>('csv');
   const [dateRange, setDateRange] = useState<ExportDateRange>('all');
   const [exporting, setExporting] = useState(false);
@@ -233,168 +236,169 @@ export const GroupExportModal: React.FC<GroupExportModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    justifyContent: 'flex-end',
-  },
-  sheetContainer: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '85%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  sheetSubtitle: {
-    fontSize: 12,
-    color: '#059669',
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
-  },
-  scrollBody: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-  sectionHeading: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#6B7280',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    marginBottom: 8,
-  },
-  formatRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
-  },
-  formatCard: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1.5,
-    borderColor: '#E5E7EB',
-    borderRadius: 14,
-    padding: 14,
-    position: 'relative',
-  },
-  formatCardActive: {
-    borderColor: '#059669',
-    backgroundColor: '#F0FDF4',
-  },
-  formatTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#374151',
-    marginTop: 8,
-  },
-  formatTitleActive: {
-    color: '#065F46',
-  },
-  formatSubtitle: {
-    fontSize: 11,
-    color: '#6B7280',
-    marginTop: 2,
-    lineHeight: 14,
-  },
-  formatBadge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#059669',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rangePillsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 20,
-  },
-  rangePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 18,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  rangePillActive: {
-    backgroundColor: '#059669',
-  },
-  rangePillText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  rangePillTextActive: {
-    color: '#FFFFFF',
-  },
-  previewBox: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-    marginBottom: 20,
-  },
-  previewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-  },
-  previewLabel: {
-    fontSize: 13,
-    color: '#4B5563',
-  },
-  previewValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  footerBar: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E5E7EB',
-  },
-  exportBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#059669',
-    paddingVertical: 13,
-    borderRadius: 12,
-  },
-  exportBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+      justifyContent: 'flex-end',
+    },
+    sheetContainer: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '85%',
+      paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    },
+    sheetHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    sheetTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    sheetSubtitle: {
+      fontSize: 12,
+      color: colors.primary,
+      fontWeight: '600',
+      marginTop: 2,
+    },
+    closeBtn: {
+      padding: 6,
+      borderRadius: 16,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+    },
+    scrollBody: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+    },
+    sectionHeading: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
+      marginBottom: 8,
+    },
+    formatRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 20,
+    },
+    formatCard: {
+      flex: 1,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      borderRadius: 14,
+      padding: 14,
+      position: 'relative',
+    },
+    formatCardActive: {
+      borderColor: colors.primary,
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#F0FDF4',
+    },
+    formatTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      marginTop: 8,
+    },
+    formatTitleActive: {
+      color: colors.primary,
+    },
+    formatSubtitle: {
+      fontSize: 11,
+      color: colors.textMuted,
+      marginTop: 2,
+      lineHeight: 14,
+    },
+    formatBadge: {
+      position: 'absolute',
+      top: 10,
+      right: 10,
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    rangePillsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 20,
+    },
+    rangePill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+      borderRadius: 18,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    rangePillActive: {
+      backgroundColor: colors.primary,
+    },
+    rangePillText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    rangePillTextActive: {
+      color: '#FFFFFF',
+    },
+    previewBox: {
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 14,
+      paddingHorizontal: 16,
+      paddingVertical: 4,
+      marginBottom: 20,
+    },
+    previewRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    previewLabel: {
+      fontSize: 13,
+      color: colors.textSecondary,
+    },
+    previewValue: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    footerBar: {
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.border,
+    },
+    exportBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+      paddingVertical: 13,
+      borderRadius: 12,
+    },
+    exportBtnText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '700',
+    },
+  });

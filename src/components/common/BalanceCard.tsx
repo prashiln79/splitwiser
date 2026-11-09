@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SlidersHorizontal } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { formatCurrency } from '../../utils/currency';
+import { useAppTheme } from '../../theme';
 
 interface BalanceCardProps {
   totalOwed: number;
@@ -19,6 +20,7 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
   onPress,
   onFilterPress,
 }) => {
+  const { colors } = useAppTheme();
   const isSettled = totalOwed < 0.01 && totalOwes < 0.01;
   const hasOwed = totalOwed >= 0.01;
   const hasOwes = totalOwes >= 0.01;
@@ -34,7 +36,7 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <TouchableOpacity
         style={styles.textContainer}
         onPress={handlePress}
@@ -42,29 +44,29 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
         disabled={!onPress}
       >
         {isSettled ? (
-          <Text style={styles.settledText}>
+          <Text style={[styles.settledText, { color: colors.textMuted }]}>
             Overall, you are all settled up
           </Text>
         ) : hasOwes && hasOwed ? (
           <View>
-            <Text style={styles.balanceLine}>
+            <Text style={[styles.balanceLine, { color: colors.textPrimary }]}>
               Overall, you owe{' '}
-              <Text style={styles.oweAmount}>{formatCurrency(totalOwes)}</Text>
+              <Text style={[styles.oweAmount, { color: colors.expense }]}>{formatCurrency(totalOwes)}</Text>
             </Text>
-            <Text style={[styles.balanceLine, { marginTop: 2 }]}>
+            <Text style={[styles.balanceLine, { marginTop: 2, color: colors.textPrimary }]}>
               and you are owed{' '}
-              <Text style={styles.owedAmount}>{formatCurrency(totalOwed)}</Text>
+              <Text style={[styles.owedAmount, { color: colors.income }]}>{formatCurrency(totalOwed)}</Text>
             </Text>
           </View>
         ) : hasOwes ? (
-          <Text style={styles.balanceLine}>
+          <Text style={[styles.balanceLine, { color: colors.textPrimary }]}>
             Overall, you owe{' '}
-            <Text style={styles.oweAmount}>{formatCurrency(totalOwes)}</Text>
+            <Text style={[styles.oweAmount, { color: colors.expense }]}>{formatCurrency(totalOwes)}</Text>
           </Text>
         ) : (
-          <Text style={styles.balanceLine}>
+          <Text style={[styles.balanceLine, { color: colors.textPrimary }]}>
             Overall, you are owed{' '}
-            <Text style={styles.owedAmount}>{formatCurrency(totalOwed)}</Text>
+            <Text style={[styles.owedAmount, { color: colors.income }]}>{formatCurrency(totalOwed)}</Text>
           </Text>
         )}
       </TouchableOpacity>
@@ -76,7 +78,7 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
           accessibilityLabel="Filter balances"
           accessibilityRole="button"
         >
-          <SlidersHorizontal size={20} color="#6B6B6B" strokeWidth={2} />
+          <SlidersHorizontal size={20} color={colors.textSecondary} strokeWidth={2} />
         </TouchableOpacity>
       )}
     </View>
@@ -85,11 +87,9 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E8E8E8',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -100,21 +100,17 @@ const styles = StyleSheet.create({
   },
   balanceLine: {
     fontSize: 16,
-    color: '#1A1A1A',
     fontWeight: '400',
     lineHeight: 22,
   },
   settledText: {
     fontSize: 15,
-    color: '#9E9E9E',
     fontWeight: '500',
   },
   owedAmount: {
-    color: '#1CC88A',
     fontWeight: '700',
   },
   oweAmount: {
-    color: '#E74C3C',
     fontWeight: '700',
   },
   filterBtn: {

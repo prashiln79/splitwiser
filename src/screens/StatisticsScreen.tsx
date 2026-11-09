@@ -24,6 +24,7 @@ import {
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../context/AuthContext';
+import { useAppTheme, ThemeColors } from '../theme';
 import { AppHeader } from '../components/common/AppHeader';
 import { getAllUserExpensesLocal } from '../repositories/expenseRepository';
 import { getLocalGroups } from '../repositories/groupRepository';
@@ -56,7 +57,9 @@ interface GroupSpending {
 
 export const StatisticsScreen = ({ navigation }: any) => {
   const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   const [expenses, setExpenses] = useState<GroupedExpense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -270,7 +273,7 @@ export const StatisticsScreen = ({ navigation }: any) => {
           activeOpacity={0.7}
           accessibilityLabel="Previous month"
         >
-          <ChevronLeft size={20} color="#1F2937" />
+          <ChevronLeft size={20} color={colors.textPrimary} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -294,7 +297,7 @@ export const StatisticsScreen = ({ navigation }: any) => {
           activeOpacity={0.7}
           accessibilityLabel="Next month"
         >
-          <ChevronRight size={20} color={isCurrentMonth ? '#D1D5DB' : '#1F2937'} />
+          <ChevronRight size={20} color={isCurrentMonth ? colors.border : colors.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -554,10 +557,10 @@ export const StatisticsScreen = ({ navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   monthNavigator: {
     flexDirection: 'row',
@@ -565,9 +568,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   monthNavBtn: {
     width: 36,
@@ -575,7 +578,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
   },
   monthNavBtnDisabled: {
     opacity: 0.4,
@@ -587,21 +590,21 @@ const styles = StyleSheet.create({
   monthTitleText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   currentMonthBadge: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#ECFDF5',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 8,
     marginLeft: 6,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: isDark ? colors.border : '#A7F3D0',
   },
   currentMonthBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#059669',
+    color: colors.primary,
   },
   loaderContainer: {
     flex: 1,
@@ -613,12 +616,12 @@ const styles = StyleSheet.create({
   },
   // Summary Card
   summaryCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -633,7 +636,7 @@ const styles = StyleSheet.create({
   summarySubTitle: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.textMuted,
     marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -641,19 +644,19 @@ const styles = StyleSheet.create({
   summaryMainAmount: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   trendingIconBox: {
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#ECFDF5',
     alignItems: 'center',
     justifyContent: 'center',
   },
   summaryDivider: {
     height: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.border,
     marginVertical: 16,
   },
   metricsRow: {
@@ -667,7 +670,7 @@ const styles = StyleSheet.create({
   metricSeparator: {
     width: 1,
     height: 40,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
     marginHorizontal: 16,
   },
   metricLabelRow: {
@@ -678,16 +681,16 @@ const styles = StyleSheet.create({
   metricLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#4B5563',
+    color: colors.textMuted,
   },
   metricValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#065F46',
+    color: colors.income,
   },
   metricSub: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: colors.textMuted,
     marginTop: 2,
   },
   // Section Header
@@ -705,21 +708,21 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   sectionBadge: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textMuted,
   },
   // Category Card
   categoriesCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   categoryItemWrapper: {
     paddingVertical: 10,
@@ -746,11 +749,11 @@ const styles = StyleSheet.create({
   categoryName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   categoryCount: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: colors.textMuted,
     marginTop: 1,
   },
   categoryRightCol: {
@@ -759,17 +762,17 @@ const styles = StyleSheet.create({
   categoryAmount: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   categoryPercentText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textMuted,
     marginTop: 1,
   },
   progressBarBg: {
     height: 6,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -779,17 +782,17 @@ const styles = StyleSheet.create({
   },
   categoryDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.border,
     marginTop: 14,
   },
   // Group Card
   groupCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   groupItemWrapper: {
     paddingVertical: 8,
@@ -803,29 +806,29 @@ const styles = StyleSheet.create({
   groupItemName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
     flex: 1,
   },
   groupItemAmount: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   // Top Expenses
   topExpensesCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   topExpenseItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
   },
   topExpenseInfo: {
     flex: 1,
@@ -833,34 +836,34 @@ const styles = StyleSheet.create({
   topExpenseDesc: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   topExpenseMeta: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: colors.textMuted,
     marginTop: 2,
   },
   topExpenseAmount: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   // Empty State
   emptyCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 32,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     marginTop: 8,
   },
   emptyCircle: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#ECFDF5',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -868,12 +871,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 20,
     paddingHorizontal: 16,

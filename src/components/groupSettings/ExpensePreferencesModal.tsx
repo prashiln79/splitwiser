@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -21,6 +21,7 @@ import {
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { GroupSettings, SplitType } from '../../types';
+import { useAppTheme, ThemeColors } from '../../theme';
 
 interface ExpensePreferencesModalProps {
   visible: boolean;
@@ -41,6 +42,8 @@ export const ExpensePreferencesModal: React.FC<ExpensePreferencesModalProps> = (
   onUpdateGroupSettings,
   onUpdateHideUninvolved,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [simplifyDebts, setSimplifyDebts] = useState<boolean>(
     groupSettings.simplifyDebts ?? true
   );
@@ -312,121 +315,122 @@ export const ExpensePreferencesModal: React.FC<ExpensePreferencesModalProps> = (
   );
 };
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    justifyContent: 'flex-end',
-  },
-  sheetContainer: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '90%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
-  },
-  scrollBody: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-  sectionHeading: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#6B7280',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    marginBottom: 8,
-  },
-  boxContainer: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 14,
-    marginBottom: 20,
-    overflow: 'hidden',
-  },
-  switchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  rowIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  rowMeta: {
-    flex: 1,
-    paddingRight: 10,
-  },
-  rowTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  rowSubtitle: {
-    fontSize: 11,
-    color: '#6B7280',
-    marginTop: 2,
-    lineHeight: 15,
-  },
-  selectRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
-  },
-  selectRowActive: {
-    backgroundColor: '#F0FDF4',
-  },
-  selectMeta: {
-    flex: 1,
-    paddingRight: 10,
-  },
-  selectTitle: {
-    fontSize: 13.5,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  selectSubtitle: {
-    fontSize: 11,
-    color: '#6B7280',
-    marginTop: 1,
-  },
-  checkCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#059669',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+      justifyContent: 'flex-end',
+    },
+    sheetContainer: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '90%',
+      paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    },
+    sheetHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    sheetTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    closeBtn: {
+      padding: 6,
+      borderRadius: 16,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+    },
+    scrollBody: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+    },
+    sectionHeading: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
+      marginBottom: 8,
+    },
+    boxContainer: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 14,
+      marginBottom: 20,
+      overflow: 'hidden',
+    },
+    switchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+    },
+    rowIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    rowMeta: {
+      flex: 1,
+      paddingRight: 10,
+    },
+    rowTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    rowSubtitle: {
+      fontSize: 11,
+      color: colors.textMuted,
+      marginTop: 2,
+      lineHeight: 15,
+    },
+    selectRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    selectRowActive: {
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#F0FDF4',
+    },
+    selectMeta: {
+      flex: 1,
+      paddingRight: 10,
+    },
+    selectTitle: {
+      fontSize: 13.5,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    selectSubtitle: {
+      fontSize: 11,
+      color: colors.textMuted,
+      marginTop: 1,
+    },
+    checkCircle: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+  });
 

@@ -42,6 +42,7 @@ import { networkMonitor } from '../sync/networkMonitor';
 import { getGroupExpenses } from '../services/expenses';
 import { getOptimizedSettlements } from '../utils/balanceCalculator';
 import { useAuth } from '../context/AuthContext';
+import { useAppTheme, ThemeColors } from '../theme';
 import { AppHeader } from '../components/common/AppHeader';
 import { BalanceCard } from '../components/common/BalanceCard';
 import { GroupCard, GroupSubBalance } from '../components/common/GroupCard';
@@ -55,6 +56,8 @@ interface GroupSettlementData {
 
 const HomeScreen = ({ navigation }: any) => {
   const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
 
@@ -467,7 +470,7 @@ const HomeScreen = ({ navigation }: any) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <AppHeader
         title="Groups"
@@ -486,9 +489,9 @@ const HomeScreen = ({ navigation }: any) => {
               accessibilityRole="button"
             >
               {isSearchActive ? (
-                <X size={20} color="#1A1A1A" strokeWidth={2} />
+                <X size={20} color={colors.textPrimary} strokeWidth={2} />
               ) : (
-                <Search size={20} color="#1A1A1A" strokeWidth={2} />
+                <Search size={20} color={colors.textPrimary} strokeWidth={2} />
               )}
             </TouchableOpacity>
 
@@ -498,7 +501,7 @@ const HomeScreen = ({ navigation }: any) => {
               accessibilityLabel="Join group with code"
               accessibilityRole="button"
             >
-              <Hash size={20} color="#1A1A1A" strokeWidth={2} />
+              <Hash size={20} color={colors.textPrimary} strokeWidth={2} />
             </TouchableOpacity>
           </View>
         }
@@ -506,12 +509,12 @@ const HomeScreen = ({ navigation }: any) => {
 
       {/* Search Bar */}
       {isSearchActive && (
-        <View style={styles.searchBarContainer}>
-          <Search size={16} color="#9E9E9E" style={{ marginRight: 8 }} />
+        <View style={[styles.searchBarContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <Search size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: colors.textPrimary }]}
             placeholder="Search groups..."
-            placeholderTextColor="#9E9E9E"
+            placeholderTextColor={colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoFocus
@@ -521,7 +524,7 @@ const HomeScreen = ({ navigation }: any) => {
               onPress={() => setSearchQuery('')}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <X size={16} color="#9E9E9E" />
+              <X size={16} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
@@ -630,9 +633,9 @@ const HomeScreen = ({ navigation }: any) => {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalBackdrop}
         >
-          <View style={styles.modalDialog}>
+          <View style={[styles.modalDialog, { backgroundColor: colors.surface }]}>
             <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Join a Group</Text>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Join a Group</Text>
               <TouchableOpacity
                 onPress={() => {
                   setIsJoinModalVisible(false);
@@ -642,11 +645,11 @@ const HomeScreen = ({ navigation }: any) => {
                 accessibilityRole="button"
                 accessibilityLabel="Close"
               >
-                <X size={18} color="#6B6B6B" strokeWidth={2} />
+                <X size={18} color={colors.textSecondary} strokeWidth={2} />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.modalSubtitle}>
+            <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
               Enter the 6-character code shared by the group creator.
             </Text>
 
@@ -659,11 +662,12 @@ const HomeScreen = ({ navigation }: any) => {
                   fontSize: 20,
                   fontWeight: '700',
                   textAlign: 'center',
-                  borderBottomColor: joinCode.trim().length >= 6 ? '#059669' : '#E8E8E8',
+                  color: colors.textPrimary,
+                  borderBottomColor: joinCode.trim().length >= 6 ? colors.primary : colors.border,
                 },
               ]}
               placeholder="e.g. 7X8K2M"
-              placeholderTextColor="#9E9E9E"
+              placeholderTextColor={colors.textMuted}
               value={joinCode}
               onChangeText={(text) => setJoinCode(text.toUpperCase())}
               autoCapitalize="characters"
@@ -677,15 +681,16 @@ const HomeScreen = ({ navigation }: any) => {
 
             <View style={styles.modalActionsRow}>
               <TouchableOpacity
-                style={styles.modalCancelBtn}
+                style={[styles.modalCancelBtn, { borderColor: colors.border }]}
                 onPress={() => {
                   setIsJoinModalVisible(false);
                   setJoinCode('');
                 }}
                 disabled={isJoiningGroup}
                 accessibilityRole="button"
+                accessibilityLabel="Cancel"
               >
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text style={[styles.modalCancelText, { color: colors.textPrimary }]}>Cancel</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -719,330 +724,332 @@ const HomeScreen = ({ navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  headerIconBtn: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchBarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    height: 44,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E8E8E8',
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: '#1A1A1A',
-    paddingVertical: 0,
-  },
-  loaderContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  listContent: {
-    paddingBottom: 32,
-  },
-  footerContainer: {
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  settledIllustrationContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 20,
-  },
-  settledIllustrationImage: {
-    width: 230,
-    height: 208,
-    marginBottom: 10,
-  },
-  settledIllustrationTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  settledIllustrationSubtitle: {
-    fontSize: 13,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: 280,
-  },
-  settledAllHiddenContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: 40,
-  },
-  viewHiddenGroupsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  viewHiddenGroupsText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#4B5563',
-  },
-  viewHiddenGroupsPrimaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 11,
-    paddingHorizontal: 20,
-    borderRadius: 22,
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    marginTop: 14,
-    marginBottom: 6,
-  },
-  viewHiddenGroupsPrimaryText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#065F46',
-  },
-  createGroupFooterBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 22,
-    borderWidth: 1.5,
-    borderColor: '#059669',
-    backgroundColor: 'transparent',
-  },
-  createGroupFooterText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#059669',
-  },
-  // Floating Add Expense Pill
-  addExpensePill: {
-    position: 'absolute',
-    right: 16,
-    bottom: 16,
-    height: 46,
-    paddingHorizontal: 18,
-    borderRadius: 23,
-    backgroundColor: '#059669',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  addExpensePillText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  // Group select modal
-  selectGroupDialog: {
-    width: '100%',
-    maxWidth: 320,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
-  selectGroupTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 12,
-  },
-  selectGroupItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E8E8E8',
-  },
-  selectGroupName: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#1A1A1A',
-  },
-  // Modal styles
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 24,
-  },
-  modalDialog: {
-    width: '100%',
-    maxWidth: 400,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-  },
-  modalHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    flex: 1,
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: '#6B6B6B',
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  // Splitwise Empty State
-  emptyContainer: {
-    paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: 40,
-    alignItems: 'center',
-  },
-  emptyWelcomeTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1F2937',
-    alignSelf: 'flex-start',
-    marginBottom: 40,
-  },
-  emptyIllustrationCircle: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: '#D1FAE5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-    borderWidth: 6,
-    borderColor: '#ECFDF5',
-  },
-  emptyDescription: {
-    fontSize: 15,
-    color: '#4B5563',
-    textAlign: 'center',
-    lineHeight: 22,
-    paddingHorizontal: 20,
-    marginBottom: 28,
-  },
-  startGroupPillBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#059669',
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 12,
-    paddingHorizontal: 28,
-    borderRadius: 24,
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-    marginBottom: 20,
-  },
-  startGroupPillText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  joinGroupTextBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  joinGroupBtnText: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  modalCloseBtn: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalInput: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#E8E8E8',
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#1A1A1A',
-    marginBottom: 20,
-  },
-  modalActionsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalCancelBtn: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
-  },
-  modalCancelText: {
-    fontWeight: '600',
-    fontSize: 15,
-    color: '#1A1A1A',
-  },
-  modalSubmitBtn: {
-    flex: 1.4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 10,
-  },
-  modalSubmitText: {
-    fontWeight: '700',
-    fontSize: 15,
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    headerIconBtn: {
+      width: 36,
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    searchBarContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      paddingHorizontal: 16,
+      height: 44,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 15,
+      color: colors.textPrimary,
+      paddingVertical: 0,
+    },
+    loaderContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    listContent: {
+      paddingBottom: 32,
+    },
+    footerContainer: {
+      paddingVertical: 16,
+      alignItems: 'center',
+    },
+    settledIllustrationContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 24,
+      paddingTop: 8,
+      paddingBottom: 20,
+    },
+    settledIllustrationImage: {
+      width: 230,
+      height: 208,
+      marginBottom: 10,
+    },
+    settledIllustrationTitle: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: 4,
+      textAlign: 'center',
+    },
+    settledIllustrationSubtitle: {
+      fontSize: 13,
+      color: colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 18,
+      maxWidth: 280,
+    },
+    settledAllHiddenContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 24,
+      paddingTop: 32,
+      paddingBottom: 40,
+    },
+    viewHiddenGroupsBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 20,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.04,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    viewHiddenGroupsText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    viewHiddenGroupsPrimaryBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 11,
+      paddingHorizontal: 20,
+      borderRadius: 22,
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#ECFDF5',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(5, 150, 105, 0.3)' : '#A7F3D0',
+      marginTop: 14,
+      marginBottom: 6,
+    },
+    viewHiddenGroupsPrimaryText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    createGroupFooterBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 10,
+      paddingHorizontal: 20,
+      borderRadius: 22,
+      borderWidth: 1.5,
+      borderColor: colors.primary,
+      backgroundColor: 'transparent',
+    },
+    createGroupFooterText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    // Floating Add Expense Pill
+    addExpensePill: {
+      position: 'absolute',
+      right: 16,
+      bottom: 16,
+      height: 46,
+      paddingHorizontal: 18,
+      borderRadius: 23,
+      backgroundColor: colors.primary,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      elevation: 4,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+    },
+    addExpensePillText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    // Group select modal
+    selectGroupDialog: {
+      width: '100%',
+      maxWidth: 320,
+      backgroundColor: colors.surface,
+      borderRadius: 14,
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+    },
+    selectGroupTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: 12,
+    },
+    selectGroupItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    selectGroupName: {
+      fontSize: 15,
+      fontWeight: '500',
+      color: colors.textPrimary,
+    },
+    // Modal styles
+    modalBackdrop: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      padding: 24,
+    },
+    modalDialog: {
+      width: '100%',
+      maxWidth: 400,
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 24,
+    },
+    modalHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 4,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      flex: 1,
+    },
+    modalSubtitle: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginBottom: 16,
+      lineHeight: 20,
+    },
+    // Splitwise Empty State
+    emptyContainer: {
+      paddingHorizontal: 24,
+      paddingTop: 32,
+      paddingBottom: 40,
+      alignItems: 'center',
+    },
+    emptyWelcomeTitle: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      alignSelf: 'flex-start',
+      marginBottom: 40,
+    },
+    emptyIllustrationCircle: {
+      width: 140,
+      height: 140,
+      borderRadius: 70,
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#D1FAE5',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 24,
+      borderWidth: 6,
+      borderColor: isDark ? 'rgba(5, 150, 105, 0.25)' : '#ECFDF5',
+    },
+    emptyDescription: {
+      fontSize: 15,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 22,
+      paddingHorizontal: 20,
+      marginBottom: 28,
+    },
+    startGroupPillBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1.5,
+      borderColor: colors.primary,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
+      paddingVertical: 12,
+      paddingHorizontal: 28,
+      borderRadius: 24,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+      marginBottom: 20,
+    },
+    startGroupPillText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    joinGroupTextBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+    },
+    joinGroupBtnText: {
+      fontSize: 14,
+      color: colors.textMuted,
+      fontWeight: '500',
+    },
+    modalCloseBtn: {
+      width: 32,
+      height: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    modalInput: {
+      borderBottomWidth: 2,
+      borderBottomColor: colors.border,
+      paddingVertical: 12,
+      fontSize: 16,
+      color: colors.textPrimary,
+      marginBottom: 20,
+    },
+    modalActionsRow: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    modalCancelBtn: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 14,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: isDark ? colors.surfaceSecondary : 'transparent',
+    },
+    modalCancelText: {
+      fontWeight: '600',
+      fontSize: 15,
+      color: colors.textPrimary,
+    },
+    modalSubmitBtn: {
+      flex: 1.4,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 14,
+      borderRadius: 10,
+    },
+    modalSubmitText: {
+      fontWeight: '700',
+      fontSize: 15,
+    },
+  });
 
 export default HomeScreen;

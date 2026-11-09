@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -26,6 +26,7 @@ import { MemberAvatar } from './MemberAvatar';
 import { GoogleIcon } from './GoogleIcon';
 import { UserProfilePhotoService } from '../../services/userProfilePhotoService';
 import { AppUser } from '../../types';
+import { useAppTheme, ThemeColors } from '../../theme';
 
 interface ProfilePhotoModalProps {
   visible: boolean;
@@ -38,6 +39,8 @@ export const ProfilePhotoModal: React.FC<ProfilePhotoModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const insets = useSafeAreaInsets();
   const { user, refreshUser } = useAuth();
 
@@ -221,7 +224,7 @@ export const ProfilePhotoModal: React.FC<ProfilePhotoModalProps> = ({
               activeOpacity={0.7}
               accessibilityLabel="Close"
             >
-              <X size={20} color="#6B7280" />
+              <X size={20} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
 
@@ -246,28 +249,28 @@ export const ProfilePhotoModal: React.FC<ProfilePhotoModalProps> = ({
             {/* Source Pill Badge */}
             <View style={styles.sourceBadgeRow}>
               {candidateUri ? (
-                <View style={[styles.sourceBadge, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
+                <View style={[styles.sourceBadge, { backgroundColor: isDark ? 'rgba(217, 119, 6, 0.2)' : '#FEF3C7', borderColor: isDark ? '#D97706' : '#FDE68A' }]}>
                   <Sparkles size={11} color="#D97706" style={{ marginRight: 4 }} />
-                  <Text style={[styles.sourceBadgeText, { color: '#B45309' }]}>
+                  <Text style={[styles.sourceBadgeText, { color: isDark ? '#FBBF24' : '#B45309' }]}>
                     New Photo Selected (Unsaved)
                   </Text>
                 </View>
               ) : isCurrentlyCustom && user?.imageUrl ? (
-                <View style={[styles.sourceBadge, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
-                  <Text style={[styles.sourceBadgeText, { color: '#059669' }]}>
+                <View style={[styles.sourceBadge, { backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5', borderColor: isDark ? '#059669' : '#A7F3D0' }]}>
+                  <Text style={[styles.sourceBadgeText, { color: isDark ? '#34D399' : '#059669' }]}>
                     Custom Picture
                   </Text>
                 </View>
               ) : isCurrentlyGoogle && hasGooglePhoto ? (
-                <View style={[styles.sourceBadge, { backgroundColor: '#F0F9FF', borderColor: '#BAE6FD' }]}>
+                <View style={[styles.sourceBadge, { backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : '#F0F9FF', borderColor: isDark ? '#0284C7' : '#BAE6FD' }]}>
                   <GoogleIcon size={12} style={{ marginRight: 4 }} />
-                  <Text style={[styles.sourceBadgeText, { color: '#0284C7' }]}>
+                  <Text style={[styles.sourceBadgeText, { color: isDark ? '#38BDF8' : '#0284C7' }]}>
                     Google Account Photo
                   </Text>
                 </View>
               ) : (
-                <View style={[styles.sourceBadge, { backgroundColor: '#F3F4F6', borderColor: '#E5E7EB' }]}>
-                  <Text style={[styles.sourceBadgeText, { color: '#6B7280' }]}>
+                <View style={[styles.sourceBadge, { backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6', borderColor: colors.border }]}>
+                  <Text style={[styles.sourceBadgeText, { color: colors.textMuted }]}>
                     Initials Fallback
                   </Text>
                 </View>
@@ -282,7 +285,7 @@ export const ProfilePhotoModal: React.FC<ProfilePhotoModalProps> = ({
               onPress={handlePickFromGallery}
               activeOpacity={0.7}
             >
-              <View style={[styles.actionIconBox, { backgroundColor: '#E0F2FE' }]}>
+              <View style={[styles.actionIconBox, { backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : '#E0F2FE' }]}>
                 <ImageIcon size={18} color="#0284C7" strokeWidth={2.2} />
               </View>
               <Text style={styles.actionItemText}>Choose from Gallery</Text>
@@ -293,7 +296,7 @@ export const ProfilePhotoModal: React.FC<ProfilePhotoModalProps> = ({
               onPress={handleTakePhoto}
               activeOpacity={0.7}
             >
-              <View style={[styles.actionIconBox, { backgroundColor: '#DCFCE7' }]}>
+              <View style={[styles.actionIconBox, { backgroundColor: isDark ? 'rgba(22, 163, 74, 0.2)' : '#DCFCE7' }]}>
                 <Camera size={18} color="#16A34A" strokeWidth={2.2} />
               </View>
               <Text style={styles.actionItemText}>Take Photo</Text>
@@ -306,7 +309,7 @@ export const ProfilePhotoModal: React.FC<ProfilePhotoModalProps> = ({
                 onPress={handleUseGooglePhoto}
                 activeOpacity={0.7}
               >
-                <View style={[styles.actionIconBox, { backgroundColor: '#F3F4F6' }]}>
+                <View style={[styles.actionIconBox, { backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6' }]}>
                   <GoogleIcon size={18} />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -323,7 +326,7 @@ export const ProfilePhotoModal: React.FC<ProfilePhotoModalProps> = ({
                 onPress={handleRemovePhoto}
                 activeOpacity={0.7}
               >
-                <View style={[styles.actionIconBox, { backgroundColor: '#FEE2E2' }]}>
+                <View style={[styles.actionIconBox, { backgroundColor: isDark ? 'rgba(220, 38, 38, 0.2)' : '#FEE2E2' }]}>
                   <Trash2 size={18} color="#DC2626" strokeWidth={2.2} />
                 </View>
                 <Text style={[styles.actionItemText, { color: '#DC2626' }]}>
@@ -366,134 +369,135 @@ export const ProfilePhotoModal: React.FC<ProfilePhotoModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-  },
-  previewContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 12,
-  },
-  previewAvatarRing: {
-    padding: 4,
-    borderRadius: 56,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
-  sourceBadgeRow: {
-    marginTop: 10,
-    alignItems: 'center',
-  },
-  sourceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 3.5,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  sourceBadgeText: {
-    fontSize: 11.5,
-    fontWeight: '600',
-  },
-  actionList: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 16,
-    marginVertical: 14,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
-  },
-  actionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  actionIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  actionItemText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  actionItemSubText: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 1,
-  },
-  confirmBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginTop: 8,
-  },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 13,
-    borderRadius: 12,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelBtnText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#4B5563',
-  },
-  saveBtn: {
-    flex: 2,
-    flexDirection: 'row',
-    paddingVertical: 13,
-    borderRadius: 12,
-    backgroundColor: '#059669',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'flex-end',
+    },
+    modalCard: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 16,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    closeBtn: {
+      padding: 6,
+      borderRadius: 20,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+    },
+    previewContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginVertical: 12,
+    },
+    previewAvatarRing: {
+      padding: 4,
+      borderRadius: 56,
+      borderWidth: 2,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      shadowColor: '#000',
+      shadowOpacity: isDark ? 0.3 : 0.08,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 3,
+    },
+    sourceBadgeRow: {
+      marginTop: 10,
+      alignItems: 'center',
+    },
+    sourceBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 10,
+      paddingVertical: 3.5,
+      borderRadius: 12,
+      borderWidth: 1,
+    },
+    sourceBadgeText: {
+      fontSize: 11.5,
+      fontWeight: '600',
+    },
+    actionList: {
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
+      borderRadius: 16,
+      marginVertical: 14,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    actionItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    actionIconBox: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    actionItemText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    actionItemSubText: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 1,
+    },
+    confirmBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginTop: 8,
+    },
+    cancelBtn: {
+      flex: 1,
+      paddingVertical: 13,
+      borderRadius: 12,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cancelBtnText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    saveBtn: {
+      flex: 2,
+      flexDirection: 'row',
+      paddingVertical: 13,
+      borderRadius: 12,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    saveBtnText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+  });
 

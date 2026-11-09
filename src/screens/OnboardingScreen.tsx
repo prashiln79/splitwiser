@@ -270,7 +270,7 @@ const OnboardingScreen = () => {
             <TouchableOpacity
               style={[
                 styles.googleButton,
-                { backgroundColor: '#FFFFFF', borderColor: colors.border },
+                { backgroundColor: colors.surface, borderColor: colors.border },
                 shadows.sm,
               ]}
               onPress={handleGoogleSignIn}
@@ -284,7 +284,7 @@ const OnboardingScreen = () => {
               ) : (
                 <>
                   <GoogleIcon size={18} />
-                  <Text style={styles.googleButtonText}>
+                  <Text style={[styles.googleButtonText, { color: colors.textPrimary }]}>
                     Continue with Google
                   </Text>
                 </>

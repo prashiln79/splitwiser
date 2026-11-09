@@ -20,6 +20,7 @@ import * as Haptics from 'expo-haptics';
 import { GroupMember, OptimizedSettlement } from '../../types';
 import { MemberAvatar } from '../common/MemberAvatar';
 import { formatCurrency } from '../../utils/currency';
+import { useAppTheme, ThemeColors } from '../../theme';
 
 interface GroupMembersModalProps {
   visible: boolean;
@@ -44,6 +45,8 @@ export const GroupMembersModal: React.FC<GroupMembersModalProps> = ({
   onOpenAddMembers,
   onSelectMember,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Compute individual net balance in this group for each member
@@ -173,131 +176,132 @@ export const GroupMembersModal: React.FC<GroupMembersModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    justifyContent: 'flex-end',
-  },
-  sheetContainer: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '85%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  sheetSubtitle: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
-  },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    marginHorizontal: 20,
-    marginTop: 14,
-    marginBottom: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#111827',
-  },
-  membersList: {
-    paddingHorizontal: 20,
-    maxHeight: 380,
-  },
-  memberCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
-  },
-  memberMeta: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  memberName: {
-    fontSize: 14.5,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  adminBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  adminBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#065F46',
-  },
-  balanceSubtitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  positiveText: {
-    color: '#059669',
-  },
-  negativeText: {
-    color: '#DC2626',
-  },
-  settledText: {
-    color: '#6B7280',
-  },
-  footerBar: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E5E7EB',
-  },
-  addMemberBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#059669',
-    paddingVertical: 13,
-    borderRadius: 12,
-  },
-  addMemberBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+      justifyContent: 'flex-end',
+    },
+    sheetContainer: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '85%',
+      paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    },
+    sheetHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    sheetTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    sheetSubtitle: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    closeBtn: {
+      padding: 6,
+      borderRadius: 16,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+    },
+    searchBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      marginHorizontal: 20,
+      marginTop: 14,
+      marginBottom: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 9,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 14,
+      color: colors.textPrimary,
+    },
+    membersList: {
+      paddingHorizontal: 20,
+      maxHeight: 380,
+    },
+    memberCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    memberMeta: {
+      flex: 1,
+      marginLeft: 12,
+    },
+    nameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    memberName: {
+      fontSize: 14.5,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    adminBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 8,
+    },
+    adminBadgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    balanceSubtitle: {
+      fontSize: 12,
+      fontWeight: '500',
+      marginTop: 2,
+    },
+    positiveText: {
+      color: colors.income,
+    },
+    negativeText: {
+      color: colors.expense,
+    },
+    settledText: {
+      color: colors.textMuted,
+    },
+    footerBar: {
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.border,
+    },
+    addMemberBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+      paddingVertical: 13,
+      borderRadius: 12,
+    },
+    addMemberBtnText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '700',
+    },
+  });
 

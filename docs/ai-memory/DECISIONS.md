@@ -116,3 +116,24 @@ This document records the permanent, immutable technical and product decisions g
 - **Consequences**:
   - Full native multilingual experience for 8 global languages with 100% key parity.
   - Zero performance penalty on financial calculations.
+
+---
+
+## ADR-013: Triple Appearance Mode Architecture (Light, Dark, and System Default)
+- **Status**: **Accepted & Permanent**
+- **Context**: Users access expense-sharing applications in various environments, day and night. Forcing a static light theme leads to eye strain in low-light conditions, while forcing dark theme degrades outdoor readability. Many users expect seamless operating system theme tracking.
+- **Decision**:
+  - Implement a three-state appearance model: `Light`, `Dark`, and `System Default` (default).
+  - Centralize theme tokens in `src/theme/colors.ts` and `src/theme/index.tsx` via `ThemeProvider`.
+  - Calculate `resolvedTheme` dynamically (`themeMode === 'system' ? systemScheme : themeMode`) with real-time updates via `Appearance.addChangeListener`.
+  - Provide an interactive, bottom-sheet modal selection at `Account → Preferences → Appearance` with immediate visual updates (zero app restart required).
+  - Sync appearance preference to `AsyncStorage` (`@splitwiser_appearance_mode`) for instant cold-start loading, and asynchronously sync to Firestore `users/{uid}.appearance` on authentication without overwriting Google account data.
+  - Dynamically synchronize Android native status bar (`expo-status-bar` and `RNStatusBar.setBackgroundColor`) to match theme surface backgrounds.
+  - Strictly preserve financial semantic colors across both themes: Emerald Green (`#10B981` / `#34D399`) for positive/owed balances, Red (`#EF4444` / `#F87171`) for debts/negative balances, and Slate muted text for settled balances.
+  - Retain Emerald primary brand identity (`#059669` in light, `#10B981` in dark) without paywalls or premium tiers.
+  - Standardize all screens and modals on the memoized `const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark])` pattern.
+- **Consequences**:
+  - 100% application-wide theme coverage with zero un-themed screens or modals.
+  - Instant theme transitions without app restart or screen flickering.
+  - Full offline support with cloud synchronization.
+  - 100% test coverage via dedicated theme test suite (`tests/theme.test.ts`).

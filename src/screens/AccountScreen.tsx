@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Alert,
   ScrollView,
@@ -47,11 +47,21 @@ import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 import { QrCodeModal } from '../components/common/QrCodeModal';
 import { ProfilePhotoModal } from '../components/common/ProfilePhotoModal';
 import { LanguagePickerModal } from '../components/settings/LanguagePickerModal';
+import { ThemePickerModal } from '../components/settings/ThemePickerModal';
+import { useAppTheme, ThemeColors } from '../theme';
 import { submitSupportTicket } from '../services/support';
 import { hapticsService } from '../services/hapticsService';
 
 export const AccountScreen = ({ navigation }: any) => {
   const { user, signOut, updateProfile } = useAuth();
+  const { colors, isDark, themeMode } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+  const switchTrackColor = useMemo(
+    () => ({ false: isDark ? '#4B5563' : '#D1D5DB', true: '#A7F3D0' }),
+    [isDark]
+  );
+  const getSwitchThumbColor = (val: boolean) =>
+    val ? '#059669' : (isDark ? '#9CA3AF' : '#F4F3F4');
   const { currentLocale, isSystemLanguage } = useI18n();
   const { t } = useTranslation(['settings', 'common', 'auth']);
   const insets = useSafeAreaInsets();
@@ -101,7 +111,6 @@ export const AccountScreen = ({ navigation }: any) => {
     hapticsService.setEnabled(val);
   };
 
-  const [selectedTheme, setSelectedTheme] = useState<'system' | 'light' | 'dark'>('system');
   const [feedbackText, setFeedbackText] = useState('');
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
 
@@ -160,11 +169,11 @@ export const AccountScreen = ({ navigation }: any) => {
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
         {isSearchActive ? (
           <View style={styles.searchBar}>
-            <Search size={18} color="#9CA3AF" style={{ marginRight: 8 }} />
+            <Search size={18} color={colors.textMuted} style={{ marginRight: 8 }} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search settings..."
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
               autoFocus
@@ -175,7 +184,7 @@ export const AccountScreen = ({ navigation }: any) => {
                 setSearchQuery('');
               }}
             >
-              <X size={18} color="#9CA3AF" />
+              <X size={18} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
         ) : (
@@ -187,7 +196,7 @@ export const AccountScreen = ({ navigation }: any) => {
               accessibilityLabel="Search settings"
               accessibilityRole="button"
             >
-              <Search size={22} color="#1A1A1A" strokeWidth={2.2} />
+              <Search size={22} color={colors.textPrimary} strokeWidth={2.2} />
             </TouchableOpacity>
           </>
         )}
@@ -249,10 +258,10 @@ export const AccountScreen = ({ navigation }: any) => {
             activeOpacity={0.7}
           >
             <View style={styles.quickActionLeft}>
-              <QrCode size={20} color="#111827" strokeWidth={2} style={styles.rowIcon} />
+              <QrCode size={20} color={colors.textPrimary} strokeWidth={2} style={styles.rowIcon} />
               <Text style={styles.quickActionText}>Scan code</Text>
             </View>
-            <ChevronRight size={18} color="#9CA3AF" />
+            <ChevronRight size={18} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
 
@@ -280,8 +289,8 @@ export const AccountScreen = ({ navigation }: any) => {
               <Switch
                 value={hapticsEnabled}
                 onValueChange={handleToggleHaptics}
-                trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
-                thumbColor={hapticsEnabled ? '#059669' : '#F3F4F6'}
+                trackColor={switchTrackColor}
+                thumbColor={getSwitchThumbColor(hapticsEnabled)}
               />
             </TouchableOpacity>
 
@@ -292,10 +301,10 @@ export const AccountScreen = ({ navigation }: any) => {
               activeOpacity={0.7}
             >
               <View style={styles.settingItemLeft}>
-                <Mail size={19} color="#374151" strokeWidth={2} style={styles.rowIcon} />
+                <Mail size={19} color={colors.textPrimary} strokeWidth={2} style={styles.rowIcon} />
                 <Text style={styles.settingItemTitle}>Email settings</Text>
               </View>
-              <ChevronRight size={18} color="#9CA3AF" />
+              <ChevronRight size={18} color={colors.textMuted} />
             </TouchableOpacity>
 
             {/* Device and push notification settings */}
@@ -305,10 +314,10 @@ export const AccountScreen = ({ navigation }: any) => {
               activeOpacity={0.7}
             >
               <View style={styles.settingItemLeft}>
-                <Bell size={19} color="#374151" strokeWidth={2} style={styles.rowIcon} />
+                <Bell size={19} color={colors.textPrimary} strokeWidth={2} style={styles.rowIcon} />
                 <Text style={styles.settingItemTitle}>Device and push notification settings</Text>
               </View>
-              <ChevronRight size={18} color="#9CA3AF" />
+              <ChevronRight size={18} color={colors.textMuted} />
             </TouchableOpacity>
 
             {/* Security */}
@@ -318,10 +327,10 @@ export const AccountScreen = ({ navigation }: any) => {
               activeOpacity={0.7}
             >
               <View style={styles.settingItemLeft}>
-                <Lock size={19} color="#374151" strokeWidth={2} style={styles.rowIcon} />
+                <Lock size={19} color={colors.textPrimary} strokeWidth={2} style={styles.rowIcon} />
                 <Text style={styles.settingItemTitle}>Security</Text>
               </View>
-              <ChevronRight size={18} color="#9CA3AF" />
+              <ChevronRight size={18} color={colors.textMuted} />
             </TouchableOpacity>
 
             {/* Appearance */}
@@ -331,10 +340,19 @@ export const AccountScreen = ({ navigation }: any) => {
               activeOpacity={0.7}
             >
               <View style={styles.settingItemLeft}>
-                <Palette size={19} color="#374151" strokeWidth={2} style={styles.rowIcon} />
+                <Palette size={19} color={colors.textPrimary} strokeWidth={2} style={styles.rowIcon} />
                 <Text style={styles.settingItemTitle}>{t('settings:appearance', { defaultValue: 'Appearance' })}</Text>
               </View>
-              <ChevronRight size={18} color="#9CA3AF" />
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 14, color: colors.textMuted, marginRight: 6 }}>
+                  {themeMode === 'system'
+                    ? t('settings:system', { defaultValue: 'System default' })
+                    : themeMode === 'light'
+                    ? t('settings:light', { defaultValue: 'Light mode' })
+                    : t('settings:dark', { defaultValue: 'Dark mode' })}
+                </Text>
+                <ChevronRight size={18} color={colors.textMuted} />
+              </View>
             </TouchableOpacity>
 
             {/* Language */}
@@ -344,16 +362,16 @@ export const AccountScreen = ({ navigation }: any) => {
               activeOpacity={0.7}
             >
               <View style={styles.settingItemLeft}>
-                <Globe size={19} color="#374151" strokeWidth={2} style={styles.rowIcon} />
+                <Globe size={19} color={colors.textPrimary} strokeWidth={2} style={styles.rowIcon} />
                 <Text style={styles.settingItemTitle}>{t('settings:language', { defaultValue: 'Language' })}</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ fontSize: 14, color: '#6B7280', marginRight: 6 }}>
+                <Text style={{ fontSize: 14, color: colors.textMuted, marginRight: 6 }}>
                   {isSystemLanguage
                     ? t('common:systemDefault', { defaultValue: 'System Default' })
                     : LOCALE_NATIVE_NAMES[currentLocale] || currentLocale}
                 </Text>
-                <ChevronRight size={18} color="#9CA3AF" />
+                <ChevronRight size={18} color={colors.textMuted} />
               </View>
             </TouchableOpacity>
           </View>
@@ -369,10 +387,10 @@ export const AccountScreen = ({ navigation }: any) => {
               activeOpacity={0.7}
             >
               <View style={styles.settingItemLeft}>
-                <CircleQuestionMark size={19} color="#374151" strokeWidth={2} style={styles.rowIcon} />
+                <CircleQuestionMark size={19} color={colors.textPrimary} strokeWidth={2} style={styles.rowIcon} />
                 <Text style={styles.settingItemTitle}>Help Center</Text>
               </View>
-              <ChevronRight size={18} color="#9CA3AF" />
+              <ChevronRight size={18} color={colors.textMuted} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -381,10 +399,10 @@ export const AccountScreen = ({ navigation }: any) => {
               activeOpacity={0.7}
             >
               <View style={styles.settingItemLeft}>
-                <MessageSquare size={19} color="#374151" strokeWidth={2} style={styles.rowIcon} />
+                <MessageSquare size={19} color={colors.textPrimary} strokeWidth={2} style={styles.rowIcon} />
                 <Text style={styles.settingItemTitle}>Contact Splitwise support</Text>
               </View>
-              <ChevronRight size={18} color="#9CA3AF" />
+              <ChevronRight size={18} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
         </View>
@@ -443,8 +461,8 @@ export const AccountScreen = ({ navigation }: any) => {
               <Switch
                 value={emailWeeklySummary}
                 onValueChange={setEmailWeeklySummary}
-                trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
-                thumbColor={emailWeeklySummary ? '#059669' : '#F3F4F6'}
+                trackColor={switchTrackColor}
+                thumbColor={getSwitchThumbColor(emailWeeklySummary)}
               />
             </View>
 
@@ -453,8 +471,8 @@ export const AccountScreen = ({ navigation }: any) => {
               <Switch
                 value={emailExpenseAdded}
                 onValueChange={setEmailExpenseAdded}
-                trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
-                thumbColor={emailExpenseAdded ? '#059669' : '#F3F4F6'}
+                trackColor={switchTrackColor}
+                thumbColor={getSwitchThumbColor(emailExpenseAdded)}
               />
             </View>
 
@@ -463,8 +481,8 @@ export const AccountScreen = ({ navigation }: any) => {
               <Switch
                 value={emailSettledUp}
                 onValueChange={setEmailSettledUp}
-                trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
-                thumbColor={emailSettledUp ? '#059669' : '#F3F4F6'}
+                trackColor={switchTrackColor}
+                thumbColor={getSwitchThumbColor(emailSettledUp)}
               />
             </View>
 
@@ -504,8 +522,8 @@ export const AccountScreen = ({ navigation }: any) => {
               <Switch
                 value={pushExpenseAdded}
                 onValueChange={setPushExpenseAdded}
-                trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
-                thumbColor={pushExpenseAdded ? '#059669' : '#F3F4F6'}
+                trackColor={switchTrackColor}
+                thumbColor={getSwitchThumbColor(pushExpenseAdded)}
               />
             </View>
 
@@ -514,8 +532,8 @@ export const AccountScreen = ({ navigation }: any) => {
               <Switch
                 value={pushSettledUp}
                 onValueChange={setPushSettledUp}
-                trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
-                thumbColor={pushSettledUp ? '#059669' : '#F3F4F6'}
+                trackColor={switchTrackColor}
+                thumbColor={getSwitchThumbColor(pushSettledUp)}
               />
             </View>
 
@@ -524,8 +542,8 @@ export const AccountScreen = ({ navigation }: any) => {
               <Switch
                 value={pushGroupInvites}
                 onValueChange={setPushGroupInvites}
-                trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
-                thumbColor={pushGroupInvites ? '#059669' : '#F3F4F6'}
+                trackColor={switchTrackColor}
+                thumbColor={getSwitchThumbColor(pushGroupInvites)}
               />
             </View>
 
@@ -537,8 +555,8 @@ export const AccountScreen = ({ navigation }: any) => {
               <Switch
                 value={hapticsEnabled}
                 onValueChange={handleToggleHaptics}
-                trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
-                thumbColor={hapticsEnabled ? '#059669' : '#F3F4F6'}
+                trackColor={switchTrackColor}
+                thumbColor={getSwitchThumbColor(hapticsEnabled)}
               />
             </View>
 
@@ -575,8 +593,8 @@ export const AccountScreen = ({ navigation }: any) => {
               <Switch
                 value={biometricUnlock}
                 onValueChange={setBiometricUnlock}
-                trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
-                thumbColor={biometricUnlock ? '#059669' : '#F3F4F6'}
+                trackColor={switchTrackColor}
+                thumbColor={getSwitchThumbColor(biometricUnlock)}
               />
             </View>
 
@@ -585,8 +603,8 @@ export const AccountScreen = ({ navigation }: any) => {
               <Switch
                 value={requirePinOnOpen}
                 onValueChange={setRequirePinOnOpen}
-                trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
-                thumbColor={requirePinOnOpen ? '#059669' : '#F3F4F6'}
+                trackColor={switchTrackColor}
+                thumbColor={getSwitchThumbColor(requirePinOnOpen)}
               />
             </View>
 
@@ -601,47 +619,10 @@ export const AccountScreen = ({ navigation }: any) => {
       </Modal>
 
       {/* ── Appearance Modal ───────────────────────────────────────────────── */}
-      <Modal
+      <ThemePickerModal
         visible={appearanceVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setAppearanceVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setAppearanceVisible(false)}
-        >
-          <View style={styles.dialogCard}>
-            <Text style={styles.dialogTitle}>Appearance</Text>
-            <Text style={styles.dialogSub}>Select your preferred app theme.</Text>
-
-            {(['system', 'light', 'dark'] as const).map((t) => (
-              <TouchableOpacity
-                key={t}
-                style={[
-                  styles.themeOptionRow,
-                  selectedTheme === t && styles.themeOptionRowSelected,
-                ]}
-                onPress={() => setSelectedTheme(t)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.themeOptionText, selectedTheme === t && { color: '#059669', fontWeight: '700' }]}>
-                  {t === 'system' ? 'System default' : t === 'light' ? 'Light mode' : 'Dark mode'}
-                </Text>
-                {selectedTheme === t && <Check size={18} color="#059669" strokeWidth={2.5} />}
-              </TouchableOpacity>
-            ))}
-
-            <TouchableOpacity
-              style={styles.dialogPrimaryBtn}
-              onPress={() => setAppearanceVisible(false)}
-            >
-              <Text style={styles.dialogPrimaryBtnText}>Apply Theme</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+        onClose={() => setAppearanceVisible(false)}
+      />
 
       {/* ── Help Center Modal ──────────────────────────────────────────────── */}
       <Modal
@@ -709,7 +690,7 @@ export const AccountScreen = ({ navigation }: any) => {
             <TextInput
               style={styles.feedbackInput}
               placeholder="Type your message or feedback here..."
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textMuted}
               value={feedbackText}
               onChangeText={setFeedbackText}
               multiline
@@ -766,333 +747,335 @@ export const AccountScreen = ({ navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 14,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111827',
-  },
-  headerSearchBtn: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchBar: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    height: 40,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: '#111827',
-    paddingVertical: 0,
-  },
-  scrollContent: {
-    paddingTop: 14,
-  },
-  // Profile Section
-  profileSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginRight: 14,
-  },
-  cameraIconBadge: {
-    position: 'absolute',
-    right: -2,
-    bottom: -2,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#059669',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  profileDetails: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 2,
-  },
-  profileSub: {
-    fontSize: 13,
-    color: '#6B7280',
-  },
-  editProfileBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  editProfileBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  // Quick Actions (Scan code)
-  quickActionsContainer: {
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#E5E7EB',
-    marginBottom: 18,
-  },
-  quickActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
-  },
-  quickActionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  quickActionText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#111827',
-  },
-  rowIcon: {
-    marginRight: 14,
-  },
-  // Sections (Preferences, Help & Support)
-  section: {
-    marginBottom: 20,
-  },
-  sectionHeader: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#6B7280',
-    paddingHorizontal: 20,
-    marginBottom: 6,
-  },
-  sectionBody: {
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#E5E7EB',
-  },
-  settingItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
-  },
-  settingItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 10,
-  },
-  settingItemTitle: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#111827',
-  },
-  settingItemTextCol: {
-    flex: 1,
-  },
-  settingItemSubtitle: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  // Log Out
-  logOutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
-    marginBottom: 16,
-    paddingVertical: 13,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#FECDD3',
-  },
-  logOutBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#E11D48',
-  },
-  versionText: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  // Modals common styles
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  dialogCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 22,
-    width: '100%',
-    maxWidth: 360,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  dialogTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 6,
-  },
-  dialogSub: {
-    fontSize: 13,
-    color: '#6B7280',
-    lineHeight: 18,
-    marginBottom: 16,
-  },
-  dialogPrimaryBtn: {
-    backgroundColor: '#059669',
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 14,
-  },
-  dialogPrimaryBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  dialogCancelBtn: {
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
-  },
-  dialogCancelBtnText: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '600',
-  },
-  // QR modal
-  qrCodeBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 18,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    marginVertical: 10,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  qrUidText: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 10,
-    fontWeight: '600',
-  },
-  // Switches
-  switchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
-  },
-  switchLabel: {
-    fontSize: 14,
-    color: '#1F2937',
-    flex: 1,
-    marginRight: 10,
-  },
-  switchSubLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  // Theme options
-  themeOptionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-  },
-  themeOptionRowSelected: {
-    backgroundColor: '#ECFDF5',
-  },
-  themeOptionText: {
-    fontSize: 15,
-    color: '#374151',
-    fontWeight: '500',
-  },
-  // Help Center FAQs
-  faqItem: {
-    marginBottom: 14,
-  },
-  faqQ: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 2,
-  },
-  faqA: {
-    fontSize: 13,
-    color: '#6B7280',
-    lineHeight: 18,
-  },
-  // Feedback input
-  feedbackInput: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    color: '#111827',
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingBottom: 14,
+      backgroundColor: colors.surface,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: colors.textPrimary,
+    },
+    headerSearchBtn: {
+      width: 40,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    searchBar: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      height: 40,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 15,
+      color: colors.textPrimary,
+      paddingVertical: 0,
+    },
+    scrollContent: {
+      paddingTop: 14,
+    },
+    // Profile Section
+    profileSection: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    avatarContainer: {
+      position: 'relative',
+      marginRight: 14,
+    },
+    cameraIconBadge: {
+      position: 'absolute',
+      right: -2,
+      bottom: -2,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: colors.surface,
+    },
+    profileDetails: {
+      flex: 1,
+    },
+    profileName: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: 2,
+    },
+    profileSub: {
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    editProfileBtn: {
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+    },
+    editProfileBtnText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    // Quick Actions (Scan code)
+    quickActionsContainer: {
+      backgroundColor: colors.surface,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      marginBottom: 18,
+    },
+    quickActionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    quickActionLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    quickActionText: {
+      fontSize: 15,
+      fontWeight: '500',
+      color: colors.textPrimary,
+    },
+    rowIcon: {
+      marginRight: 14,
+    },
+    // Sections (Preferences, Help & Support)
+    section: {
+      marginBottom: 20,
+    },
+    sectionHeader: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textMuted,
+      paddingHorizontal: 20,
+      marginBottom: 6,
+    },
+    sectionBody: {
+      backgroundColor: colors.surface,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+    },
+    settingItemRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    settingItemLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+      marginRight: 10,
+    },
+    settingItemTitle: {
+      fontSize: 15,
+      fontWeight: '500',
+      color: colors.textPrimary,
+    },
+    settingItemTextCol: {
+      flex: 1,
+    },
+    settingItemSubtitle: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    // Log Out
+    logOutBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
+      marginHorizontal: 20,
+      marginBottom: 16,
+      paddingVertical: 13,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: isDark ? '#7F1D1D' : '#FECDD3',
+    },
+    logOutBtnText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#E11D48',
+    },
+    versionText: {
+      fontSize: 12,
+      color: colors.textMuted,
+      textAlign: 'center',
+      marginBottom: 20,
+    },
+    // Modals common styles
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.55)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    dialogCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 22,
+      width: '100%',
+      maxWidth: 360,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: isDark ? 0.4 : 0.15,
+      shadowRadius: 10,
+      elevation: 8,
+    },
+    dialogTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: 6,
+    },
+    dialogSub: {
+      fontSize: 13,
+      color: colors.textMuted,
+      lineHeight: 18,
+      marginBottom: 16,
+    },
+    dialogPrimaryBtn: {
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      paddingVertical: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 14,
+    },
+    dialogPrimaryBtnText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    dialogCancelBtn: {
+      paddingVertical: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 4,
+    },
+    dialogCancelBtnText: {
+      fontSize: 14,
+      color: colors.textMuted,
+      fontWeight: '600',
+    },
+    // QR modal
+    qrCodeBox: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 18,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
+      borderRadius: 12,
+      marginVertical: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    qrUidText: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 10,
+      fontWeight: '600',
+    },
+    // Switches
+    switchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    switchLabel: {
+      fontSize: 14,
+      color: colors.textPrimary,
+      flex: 1,
+      marginRight: 10,
+    },
+    switchSubLabel: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    // Theme options
+    themeOptionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 12,
+      paddingHorizontal: 8,
+      borderRadius: 8,
+    },
+    themeOptionRowSelected: {
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#ECFDF5',
+    },
+    themeOptionText: {
+      fontSize: 15,
+      color: colors.textPrimary,
+      fontWeight: '500',
+    },
+    // Help Center FAQs
+    faqItem: {
+      marginBottom: 14,
+    },
+    faqQ: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: 2,
+    },
+    faqA: {
+      fontSize: 13,
+      color: colors.textMuted,
+      lineHeight: 18,
+    },
+    // Feedback input
+    feedbackInput: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      padding: 12,
+      fontSize: 14,
+      color: colors.textPrimary,
+      backgroundColor: colors.inputBackground,
+      minHeight: 80,
+      textAlignVertical: 'top',
+    },
+  });
 
 export default AccountScreen;

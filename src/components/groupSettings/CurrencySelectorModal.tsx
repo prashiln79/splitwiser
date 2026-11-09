@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { X, Search, Check, AlertCircle } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { useAppTheme, ThemeColors } from '../../theme';
 
 interface CurrencyItem {
   code: string;
@@ -57,6 +58,8 @@ export const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
   onClose,
   onSelect,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<CurrencyItem | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -191,173 +194,174 @@ export const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    justifyContent: 'flex-end',
-  },
-  sheetContainer: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '85%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    marginHorizontal: 20,
-    marginTop: 14,
-    marginBottom: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#111827',
-  },
-  currencyList: {
-    paddingHorizontal: 20,
-    maxHeight: 380,
-  },
-  currencyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
-  },
-  currentCurrencyRow: {
-    backgroundColor: '#F0FDF4',
-  },
-  symbolBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#ECFDF5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  symbolBadgeText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  currencyMeta: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  currencyCode: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  currencyName: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 1,
-  },
-  activePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#D1FAE5',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  activePillText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#059669',
-  },
-  confirmOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    borderRadius: 20,
-  },
-  confirmBox: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    width: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  confirmHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  confirmTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  confirmBody: {
-    fontSize: 14,
-    color: '#374151',
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  confirmActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  cancelConfirmBtn: {
-    flex: 1,
-    paddingVertical: 11,
-    borderRadius: 10,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelConfirmBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#4B5563',
-  },
-  acceptConfirmBtn: {
-    flex: 1.5,
-    paddingVertical: 11,
-    borderRadius: 10,
-    backgroundColor: '#059669',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  acceptConfirmBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+      justifyContent: 'flex-end',
+    },
+    sheetContainer: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '85%',
+      paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    },
+    sheetHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    sheetTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    closeBtn: {
+      padding: 6,
+      borderRadius: 16,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+    },
+    searchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      marginHorizontal: 20,
+      marginTop: 14,
+      marginBottom: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 9,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 14,
+      color: colors.textPrimary,
+    },
+    currencyList: {
+      paddingHorizontal: 20,
+      maxHeight: 380,
+    },
+    currencyRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    currentCurrencyRow: {
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#F0FDF4',
+    },
+    symbolBadge: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    symbolBadgeText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    currencyMeta: {
+      flex: 1,
+      marginLeft: 12,
+    },
+    currencyCode: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    currencyName: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 1,
+    },
+    activePill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.25)' : '#D1FAE5',
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    activePillText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    confirmOverlay: {
+      ...StyleSheet.absoluteFill,
+      backgroundColor: 'rgba(0, 0, 0, 0.55)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 24,
+      borderRadius: 20,
+    },
+    confirmBox: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 20,
+      width: '100%',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: isDark ? 0.4 : 0.15,
+      shadowRadius: 10,
+      elevation: 8,
+    },
+    confirmHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    confirmTitle: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    confirmBody: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      lineHeight: 20,
+      marginBottom: 20,
+    },
+    confirmActions: {
+      flexDirection: 'row',
+      gap: 10,
+    },
+    cancelConfirmBtn: {
+      flex: 1,
+      paddingVertical: 11,
+      borderRadius: 10,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cancelConfirmBtnText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    acceptConfirmBtn: {
+      flex: 1.5,
+      paddingVertical: 11,
+      borderRadius: 10,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    acceptConfirmBtnText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+  });

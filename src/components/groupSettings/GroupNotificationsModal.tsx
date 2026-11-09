@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -25,6 +25,7 @@ import {
   getGroupUserPreferences,
   updateGroupUserPreferences,
 } from '../../services/groupPreferencesService';
+import { useAppTheme, ThemeColors } from '../../theme';
 
 interface GroupNotificationsModalProps {
   visible: boolean;
@@ -41,6 +42,8 @@ export const GroupNotificationsModal: React.FC<GroupNotificationsModalProps> = (
   groupName,
   onClose,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [prefs, setPrefs] = useState<GroupUserPreferences | null>(null);
 
   useEffect(() => {
@@ -211,127 +214,128 @@ export const GroupNotificationsModal: React.FC<GroupNotificationsModalProps> = (
   );
 };
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    justifyContent: 'flex-end',
-  },
-  sheetContainer: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '85%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
-  },
-  scrollBody: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-  muteCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F0FDF4',
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 20,
-  },
-  muteCardActive: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
-  },
-  muteIconWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  muteMeta: {
-    flex: 1,
-  },
-  muteTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  muteSubtitle: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  sectionHeading: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#6B7280',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    marginBottom: 8,
-  },
-  togglesBox: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 14,
-    marginBottom: 24,
-    overflow: 'hidden',
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
-  },
-  lastRow: {
-    borderBottomWidth: 0,
-  },
-  toggleIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  toggleMeta: {
-    flex: 1,
-    paddingRight: 10,
-  },
-  toggleTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  toggleSubtitle: {
-    fontSize: 11,
-    color: '#6B7280',
-    marginTop: 1,
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+      justifyContent: 'flex-end',
+    },
+    sheetContainer: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '85%',
+      paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    },
+    sheetHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    sheetTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    closeBtn: {
+      padding: 6,
+      borderRadius: 16,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+    },
+    scrollBody: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+    },
+    muteCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#F0FDF4',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(5, 150, 105, 0.3)' : '#BBF7D0',
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 20,
+    },
+    muteCardActive: {
+      backgroundColor: isDark ? 'rgba(225, 29, 72, 0.15)' : '#FEF2F2',
+      borderColor: isDark ? 'rgba(225, 29, 72, 0.3)' : '#FECACA',
+    },
+    muteIconWrapper: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    muteMeta: {
+      flex: 1,
+    },
+    muteTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    muteSubtitle: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    sectionHeading: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
+      marginBottom: 8,
+    },
+    togglesBox: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 14,
+      marginBottom: 24,
+      overflow: 'hidden',
+    },
+    toggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 13,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    lastRow: {
+      borderBottomWidth: 0,
+    },
+    toggleIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    toggleMeta: {
+      flex: 1,
+      paddingRight: 10,
+    },
+    toggleTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    toggleSubtitle: {
+      fontSize: 11,
+      color: colors.textMuted,
+      marginTop: 1,
+    },
+  });
 

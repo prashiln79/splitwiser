@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { MemberAvatar } from './MemberAvatar';
 import { OptimizedSettlement } from '../../types';
 import { recordSettlementLocal } from '../../repositories/settlementRepository';
 import { formatCurrency } from '../../utils/currency';
+import { useAppTheme, ThemeColors } from '../../theme';
 
 interface SettleUpModalProps {
   visible: boolean;
@@ -34,6 +35,8 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
   currentUserId,
   onSuccess,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [selectedSettlement, setSelectedSettlement] = useState<OptimizedSettlement | null>(null);
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -108,7 +111,7 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
               accessibilityRole="button"
               accessibilityLabel="Close"
             >
-              <X size={20} color="#6B6B6B" strokeWidth={2} />
+              <X size={20} color={colors.textMuted} strokeWidth={2} />
             </TouchableOpacity>
           </View>
 
@@ -186,7 +189,7 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
                     <TextInput
                       style={styles.noteInput}
                       placeholder="Add a payment note (e.g. Paid via UPI / Cash)"
-                      placeholderTextColor="#9E9E9E"
+                      placeholderTextColor={colors.textMuted}
                       value={note}
                       onChangeText={setNote}
                       maxLength={200}
@@ -218,145 +221,146 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: 20,
-  },
-  modalContent: {
-    width: '100%',
-    maxWidth: 400,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A1A1A',
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyContainer: {
-    paddingVertical: 24,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 15,
-    color: '#6B6B6B',
-    textAlign: 'center',
-  },
-  selectorContainer: {
-    marginBottom: 16,
-  },
-  sectionSubtitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#6B6B6B',
-    marginBottom: 8,
-  },
-  settlementsList: {
-    gap: 8,
-  },
-  settlementChoice: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
-    backgroundColor: '#F8FAFC',
-  },
-  settlementChoiceActive: {
-    borderColor: '#059669',
-    backgroundColor: '#F0FAF6',
-  },
-  choiceText: {
-    fontSize: 14,
-    color: '#1A1A1A',
-  },
-  choiceTextActive: {
-    fontWeight: '700',
-    color: '#059669',
-  },
-  paymentCard: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  avatarTransferRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 20,
-    marginBottom: 16,
-  },
-  avatarCol: {
-    alignItems: 'center',
-    width: 80,
-  },
-  avatarName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginTop: 6,
-    textAlign: 'center',
-  },
-  arrowBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F0FAF6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  transferSummary: {
-    fontSize: 15,
-    color: '#6B6B6B',
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  transferAmount: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#1A1A1A',
-    marginBottom: 16,
-    letterSpacing: -0.5,
-  },
-  noteContainer: {
-    width: '100%',
-    marginBottom: 18,
-  },
-  noteInput: {
-    borderBottomWidth: 1.5,
-    borderBottomColor: '#E8E8E8',
-    paddingVertical: 8,
-    fontSize: 14,
-    color: '#1A1A1A',
-  },
-  confirmButton: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#059669',
-    paddingVertical: 14,
-    borderRadius: 10,
-  },
-  confirmButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      padding: 20,
+    },
+    modalContent: {
+      width: '100%',
+      maxWidth: 400,
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 20,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    closeButton: {
+      width: 32,
+      height: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    emptyContainer: {
+      paddingVertical: 24,
+      alignItems: 'center',
+    },
+    emptyText: {
+      fontSize: 15,
+      color: colors.textMuted,
+      textAlign: 'center',
+    },
+    selectorContainer: {
+      marginBottom: 16,
+    },
+    sectionSubtitle: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textMuted,
+      marginBottom: 8,
+    },
+    settlementsList: {
+      gap: 8,
+    },
+    settlementChoice: {
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAFC',
+    },
+    settlementChoiceActive: {
+      borderColor: colors.primary,
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#F0FAF6',
+    },
+    choiceText: {
+      fontSize: 14,
+      color: colors.textPrimary,
+    },
+    choiceTextActive: {
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    paymentCard: {
+      alignItems: 'center',
+      paddingVertical: 12,
+    },
+    avatarTransferRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 20,
+      marginBottom: 16,
+    },
+    avatarCol: {
+      alignItems: 'center',
+      width: 80,
+    },
+    avatarName: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      marginTop: 6,
+      textAlign: 'center',
+    },
+    arrowBox: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#F0FAF6',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    transferSummary: {
+      fontSize: 15,
+      color: colors.textMuted,
+      marginBottom: 4,
+      textAlign: 'center',
+    },
+    transferAmount: {
+      fontSize: 32,
+      fontWeight: '800',
+      color: colors.textPrimary,
+      marginBottom: 16,
+      letterSpacing: -0.5,
+    },
+    noteContainer: {
+      width: '100%',
+      marginBottom: 18,
+    },
+    noteInput: {
+      borderBottomWidth: 1.5,
+      borderBottomColor: colors.border,
+      paddingVertical: 8,
+      fontSize: 14,
+      color: colors.textPrimary,
+    },
+    confirmButton: {
+      width: '100%',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+      paddingVertical: 14,
+      borderRadius: 10,
+    },
+    confirmButtonText: {
+      color: '#FFFFFF',
+      fontSize: 15,
+      fontWeight: '700',
+    },
+  });

@@ -7,7 +7,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "npm run test:balances && npm run test:covers && npm run test:settings && npm run test:splitmath && npm run test:categories && npm run test:profilephoto && npm run test:limits && npm run test:i18n",
+    "test": "npm run test:balances && npm run test:covers && npm run test:settings && npm run test:splitmath && npm run test:categories && npm run test:profilephoto && npm run test:limits && npm run test:i18n && npm run test:theme",
     "ts:check": "tsc --noEmit",
     "test:balances": "npx tsx tests/balanceCalculator.test.ts",
     "test:covers": "npx tsx tests/coverPhoto.test.ts",
@@ -17,6 +17,7 @@
     "test:profilephoto": "npx tsx tests/profilePhoto.test.ts",
     "test:limits": "npx tsx tests/limitsValidation.test.ts",
     "test:i18n": "npx tsx tests/i18n.test.ts",
+    "test:theme": "npx tsx tests/theme.test.ts",
     "build:apk": "mkdir -p build && npm_config_cache=$HOME/.npm-user-cache ANDROID_HOME=$HOME/Library/Android/sdk ANDROID_SDK_ROOT=$HOME/Library/Android/sdk eas build -p android --profile preview --local --output=./build/splitwiser-preview.apk",
     "build:aab": "mkdir -p build && npm_config_cache=$HOME/.npm-user-cache ANDROID_HOME=$HOME/Library/Android/sdk ANDROID_SDK_ROOT=$HOME/Library/Android/sdk eas build -p android --profile production --local --output=./build/splitwiser-production.aab"
   },

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Alert,
   ScrollView,
@@ -33,6 +33,7 @@ import { useI18n } from '../context/I18nContext';
 import { LOCALE_NATIVE_NAMES } from '../i18n';
 import { useTranslation } from 'react-i18next';
 import { APP_LIMITS } from '../constants/limits';
+import { useAppTheme, ThemeColors } from '../theme';
 
 const TIMEZONES = [
   '(GMT+05:30) Chennai, Kolkata, Mumbai, New Delhi',
@@ -55,6 +56,8 @@ const CURRENCIES = [
 ];
 
 export const EditProfileScreen = ({ navigation }: any) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const { user, updateProfile } = useAuth();
   const { currentLocale, isSystemLanguage } = useI18n();
   const { t } = useTranslation(['settings', 'common', 'validation']);
@@ -171,7 +174,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
           accessibilityLabel="Back"
           accessibilityRole="button"
         >
-          <ArrowLeft size={24} color="#111827" strokeWidth={2.2} />
+          <ArrowLeft size={24} color={colors.textPrimary} strokeWidth={2.2} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Account settings</Text>
         <TouchableOpacity
@@ -183,12 +186,12 @@ export const EditProfileScreen = ({ navigation }: any) => {
           activeOpacity={0.7}
         >
           {isSubmitting ? (
-            <ActivityIndicator size="small" color="#059669" />
+            <ActivityIndicator size="small" color={colors.primary} />
           ) : (
             <Text
               style={[
                 styles.doneBtnText,
-                { color: isEditingOrChanged ? '#059669' : '#9E9E9E' },
+                { color: isEditingOrChanged ? colors.primary : colors.textMuted },
               ]}
             >
               Done
@@ -252,7 +255,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
               value={name}
               onChangeText={setName}
               placeholder="Your full name"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textMuted}
               maxLength={APP_LIMITS.USER.MAX_NAME_LENGTH}
               autoFocus
             />
@@ -263,7 +266,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
                 onPress={() => setIsEditingName(true)}
                 style={styles.editActionBtn}
               >
-                <Edit2 size={13} color="#059669" style={{ marginRight: 4 }} />
+                <Edit2 size={13} color={colors.primary} style={{ marginRight: 4 }} />
                 <Text style={styles.editActionText}>Edit</Text>
               </TouchableOpacity>
             </View>
@@ -279,7 +282,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
               value={email}
               onChangeText={setEmail}
               placeholder="Your email address"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textMuted}
               keyboardType="email-address"
               autoCapitalize="none"
               maxLength={APP_LIMITS.USER.MAX_EMAIL_LENGTH}
@@ -292,7 +295,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
                 onPress={() => setIsEditingEmail(true)}
                 style={styles.editActionBtn}
               >
-                <Edit2 size={13} color="#059669" style={{ marginRight: 4 }} />
+                <Edit2 size={13} color={colors.primary} style={{ marginRight: 4 }} />
                 <Text style={styles.editActionText}>Edit</Text>
               </TouchableOpacity>
             </View>
@@ -308,7 +311,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
               value={phone}
               onChangeText={setPhone}
               placeholder="+91 98765 43210"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textMuted}
               keyboardType="phone-pad"
               maxLength={APP_LIMITS.USER.MAX_PHONE_LENGTH}
               autoFocus
@@ -320,7 +323,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
                 onPress={() => setIsEditingPhone(true)}
                 style={styles.editActionBtn}
               >
-                <Edit2 size={13} color="#059669" style={{ marginRight: 4 }} />
+                <Edit2 size={13} color={colors.primary} style={{ marginRight: 4 }} />
                 <Text style={styles.editActionText}>Edit</Text>
               </TouchableOpacity>
             </View>
@@ -336,7 +339,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
               value={password}
               onChangeText={setPassword}
               placeholder="Enter new password"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.textMuted}
               secureTextEntry
               autoFocus
             />
@@ -347,7 +350,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
                 onPress={() => setIsEditingPassword(true)}
                 style={styles.editActionBtn}
               >
-                <Edit2 size={13} color="#059669" style={{ marginRight: 4 }} />
+                <Edit2 size={13} color={colors.primary} style={{ marginRight: 4 }} />
                 <Text style={styles.editActionText}>Edit</Text>
               </TouchableOpacity>
             </View>
@@ -365,7 +368,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
             <Text style={styles.selectBoxText} numberOfLines={1}>
               {timezone}
             </Text>
-            <ChevronDown size={18} color="#6B7280" />
+            <ChevronDown size={18} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
 
@@ -378,7 +381,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
             activeOpacity={0.7}
           >
             <Text style={styles.selectBoxText}>{currency}</Text>
-            <ChevronDown size={18} color="#6B7280" />
+            <ChevronDown size={18} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
 
@@ -395,7 +398,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
                 ? t('common:systemDefault', { defaultValue: 'System Default' })
                 : LOCALE_NATIVE_NAMES[currentLocale] || currentLocale}
             </Text>
-            <ChevronDown size={18} color="#6B7280" />
+            <ChevronDown size={18} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
 
@@ -490,7 +493,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalTitle}>Select Timezone</Text>
               <TouchableOpacity onPress={() => setTimezoneModalVisible(false)}>
-                <X size={20} color="#6B7280" />
+                <X size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
 
@@ -539,7 +542,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalTitle}>Default Currency</Text>
               <TouchableOpacity onPress={() => setCurrencyModalVisible(false)}>
-                <X size={20} color="#6B7280" />
+                <X size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
 
@@ -592,11 +595,11 @@ export const EditProfileScreen = ({ navigation }: any) => {
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalTitle}>Blocked Users</Text>
               <TouchableOpacity onPress={() => setBlocklistModalVisible(false)}>
-                <X size={20} color="#6B7280" />
+                <X size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
             <View style={styles.emptyBlocklistBox}>
-              <Ban size={36} color="#9CA3AF" strokeWidth={1.8} style={{ marginBottom: 10 }} />
+              <Ban size={36} color={colors.textMuted} strokeWidth={1.8} style={{ marginBottom: 10 }} />
               <Text style={styles.emptyBlocklistTitle}>No blocked users</Text>
               <Text style={styles.emptyBlocklistSub}>
                 Users you block won't be able to add you to groups or record expenses with you.
@@ -627,370 +630,373 @@ export const EditProfileScreen = ({ navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-  },
-  headerBackBtn: {
-    width: 44,
-    height: 40,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  doneBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    minWidth: 44,
-  },
-  doneBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-  avatarCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    marginBottom: 20,
-  },
-  avatarWrapper: {
-    position: 'relative',
-    marginRight: 16,
-  },
-  cameraBadge: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#059669',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  avatarInfo: {
-    flex: 1,
-  },
-  avatarSectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 2,
-  },
-  avatarSourceText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#6B7280',
-    marginBottom: 8,
-  },
-  changePictureButton: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  changePictureButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  formGroup: {
-    marginBottom: 18,
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  fieldDisplayRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-  },
-  fieldValueText: {
-    fontSize: 15,
-    color: '#111827',
-    fontWeight: '500',
-    flex: 1,
-  },
-  editActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  editActionText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#059669',
-  },
-  activeTextInput: {
-    borderWidth: 1,
-    borderColor: '#059669',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 15,
-    color: '#111827',
-  },
-  selectBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
-  },
-  selectBoxText: {
-    fontSize: 14,
-    color: '#111827',
-    flex: 1,
-    marginRight: 8,
-  },
-  // Privacy section
-  privacySection: {
-    marginTop: 10,
-    marginBottom: 24,
-  },
-  privacySectionHeader: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 10,
-  },
-  privacyCheckboxRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 6,
-  },
-  checkboxBox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 1.5,
-    borderColor: '#D1D5DB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-    marginTop: 1,
-  },
-  checkboxBoxChecked: {
-    backgroundColor: '#EA580C',
-    borderColor: '#EA580C',
-  },
-  privacyLabel: {
-    fontSize: 14,
-    color: '#1F2937',
-    flex: 1,
-    lineHeight: 20,
-  },
-  privacyExplanation: {
-    fontSize: 12,
-    color: '#6B7280',
-    lineHeight: 18,
-    paddingLeft: 30,
-  },
-  // Save Changes Button (Splitwise coral button)
-  saveChangesBtn: {
-    backgroundColor: '#EA580C',
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 32,
-    shadowColor: '#EA580C',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  saveChangesBtnText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  // Advanced features
-  advancedSection: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E5E7EB',
-    paddingTop: 20,
-  },
-  advancedSectionHeader: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  advancedLabel: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 8,
-  },
-  blocklistBtn: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    alignSelf: 'flex-start',
-    backgroundColor: '#F9FAFB',
-  },
-  blocklistBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  // Modals
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  selectionModal: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 20,
-    width: '100%',
-    maxWidth: 360,
-  },
-  modalHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  modalOptionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
-  },
-  modalOptionRowSelected: {
-    backgroundColor: '#FFF7ED',
-    borderRadius: 6,
-  },
-  modalOptionText: {
-    fontSize: 14,
-    color: '#1F2937',
-    flex: 1,
-  },
-  modalOptionTextSelected: {
-    color: '#EA580C',
-    fontWeight: '700',
-  },
-  emptyBlocklistBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 24,
-  },
-  emptyBlocklistTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  emptyBlocklistSub: {
-    fontSize: 13,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  modalDoneBtn: {
-    backgroundColor: '#059669',
-    borderRadius: 8,
-    paddingVertical: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-  },
-  modalDoneBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  // Guest Account Banner
-  guestBanner: {
-    backgroundColor: '#F9FAFB',
-    marginBottom: 20,
-    padding: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  guestBannerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
-  },
-  guestBannerTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  guestBannerSub: {
-    fontSize: 13,
-    color: '#6B7280',
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  guestBannerBtn: {
-    backgroundColor: '#059669',
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  guestBannerBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingBottom: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    headerBackBtn: {
+      width: 44,
+      height: 40,
+      alignItems: 'flex-start',
+      justifyContent: 'center',
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    doneBtn: {
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+      alignItems: 'flex-end',
+      justifyContent: 'center',
+      minWidth: 44,
+    },
+    doneBtnText: {
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    scrollContent: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+    },
+    avatarCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 20,
+    },
+    avatarWrapper: {
+      position: 'relative',
+      marginRight: 16,
+    },
+    cameraBadge: {
+      position: 'absolute',
+      bottom: -2,
+      right: -2,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: colors.surface,
+    },
+    avatarInfo: {
+      flex: 1,
+    },
+    avatarSectionTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: 2,
+    },
+    avatarSourceText: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.textMuted,
+      marginBottom: 8,
+    },
+    changePictureButton: {
+      alignSelf: 'flex-start',
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#ECFDF5',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(5, 150, 105, 0.4)' : '#A7F3D0',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 8,
+    },
+    changePictureButtonText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    formGroup: {
+      marginBottom: 18,
+    },
+    fieldLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: 6,
+    },
+    fieldDisplayRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 4,
+    },
+    fieldValueText: {
+      fontSize: 15,
+      color: colors.textPrimary,
+      fontWeight: '500',
+      flex: 1,
+    },
+    editActionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    editActionText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    activeTextInput: {
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderRadius: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      fontSize: 15,
+      color: colors.textPrimary,
+      backgroundColor: colors.inputBackground,
+    },
+    selectBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      backgroundColor: colors.surface,
+    },
+    selectBoxText: {
+      fontSize: 14,
+      color: colors.textPrimary,
+      flex: 1,
+      marginRight: 8,
+    },
+    // Privacy section
+    privacySection: {
+      marginTop: 10,
+      marginBottom: 24,
+    },
+    privacySectionHeader: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: 10,
+    },
+    privacyCheckboxRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: 6,
+    },
+    checkboxBox: {
+      width: 20,
+      height: 20,
+      borderRadius: 4,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 10,
+      marginTop: 1,
+      backgroundColor: colors.surface,
+    },
+    checkboxBoxChecked: {
+      backgroundColor: '#EA580C',
+      borderColor: '#EA580C',
+    },
+    privacyLabel: {
+      fontSize: 14,
+      color: colors.textPrimary,
+      flex: 1,
+      lineHeight: 20,
+    },
+    privacyExplanation: {
+      fontSize: 12,
+      color: colors.textMuted,
+      lineHeight: 18,
+      paddingLeft: 30,
+    },
+    // Save Changes Button (Splitwise coral button)
+    saveChangesBtn: {
+      backgroundColor: '#EA580C',
+      borderRadius: 8,
+      paddingVertical: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 32,
+      shadowColor: '#EA580C',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    saveChangesBtnText: {
+      color: '#FFFFFF',
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    // Advanced features
+    advancedSection: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.border,
+      paddingTop: 20,
+    },
+    advancedSectionHeader: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: 12,
+    },
+    advancedLabel: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginBottom: 8,
+    },
+    blocklistBtn: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 6,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      alignSelf: 'flex-start',
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
+    },
+    blocklistBtnText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    // Modals
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    selectionModal: {
+      backgroundColor: colors.surface,
+      borderRadius: 14,
+      padding: 20,
+      width: '100%',
+      maxWidth: 360,
+    },
+    modalHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    modalTitle: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    modalOptionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 12,
+      paddingHorizontal: 8,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    modalOptionRowSelected: {
+      backgroundColor: isDark ? 'rgba(234, 88, 12, 0.15)' : '#FFF7ED',
+      borderRadius: 6,
+    },
+    modalOptionText: {
+      fontSize: 14,
+      color: colors.textPrimary,
+      flex: 1,
+    },
+    modalOptionTextSelected: {
+      color: '#EA580C',
+      fontWeight: '700',
+    },
+    emptyBlocklistBox: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 24,
+    },
+    emptyBlocklistTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: 4,
+    },
+    emptyBlocklistSub: {
+      fontSize: 13,
+      color: colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 18,
+    },
+    modalDoneBtn: {
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      paddingVertical: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 10,
+    },
+    modalDoneBtnText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    // Guest Account Banner
+    guestBanner: {
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
+      marginBottom: 20,
+      padding: 16,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    guestBannerHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 6,
+    },
+    guestBannerTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    guestBannerSub: {
+      fontSize: 13,
+      color: colors.textMuted,
+      lineHeight: 18,
+      marginBottom: 12,
+    },
+    guestBannerBtn: {
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      paddingVertical: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    guestBannerBtnText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '700',
+    },
+  });
 
 export default EditProfileScreen;

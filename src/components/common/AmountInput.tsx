@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { useAppTheme } from '../../theme';
 
 interface AmountInputProps {
   value: string;
@@ -16,6 +17,8 @@ export const AmountInput: React.FC<AmountInputProps> = ({
   placeholder = '0.00',
   autoFocus = false,
 }) => {
+  const { colors } = useAppTheme();
+
   const handleChange = (text: string) => {
     // Sanitize input: allow only digits and single decimal point with up to 2 decimal places
     const cleaned = text.replace(/[^0-9.]/g, '');
@@ -27,13 +30,13 @@ export const AmountInput: React.FC<AmountInputProps> = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.currencySymbol}>{currencySymbol}</Text>
+      <Text style={[styles.currencySymbol, { color: colors.textPrimary }]}>{currencySymbol}</Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, { color: colors.textPrimary }]}
         value={value}
         onChangeText={handleChange}
         placeholder={placeholder}
-        placeholderTextColor="#CCCCCC"
+        placeholderTextColor={colors.textMuted}
         keyboardType="decimal-pad"
         autoFocus={autoFocus}
         accessibilityLabel="Expense amount"

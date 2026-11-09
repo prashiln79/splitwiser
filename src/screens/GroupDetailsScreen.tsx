@@ -57,6 +57,7 @@ import { syncService } from '../sync/syncService';
 import { syncQueue } from '../sync/syncQueue';
 import { getOptimizedSettlements } from '../utils/balanceCalculator';
 import { useAuth } from '../context/AuthContext';
+import { useAppTheme, ThemeColors } from '../theme';
 import { MemberAvatar } from '../components/common/MemberAvatar';
 import { ExpenseListItem } from '../components/common/ExpenseListItem';
 import { CategoryIcon, detectCategory, CATEGORIES_CONFIG } from '../components/common/CategoryIcon';
@@ -81,9 +82,11 @@ import { useIsFocused } from '@react-navigation/native';
 export const GroupDetailsScreen = ({ route, navigation }: any) => {
   const { groupId, groupName: initialGroupName } = route?.params || {};
   const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
   const { width: screenWidth } = useWindowDimensions();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const useNativeDriver = false;
@@ -758,11 +761,11 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
 
                   <View style={styles.settlementCardDetails}>
                     <Text style={styles.settlementDetailSentence}>
-                      <Text style={{ fontWeight: '700', color: isMePayer ? '#DC2626' : '#111827' }}>
+                      <Text style={{ fontWeight: '700', color: isMePayer ? '#DC2626' : colors.textPrimary }}>
                         {isMePayer ? 'You' : s.fromUserName}
                       </Text>
                       {' pays '}
-                      <Text style={{ fontWeight: '700', color: isMeReceiver ? '#059669' : '#111827' }}>
+                      <Text style={{ fontWeight: '700', color: isMeReceiver ? '#059669' : colors.textPrimary }}>
                         {isMeReceiver ? 'you' : s.toUserName}
                       </Text>
                     </Text>
@@ -1148,11 +1151,11 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                   <View style={styles.suggestedPaymentRow}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.suggestedPaymentText}>
-                        <Text style={isMeDebtor ? { color: '#DC2626', fontWeight: '700' } : { color: '#111827', fontWeight: '600' }}>
+                        <Text style={isMeDebtor ? { color: '#DC2626', fontWeight: '700' } : { color: colors.textPrimary, fontWeight: '600' }}>
                           {isMeDebtor ? 'You' : s.fromUserName}
                         </Text>
-                        <Text style={{ color: '#6B7280' }}> owes </Text>
-                        <Text style={isMeCreditor ? { color: '#059669', fontWeight: '700' } : { color: '#111827', fontWeight: '600' }}>
+                        <Text style={{ color: colors.textMuted }}> owes </Text>
+                        <Text style={isMeCreditor ? { color: '#059669', fontWeight: '700' } : { color: colors.textPrimary, fontWeight: '600' }}>
                           {isMeCreditor ? 'you' : s.toUserName}
                         </Text>
                       </Text>
@@ -1281,11 +1284,11 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Active Tab Scroll Content */}
       {isLoading ? (
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#059669" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <View style={{ flex: 1 }}>
@@ -1386,11 +1389,11 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
           onRequestClose={() => setSelectedExpense(null)}
         >
           <KeyboardAvoidingView
-            style={{ flex: 1, backgroundColor: '#FFFFFF' }}
+            style={{ flex: 1, backgroundColor: colors.background }}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           >
             {/* Top Mint Header Bar (Splitwise Screenshot Design) */}
-            <View style={[styles.expDetailTopBar, { paddingTop: insets.top + 8 }]}>
+            <View style={[styles.expDetailTopBar, { paddingTop: insets.top + 8, backgroundColor: isDark ? colors.surfaceSecondary : '#DCEDE2' }]}>
               <View style={styles.expDetailNavRow}>
                 <TouchableOpacity
                   onPress={() => setSelectedExpense(null)}
@@ -1398,7 +1401,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                   activeOpacity={0.7}
                   accessibilityLabel="Back"
                 >
-                  <ArrowLeft size={22} color="#1F2937" strokeWidth={2.4} />
+                  <ArrowLeft size={22} color={colors.textPrimary} strokeWidth={2.4} />
                 </TouchableOpacity>
 
                 <View style={styles.expDetailRightActions}>
@@ -1421,7 +1424,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                     activeOpacity={0.7}
                     accessibilityLabel="Receipt photo"
                   >
-                    <ImagePlus size={22} color="#1F2937" strokeWidth={2.2} />
+                    <ImagePlus size={22} color={colors.textPrimary} strokeWidth={2.2} />
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -1430,7 +1433,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                     activeOpacity={0.7}
                     accessibilityLabel="Delete expense"
                   >
-                    <Trash2 size={22} color="#1F2937" strokeWidth={2.2} />
+                    <Trash2 size={22} color={colors.textPrimary} strokeWidth={2.2} />
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -1439,7 +1442,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                     activeOpacity={0.7}
                     accessibilityLabel="Edit expense"
                   >
-                    <Pencil size={22} color="#1F2937" strokeWidth={2.2} />
+                    <Pencil size={22} color={colors.textPrimary} strokeWidth={2.2} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1463,12 +1466,12 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
               showsVerticalScrollIndicator={false}
             >
               {/* Title, Amount & Date */}
-              <View style={styles.expDetailHeroSection}>
-                <Text style={styles.expDetailTitleText}>{selectedExpense.description}</Text>
-                <Text style={styles.expDetailAmountText}>
+              <View style={[styles.expDetailHeroSection, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.expDetailTitleText, { color: colors.textPrimary }]}>{selectedExpense.description}</Text>
+                <Text style={[styles.expDetailAmountText, { color: colors.textPrimary }]}>
                   {formatCurrency(selectedExpense.amount)}
                 </Text>
-                <Text style={styles.expDetailAddedDate}>
+                <Text style={[styles.expDetailAddedDate, { color: colors.textMuted }]}>
                   Added by{' '}
                   {(selectedExpense.paidBy || selectedExpense.createdBy) === user?.uid
                     ? 'you'
@@ -1483,14 +1486,14 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
               </View>
 
               {/* Payer and Tree Splits Breakdown */}
-              <View style={styles.expDetailTreeSection}>
+              <View style={[styles.expDetailTreeSection, { borderTopColor: colors.border }]}>
                 {/* Payer Row */}
                 <View style={styles.treePayerRow}>
                   <MemberAvatar
                     name={getMemberName(selectedExpense.paidBy || selectedExpense.createdBy)}
                     size={42}
                   />
-                  <Text style={styles.treePayerText}>
+                  <Text style={[styles.treePayerText, { color: colors.textPrimary }]}>
                     {(selectedExpense.paidBy || selectedExpense.createdBy) === user?.uid
                       ? 'You'
                       : getMemberName(selectedExpense.paidBy || selectedExpense.createdBy)}{' '}
@@ -1511,12 +1514,13 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                           <View
                             style={[
                               styles.treeVerticalLine,
+                              { backgroundColor: colors.border },
                               isLast && { height: 16 },
                             ]}
                           />
-                          <View style={styles.treeHorizontalLine} />
+                          <View style={[styles.treeHorizontalLine, { backgroundColor: colors.border }]} />
                         </View>
-                        <Text style={styles.treeSplitText}>
+                        <Text style={[styles.treeSplitText, { color: colors.textPrimary }]}>
                           {isMe ? 'You owe' : `${memberName} owes`}{' '}
                           <Text style={{ fontWeight: '600' }}>{formatCurrency(s.amount)}</Text>
                         </Text>
@@ -1527,25 +1531,26 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
               </View>
 
               {/* Spending Trends Section */}
-              <View style={styles.spendingTrendsSection}>
-                <Text style={styles.spendingTrendsTitle}>
+              <View style={[styles.spendingTrendsSection, { borderTopColor: colors.border }]}>
+                <Text style={[styles.spendingTrendsTitle, { color: colors.textPrimary }]}>
                   Spending trends for {group?.name || 'Group'} :: {categoryTrends.categoryName}
                 </Text>
 
                 <View style={styles.trendsChartCard}>
                   {categoryTrends.data.map((m, idx) => (
                     <View key={`trend-${m.monthLabel}-${idx}`} style={styles.trendMonthRow}>
-                      <Text style={styles.trendMonthLabel}>{m.monthLabel}</Text>
-                      <View style={styles.trendAxisLine} />
+                      <Text style={[styles.trendMonthLabel, { color: colors.textMuted }]}>{m.monthLabel}</Text>
+                      <View style={[styles.trendAxisLine, { backgroundColor: colors.border }]} />
                       <View style={styles.trendBarContainer}>
                         <View
                           style={[
                             styles.trendBarFill,
+                            isDark && { backgroundColor: colors.surfaceSecondary },
                             { width: `${Math.min(100, Math.max(m.total > 0 ? 8 : 0, m.percentage))}%` },
                           ]}
                         />
                       </View>
-                      <Text style={styles.trendMonthAmount}>{formatCurrency(m.total)}</Text>
+                      <Text style={[styles.trendMonthAmount, { color: colors.textPrimary }]}>{formatCurrency(m.total)}</Text>
                     </View>
                   ))}
                 </View>
@@ -1566,15 +1571,15 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
 
               {/* Comments Display (if any) */}
               {expenseComments[selectedExpense.id]?.length > 0 && (
-                <View style={styles.commentsListSection}>
-                  <Text style={styles.commentsSectionHeader}>Comments</Text>
+                <View style={[styles.commentsListSection, { borderTopColor: colors.border }]}>
+                  <Text style={[styles.commentsSectionHeader, { color: colors.textPrimary }]}>Comments</Text>
                   {expenseComments[selectedExpense.id].map((c) => (
-                    <View key={c.id} style={styles.commentItem}>
+                    <View key={c.id} style={[styles.commentItem, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
                       <View style={styles.commentHeaderRow}>
-                        <Text style={styles.commentAuthor}>{c.author}</Text>
-                        <Text style={styles.commentTime}>{c.time}</Text>
+                        <Text style={[styles.commentAuthor, { color: colors.textPrimary }]}>{c.author}</Text>
+                        <Text style={[styles.commentTime, { color: colors.textMuted }]}>{c.time}</Text>
                       </View>
-                      <Text style={styles.commentText}>{c.text}</Text>
+                      <Text style={[styles.commentText, { color: colors.textPrimary }]}>{c.text}</Text>
                     </View>
                   ))}
                 </View>
@@ -1585,14 +1590,14 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
             <View
               style={[
                 styles.bottomCommentBar,
-                { paddingBottom: Math.max(insets.bottom + 8, 12) },
+                { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom + 8, 12) },
               ]}
             >
-              <View style={styles.commentInputWrapper}>
+              <View style={[styles.commentInputWrapper, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
                 <TextInput
-                  style={styles.commentInput}
+                  style={[styles.commentInput, { color: colors.textPrimary }]}
                   placeholder="Add a comment"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={colors.textMuted}
                   value={commentText}
                   onChangeText={setCommentText}
                   onSubmitEditing={handleAddComment}
@@ -1605,7 +1610,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                 >
                   <SendHorizontal
                     size={20}
-                    color={commentText.trim() ? '#059669' : '#9CA3AF'}
+                    color={commentText.trim() ? colors.primary : colors.textMuted}
                     strokeWidth={2.2}
                   />
                 </TouchableOpacity>
@@ -1628,7 +1633,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
               <View style={styles.modalHeaderRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Camera size={20} color="#059669" />
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }}>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary }}>
                     Receipt Photo
                   </Text>
                 </View>
@@ -1714,10 +1719,10 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   loaderContainer: {
     flex: 1,
@@ -1743,7 +1748,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -1785,14 +1790,14 @@ const styles = StyleSheet.create({
   statusAlertStrip: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
   },
   statusAlertText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
 
   // Sticky Pill Navigation Tabs
@@ -1808,7 +1813,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     elevation: 4,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
@@ -1816,10 +1821,10 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
   },
   pillTabsContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   pillTabsScrollContent: {
     paddingHorizontal: 16,
@@ -1840,9 +1845,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#EA580C',
   },
   navPillInactive: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   navPillText: {
     fontSize: 13,
@@ -1852,7 +1857,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   navPillTextInactive: {
-    color: '#374151',
+    color: colors.textMuted,
   },
 
   // Pager Scroll
@@ -1870,7 +1875,7 @@ const styles = StyleSheet.create({
 
   // Section 1: Settle Up
   settledCelebrationCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
@@ -1880,12 +1885,12 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: colors.border,
   },
   settledTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   toggleSettledBtn: {
@@ -1898,7 +1903,7 @@ const styles = StyleSheet.create({
   },
   toggleSettledBtnText: {
     fontSize: 13,
-    color: '#6B7280',
+    color: colors.textMuted,
     fontWeight: '500',
   },
   modernCheckContainer: {
@@ -1910,15 +1915,15 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#ECFDF5',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#A7F3D0',
+    borderColor: isDark ? colors.border : '#A7F3D0',
   },
   settledNotice: {
     fontSize: 13,
-    color: '#6B7280',
+    color: colors.textMuted,
     textAlign: 'center',
     marginTop: 20,
     lineHeight: 18,
@@ -1937,15 +1942,15 @@ const styles = StyleSheet.create({
   sectionHeading: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   sectionSubCount: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textMuted,
     fontWeight: '500',
   },
   settlementCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     shadowColor: '#000',
@@ -1954,7 +1959,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   settlementCardHeader: {
     flexDirection: 'row',
@@ -1971,7 +1976,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#ECFDF5',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1981,11 +1986,11 @@ const styles = StyleSheet.create({
   settlementAmountText: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   settlementSubRole: {
     fontSize: 11,
-    color: '#6B7280',
+    color: colors.textMuted,
     fontWeight: '500',
   },
   settlementCardDetails: {
@@ -1994,11 +1999,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: colors.border,
   },
   settlementDetailSentence: {
     fontSize: 13,
-    color: '#4B5563',
+    color: colors.textMuted,
     flex: 1,
   },
   cardSettleBtn: {
@@ -2025,17 +2030,17 @@ const styles = StyleSheet.create({
   },
 
   settledHistorySection: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     marginTop: 14,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   settledHistoryHeader: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
     marginBottom: 12,
   },
   settledHistoryItem: {
@@ -2043,31 +2048,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
     gap: 12,
   },
   settledHistoryIconCircle: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#ECFDF5',
     alignItems: 'center',
     justifyContent: 'center',
   },
   settledHistoryTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   settledHistoryDate: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: colors.textMuted,
     marginTop: 2,
   },
   settledHistoryAmount: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#059669',
+    color: colors.income,
   },
   emptySettledBox: {
     alignItems: 'center',
@@ -2077,12 +2082,12 @@ const styles = StyleSheet.create({
   },
   emptySettledText: {
     fontSize: 13,
-    color: '#6B7280',
+    color: colors.textMuted,
   },
 
   // Section 2: Charts
   chartsHeroCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 18,
     padding: 18,
     marginBottom: 14,
@@ -2092,7 +2097,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   chartsHeroHeader: {
     flexDirection: 'row',
@@ -2109,20 +2114,20 @@ const styles = StyleSheet.create({
   chartsHeroAmount: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#111827',
+    color: colors.textPrimary,
     marginTop: 2,
   },
   sparkleIconBadge: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
     alignItems: 'center',
     justifyContent: 'center',
   },
   chartsHeroDivider: {
     height: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.border,
     marginVertical: 14,
   },
   chartsHeroStatsRow: {
@@ -2134,18 +2139,18 @@ const styles = StyleSheet.create({
   },
   chartsHeroStatLabel: {
     fontSize: 11,
-    color: '#6B7280',
+    color: colors.textMuted,
     fontWeight: '500',
     marginBottom: 3,
   },
   chartsHeroStatVal: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
   },
 
   chartBlockCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 18,
     padding: 18,
     marginBottom: 14,
@@ -2155,7 +2160,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   chartBlockHeader: {
     flexDirection: 'row',
@@ -2166,7 +2171,7 @@ const styles = StyleSheet.create({
   chartBlockTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   emptyChartNotice: {
     fontSize: 13,
@@ -2179,7 +2184,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F9FAFB',
+    borderBottomColor: colors.border,
     gap: 12,
   },
   breakdownMiddle: {
@@ -2194,16 +2199,16 @@ const styles = StyleSheet.create({
   breakdownCategoryName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   breakdownAmountText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   progressBarTrack: {
     height: 6,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
     borderRadius: 3,
     overflow: 'hidden',
     marginVertical: 3,
@@ -2221,7 +2226,7 @@ const styles = StyleSheet.create({
   },
   breakdownCountText: {
     fontSize: 11,
-    color: '#6B7280',
+    color: colors.textMuted,
   },
   breakdownPercentText: {
     fontSize: 11,
@@ -2234,7 +2239,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F9FAFB',
+    borderBottomColor: colors.border,
     gap: 12,
   },
   memberSpendingRight: {
@@ -2243,12 +2248,12 @@ const styles = StyleSheet.create({
   memberSpendingName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   memberPaidAmount: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   memberSpendingSubRow: {
     flexDirection: 'row',
@@ -2258,7 +2263,7 @@ const styles = StyleSheet.create({
   },
   memberShareText: {
     fontSize: 11,
-    color: '#6B7280',
+    color: colors.textMuted,
   },
   memberPercentText: {
     fontSize: 11,
@@ -2272,12 +2277,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
   },
   memberBalanceName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   memberBalanceStatus: {
     fontSize: 13,
@@ -2285,12 +2290,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   suggestedPaymentCard: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   suggestedPaymentRow: {
     flexDirection: 'row',
@@ -2304,7 +2309,7 @@ const styles = StyleSheet.create({
   suggestedPaymentAmount: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   cardSettleBtnSmall: {
     backgroundColor: '#059669',
@@ -2330,23 +2335,23 @@ const styles = StyleSheet.create({
   },
   gridCard: {
     width: '48%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   gridCardLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textMuted,
     marginBottom: 4,
     textTransform: 'uppercase',
   },
   gridCardValue: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   ledgerHeaderRow: {
     flexDirection: 'row',
@@ -2358,23 +2363,23 @@ const styles = StyleSheet.create({
   ledgerHeading: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   ledgerSubText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textMuted,
   },
   monthHeaderContainer: {
-    backgroundColor: '#EDF0F4',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#EDF0F4',
     paddingVertical: 7,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: colors.border,
   },
   monthHeaderText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#374151',
+    color: colors.textPrimary,
   },
 
   // Floating Action Button (Bottom Right)
@@ -2412,7 +2417,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalDialog: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 24,
     padding: 20,
     width: '100%',
@@ -2438,34 +2443,34 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: isDark ? '#059669' : '#A7F3D0',
   },
   trashBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEF2F2',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: isDark ? '#DC2626' : '#FECACA',
   },
   closeBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
   },
   expenseDetailTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#111827',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   expenseDetailAmount: {
@@ -2476,26 +2481,26 @@ const styles = StyleSheet.create({
   },
   expenseDetailDate: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textMuted,
     marginBottom: 16,
   },
   breakdownBox: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     marginBottom: 16,
   },
   payerDetailRow: {
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
     marginBottom: 10,
   },
   payerDetailText: {
     fontSize: 14,
-    color: '#374151',
+    color: colors.textSecondary,
   },
   splitsScrollView: {
     maxHeight: 160,
@@ -2507,23 +2512,23 @@ const styles = StyleSheet.create({
   },
   splitMemberName: {
     fontSize: 13,
-    color: '#4B5563',
+    color: colors.textSecondary,
   },
   splitAmountText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   receiptPreviewBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: isDark ? '#059669' : '#A7F3D0',
   },
   receiptPreviewBtnText: {
     fontSize: 13,
@@ -2534,7 +2539,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 360,
     borderRadius: 12,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
     marginVertical: 12,
   },
   receiptLocalNotice: {
@@ -2545,7 +2550,7 @@ const styles = StyleSheet.create({
 
   // Only Member Prompt
   onlyMemberDialog: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 24,
     width: '100%',
@@ -2555,13 +2560,13 @@ const styles = StyleSheet.create({
   onlyMemberTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#111827',
+    color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: 8,
   },
   onlyMemberSub: {
     fontSize: 13,
-    color: '#6B7280',
+    color: colors.textMuted,
     textAlign: 'center',
     marginBottom: 20,
     lineHeight: 18,
@@ -2581,7 +2586,7 @@ const styles = StyleSheet.create({
   },
   onlyMemberSecondaryBtn: {
     width: '100%',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
@@ -2589,7 +2594,7 @@ const styles = StyleSheet.create({
   onlyMemberSecondaryBtnText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: colors.textPrimary,
   },
 
   // Chart Timeframe Filter & Badges
@@ -2603,9 +2608,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   chartFilterPillActive: {
     backgroundColor: '#059669',
@@ -2614,31 +2619,31 @@ const styles = StyleSheet.create({
   chartFilterPillText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#4B5563',
+    color: colors.textSecondary,
   },
   chartFilterPillTextActive: {
     color: '#FFFFFF',
   },
   memberNetBadgeGreen: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: isDark ? '#059669' : '#A7F3D0',
   },
   memberNetBadgeGreenText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#059669',
+    color: isDark ? '#34D399' : '#059669',
   },
   memberNetBadgeRed: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEF2F2',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: isDark ? '#DC2626' : '#FECACA',
   },
   memberNetBadgeRedText: {
     fontSize: 11,
@@ -2648,7 +2653,7 @@ const styles = StyleSheet.create({
 
   // Full-Screen Expense Detail Screen Styles (Reference Matching)
   expDetailTopBar: {
-    backgroundColor: '#DCEDE2',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#DCEDE2',
     paddingHorizontal: 16,
     paddingBottom: 16,
   },
@@ -2679,7 +2684,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   expDetailCategoryIconWrapper: {
     marginBottom: 8,
@@ -2687,26 +2692,26 @@ const styles = StyleSheet.create({
   expDetailTitleText: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
     letterSpacing: -0.3,
   },
   expDetailAmountText: {
     fontSize: 34,
     fontWeight: '800',
-    color: '#111827',
+    color: colors.textPrimary,
     marginTop: 2,
     marginBottom: 6,
   },
   expDetailAddedDate: {
     fontSize: 13,
-    color: '#6B7280',
+    color: colors.textMuted,
     fontWeight: '400',
   },
   expDetailTreeSection: {
     paddingHorizontal: 20,
     paddingVertical: 18,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: colors.border,
   },
   treePayerRow: {
     flexDirection: 'row',
@@ -2716,7 +2721,7 @@ const styles = StyleSheet.create({
   treePayerText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   treeBranchesContainer: {
     marginTop: 4,
@@ -2738,7 +2743,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 1.5,
-    backgroundColor: '#D1D5DB',
+    backgroundColor: colors.border,
   },
   treeHorizontalLine: {
     position: 'absolute',
@@ -2746,23 +2751,23 @@ const styles = StyleSheet.create({
     top: 16,
     width: 18,
     height: 1.5,
-    backgroundColor: '#D1D5DB',
+    backgroundColor: colors.border,
   },
   treeSplitText: {
     fontSize: 14,
-    color: '#374151',
+    color: colors.textSecondary,
   },
   spendingTrendsSection: {
     paddingHorizontal: 20,
     paddingTop: 24,
     paddingBottom: 20,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: colors.border,
   },
   spendingTrendsTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginBottom: 16,
   },
   trendsChartCard: {
@@ -2776,13 +2781,13 @@ const styles = StyleSheet.create({
   trendMonthLabel: {
     width: 38,
     fontSize: 13,
-    color: '#4B5563',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   trendAxisLine: {
     width: 1.5,
     height: 24,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
     marginRight: 10,
   },
   trendBarContainer: {
@@ -2793,14 +2798,14 @@ const styles = StyleSheet.create({
   },
   trendBarFill: {
     height: 20,
-    backgroundColor: '#D1FAE5',
+    backgroundColor: isDark ? 'rgba(5, 150, 105, 0.3)' : '#D1FAE5',
     borderRadius: 4,
   },
   trendMonthAmount: {
     minWidth: 70,
     textAlign: 'right',
     fontSize: 13,
-    color: '#4B5563',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   viewMoreChartsBtn: {
@@ -2828,21 +2833,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: colors.border,
   },
   commentsSectionHeader: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.textPrimary,
     marginBottom: 10,
   },
   commentItem: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
     borderRadius: 12,
     padding: 10,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   commentHeaderRow: {
     flexDirection: 'row',
@@ -2852,29 +2857,29 @@ const styles = StyleSheet.create({
   commentAuthor: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   commentTime: {
     fontSize: 10,
-    color: '#9CA3AF',
+    color: colors.textMuted,
   },
   commentText: {
     fontSize: 13,
-    color: '#374151',
+    color: colors.textSecondary,
   },
   bottomCommentBar: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     paddingHorizontal: 16,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.border,
   },
   commentInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: Platform.OS === 'ios' ? 8 : 4,
@@ -2882,7 +2887,7 @@ const styles = StyleSheet.create({
   commentInput: {
     flex: 1,
     fontSize: 14,
-    color: '#111827',
+    color: colors.textPrimary,
     paddingVertical: 4,
   },
   commentSendBtn: {

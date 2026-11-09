@@ -263,6 +263,18 @@ This document provides a rigorous, verified audit of all features across the cod
 - **Test Coverage**: 3,345 automated test assertions in `tests/i18n.test.ts` (100% pass).
 - **Known Limitations**: Physical device app restart is required for native RTL text direction switches to take full system effect on Android.
 
+### 6.5 Complete Application Appearance Settings (Light, Dark, and System Default)
+- **Status**: **Implemented**
+- **Description**: Production-grade theme architecture supporting three appearance modes: Light, Dark, and System Default (default). Instantaneous update without requiring app restart, dynamic Android status bar synchronization, AsyncStorage cold-start persistence, and Firestore sync on authentication. Complete coverage across every screen, modal, and custom component.
+- **Screens**: 100% verified across all screens (`AccountScreen`, `HomeScreen`, `FriendsScreen`, `FriendDetailsScreen`, `GroupDetailsScreen`, `GroupSettingsScreen`, `StatisticsScreen`, `AddExpenseScreen`, `CreateGroupScreen`, `EditProfileScreen`, `JoinGroupScreen`, `OnboardingScreen`).
+- **Source Files**: `src/theme/index.tsx`, `src/theme/colors.ts`, `src/theme/themeStorage.ts`, `src/services/themeService.ts`, `src/components/settings/ThemePickerModal.tsx`
+- **Components & Modals**: `ThemePickerModal`, `LanguagePickerModal`, `AppHeader`, `GroupCard`, `ExpenseListItem`, `BalanceCard`, `GroupCoverHeader`, `GroupCoverPhotoModal`, `ProfilePhotoModal`, `QrCodeModal`, `TypedConfirmDialog`, `ConfirmationDialog`, `EmptyState`, `MemberAvatar`, `SpendingDonutChart`, `MonthlyTrendsChart`, `AmountInput`, `ParticipantRow`, `PayerSelectionModal`, `SplitConfigurationModal`, `SettleUpModal`, `AddFriendModal`, and all 10 group settings modals (`AddMembersModal`, `BalanceRemindersModal`, `CurrencySelectorModal`, `EditGroupInfoModal`, `ExpensePreferencesModal`, `GroupExportModal`, `GroupMembersModal`, `GroupNotificationsModal`, `MemberDetailsModal`, `RecentActivityModal`).
+- **Services**: `themeService.ts`, `themeStorage.ts`
+- **Firebase Dependencies**: Firestore `users/{uid}.appearance`
+- **Business Rules**: System Default is initial fallback. Switching modes recalculates resolved theme immediately. Green (`#10B981` / `#34D399`) strictly preserved for income/owed balances, Red (`#EF4444` / `#F87171`) for expenses/debts. Emerald brand identity preserved.
+- **Test Coverage**: 6 automated test suites in `tests/theme.test.ts` (100% pass).
+- **Known Limitations**: None. Operates completely offline with automatic cloud synchronization.
+
 ---
 
 ## 7. Advanced & Future Capabilities

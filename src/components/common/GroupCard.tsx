@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import { Home, Plane, Utensils, Heart, Briefcase, Users } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Group } from '../../types';
 import { formatCurrency } from '../../utils/currency';
+import { useAppTheme, ThemeColors } from '../../theme';
 
 export interface GroupSubBalance {
   memberName: string;
@@ -64,6 +65,8 @@ export const GroupCard: React.FC<GroupCardProps> = ({
   subBalances = [],
   onPress,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [imageError, setImageError] = useState(false);
 
   // Priority: Group Cover Photo (makes group visually identifiable on Home) or group avatar
@@ -100,15 +103,15 @@ export const GroupCard: React.FC<GroupCardProps> = ({
 
   // Determine balance text & color
   let balanceText = 'settled up';
-  let balanceColor = '#9E9E9E';
+  let balanceColor = colors.textMuted;
 
   if (!isSettled && Math.abs(netBalance) >= 0.01) {
     if (netBalance > 0) {
       balanceText = `you are owed ${formatCurrency(netBalance)}`;
-      balanceColor = '#1CC88A';
+      balanceColor = colors.income;
     } else {
       balanceText = `you owe ${formatCurrency(Math.abs(netBalance))}`;
-      balanceColor = '#E74C3C';
+      balanceColor = colors.expense;
     }
   }
 
@@ -116,7 +119,11 @@ export const GroupCard: React.FC<GroupCardProps> = ({
     <Pressable
       style={({ pressed }) => [
         styles.container,
-        pressed && { backgroundColor: '#F8F8F8' },
+        {
+          backgroundColor: colors.surface,
+          borderBottomColor: colors.border,
+        },
+        pressed && { backgroundColor: isDark ? '#1E293B' : '#F8F8F8' },
       ]}
       onPress={handlePress}
       accessibilityRole="button"
@@ -143,7 +150,7 @@ export const GroupCard: React.FC<GroupCardProps> = ({
       {/* Info Column */}
       <View style={styles.infoContainer}>
         {/* Group Name */}
-        <Text style={styles.groupName} numberOfLines={1}>
+        <Text style={[styles.groupName, { color: colors.textPrimary }]} numberOfLines={1}>
           {group.name}
         </Text>
 
@@ -159,10 +166,10 @@ export const GroupCard: React.FC<GroupCardProps> = ({
               const isOwesYou = sub.type === 'owes_you';
               return (
                 <Text key={idx} style={styles.subBalanceLine} numberOfLines={1}>
-                  <Text style={styles.subMemberName}>
+                  <Text style={[styles.subMemberName, { color: colors.textSecondary }]}>
                     {isOwesYou ? `${sub.memberName} owes you ` : `You owe ${sub.memberName} `}
                   </Text>
-                  <Text style={isOwesYou ? styles.subAmountOwed : styles.subAmountOwe}>
+                  <Text style={[isOwesYou ? styles.subAmountOwed : styles.subAmountOwe, { color: isOwesYou ? colors.income : colors.expense }]}>
                     {formatCurrency(sub.amount)}
                   </Text>
                 </Text>
@@ -175,66 +182,67 @@ export const GroupCard: React.FC<GroupCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E8E8E8',
-  },
-  thumbnail: {
-    width: 58,
-    height: 58,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-  },
-  thumbnailPlaceholder: {
-    width: 58,
-    height: 58,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  thumbnailInitial: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  infoContainer: {
-    flex: 1,
-    marginLeft: 14,
-    justifyContent: 'center',
-  },
-  groupName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    letterSpacing: -0.2,
-    marginBottom: 2,
-  },
-  balanceText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  subBalancesList: {
-    marginTop: 3,
-    gap: 1,
-  },
-  subBalanceLine: {
-    fontSize: 13,
-  },
-  subMemberName: {
-    color: '#6B6B6B',
-  },
-  subAmountOwed: {
-    color: '#1CC88A',
-    fontWeight: '600',
-  },
-  subAmountOwe: {
-    color: '#E74C3C',
-    fontWeight: '600',
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      backgroundColor: colors.surface,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    thumbnail: {
+      width: 58,
+      height: 58,
+      borderRadius: 8,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F1F5F9',
+    },
+    thumbnailPlaceholder: {
+      width: 58,
+      height: 58,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    thumbnailInitial: {
+      color: '#FFFFFF',
+      fontSize: 24,
+      fontWeight: '700',
+    },
+    infoContainer: {
+      flex: 1,
+      marginLeft: 14,
+      justifyContent: 'center',
+    },
+    groupName: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      letterSpacing: -0.2,
+      marginBottom: 2,
+    },
+    balanceText: {
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    subBalancesList: {
+      marginTop: 3,
+      gap: 1,
+    },
+    subBalanceLine: {
+      fontSize: 13,
+    },
+    subMemberName: {
+      color: colors.textSecondary,
+    },
+    subAmountOwed: {
+      color: colors.income,
+      fontWeight: '600',
+    },
+    subAmountOwe: {
+      color: colors.expense,
+      fontWeight: '600',
+    },
+  });

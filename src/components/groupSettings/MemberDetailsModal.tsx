@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Modal,
   View,
@@ -18,6 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { GroupMember } from '../../types';
 import { MemberAvatar } from '../common/MemberAvatar';
 import { formatCurrency } from '../../utils/currency';
+import { useAppTheme, ThemeColors } from '../../theme';
 
 interface MemberDetailsModalProps {
   visible: boolean;
@@ -42,6 +43,8 @@ export const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
   onRemove,
   onTransferAdmin,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   if (!member) return null;
 
   const joinedDateStr = member.joinedAt
@@ -162,133 +165,134 @@ export const MemberDetailsModal: React.FC<MemberDetailsModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  dialogContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    width: '100%',
-    maxWidth: 340,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  roleBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  roleBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 14,
-    backgroundColor: '#F3F4F6',
-  },
-  avatarSection: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  memberName: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#111827',
-    marginTop: 10,
-  },
-  infoCard: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    marginBottom: 16,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 11,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-  },
-  infoLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  infoLabel: {
-    fontSize: 13,
-    color: '#6B7280',
-  },
-  infoValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  balanceValue: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  positiveBalance: {
-    color: '#059669',
-  },
-  negativeBalance: {
-    color: '#DC2626',
-  },
-  neutralBalance: {
-    color: '#6B7280',
-  },
-  actionSection: {
-    gap: 8,
-  },
-  adminActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  adminActionText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#065F46',
-  },
-  removeActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  removeActionText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#DC2626',
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.55)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    dialogContainer: {
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      padding: 20,
+      width: '100%',
+      maxWidth: 340,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: isDark ? 0.4 : 0.15,
+      shadowRadius: 10,
+      elevation: 8,
+    },
+    topRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+    roleBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    roleBadgeText: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    closeBtn: {
+      padding: 6,
+      borderRadius: 14,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+    },
+    avatarSection: {
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    memberName: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginTop: 10,
+    },
+    infoCard: {
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      marginBottom: 16,
+    },
+    infoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 11,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    infoLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    infoLabel: {
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    infoValue: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    balanceValue: {
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    positiveBalance: {
+      color: colors.income,
+    },
+    negativeBalance: {
+      color: colors.expense,
+    },
+    neutralBalance: {
+      color: colors.textMuted,
+    },
+    actionSection: {
+      gap: 8,
+    },
+    adminActionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(5, 150, 105, 0.3)' : '#A7F3D0',
+      paddingVertical: 10,
+      borderRadius: 12,
+    },
+    adminActionText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    removeActionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark ? 'rgba(225, 29, 72, 0.2)' : '#FEF2F2',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(225, 29, 72, 0.3)' : '#FECACA',
+      paddingVertical: 10,
+      borderRadius: 12,
+    },
+    removeActionText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.expense,
+    },
+  });
 

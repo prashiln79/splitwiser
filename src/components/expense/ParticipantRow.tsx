@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
 import { MemberAvatar } from '../common/MemberAvatar';
+import { useAppTheme, ThemeColors } from '../../theme';
 
 interface ParticipantRowProps {
   name: string;
@@ -25,6 +26,9 @@ export const ParticipantRow: React.FC<ParticipantRowProps> = ({
   style,
   disabled = false,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+
   const content = (
     <View style={[styles.container, style]}>
       <View style={styles.leftSection}>
@@ -65,56 +69,57 @@ export const ParticipantRow: React.FC<ParticipantRowProps> = ({
   return content;
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
-  },
-  leftSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 12,
-  },
-  textContainer: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  nameText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  subtitleText: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  badge: {
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  rightSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 12,
+      paddingHorizontal: 4,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    leftSection: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+      marginRight: 12,
+    },
+    textContainer: {
+      marginLeft: 12,
+      flex: 1,
+    },
+    nameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    nameText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    subtitleText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginTop: 2,
+      fontWeight: '500',
+    },
+    badge: {
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    badgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: isDark ? '#34D399' : '#059669',
+    },
+    rightSection: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+  });
 

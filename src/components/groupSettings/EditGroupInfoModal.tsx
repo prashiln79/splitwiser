@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -25,6 +25,7 @@ import {
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Group, GroupType } from '../../types';
+import { useAppTheme, ThemeColors } from '../../theme';
 
 interface EditGroupInfoModalProps {
   visible: boolean;
@@ -61,6 +62,8 @@ export const EditGroupInfoModal: React.FC<EditGroupInfoModalProps> = ({
   onClose,
   onSave,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<GroupType>('home');
@@ -272,183 +275,184 @@ export const EditGroupInfoModal: React.FC<EditGroupInfoModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    justifyContent: 'flex-end',
-  },
-  sheetContainer: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '90%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
-  },
-  scrollBody: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-  inputGroup: {
-    marginBottom: 18,
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  fieldSubLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 10,
-    lineHeight: 16,
-  },
-  textInput: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#111827',
-  },
-  textArea: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#111827',
-    minHeight: 70,
-    textAlignVertical: 'top',
-  },
-  disabledInput: {
-    backgroundColor: '#F3F4F6',
-    color: '#6B7280',
-  },
-  errorText: {
-    fontSize: 12,
-    color: '#EF4444',
-    marginTop: 4,
-    fontWeight: '500',
-  },
-  typeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  typePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
-  },
-  typePillText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  metadataBox: {
-    backgroundColor: '#F0FDF4',
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 20,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  metaSectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#065F46',
-  },
-  metaGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    rowGap: 10,
-  },
-  metaItem: {
-    width: '48%',
-  },
-  metaLabel: {
-    fontSize: 11,
-    color: '#6B7280',
-    marginBottom: 2,
-  },
-  metaValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  sheetFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E5E7EB',
-    gap: 12,
-  },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#4B5563',
-  },
-  saveBtn: {
-    flex: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#059669',
-  },
-  saveBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  disabledBtn: {
-    backgroundColor: '#9CA3AF',
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+      justifyContent: 'flex-end',
+    },
+    sheetContainer: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '90%',
+      paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    },
+    sheetHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    sheetTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    closeBtn: {
+      padding: 6,
+      borderRadius: 16,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+    },
+    scrollBody: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+    },
+    inputGroup: {
+      marginBottom: 18,
+    },
+    fieldLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: 6,
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
+    },
+    fieldSubLabel: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginBottom: 10,
+      lineHeight: 16,
+    },
+    textInput: {
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 15,
+      color: colors.textPrimary,
+    },
+    textArea: {
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      fontSize: 14,
+      color: colors.textPrimary,
+      minHeight: 70,
+      textAlignVertical: 'top',
+    },
+    disabledInput: {
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+      color: colors.textMuted,
+    },
+    errorText: {
+      fontSize: 12,
+      color: colors.danger,
+      marginTop: 4,
+      fontWeight: '500',
+    },
+    typeGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    typePill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      gap: 6,
+    },
+    typePillText: {
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    metadataBox: {
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#F0FDF4',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(5, 150, 105, 0.3)' : '#BBF7D0',
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 20,
+    },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    metaSectionTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    metaGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      rowGap: 10,
+    },
+    metaItem: {
+      width: '48%',
+    },
+    metaLabel: {
+      fontSize: 11,
+      color: colors.textMuted,
+      marginBottom: 2,
+    },
+    metaValue: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    sheetFooter: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.border,
+      gap: 12,
+    },
+    cancelBtn: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 12,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cancelBtnText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    saveBtn: {
+      flex: 2,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      borderRadius: 12,
+      backgroundColor: colors.primary,
+    },
+    saveBtnText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    disabledBtn: {
+      backgroundColor: isDark ? colors.surfaceSecondary : '#9CA3AF',
+    },
+  });
 

@@ -4,7 +4,47 @@ All notable changes are documented in this file. Changes are listed in reverse c
 
 ---
 
-## [v2.1.0] — 2026-11-09
+## [v2.2.0] — 2026-11-09
+
+### Added
+- **Complete Application Appearance Settings (Light, Dark, and System Default Theme)**:
+  - Full system-wide theme support offering three selectable appearance modes: **Light**, **Dark**, and **System Default** (default).
+  - Centralized `ThemeProvider` and `useAppTheme()` hook maintaining `themeMode` ('light' | 'dark' | 'system'), `resolvedTheme` ('light' | 'dark'), `isDark: boolean`, and 31 semantic `ThemeColors` tokens.
+  - Dedicated bottom sheet modal `ThemePickerModal.tsx` accessible via `Account → Preferences → Appearance` with instant preview, checkmark indicators, haptic feedback, and zero app restart requirement.
+  - `src/theme/themeStorage.ts`: Local persistence via `AsyncStorage` (`@splitwiser_appearance_mode`) for instantaneous cold-start theme restoration.
+  - `src/services/themeService.ts`: Cloud persistence syncing appearance preference to Firestore `users/{uid}.appearance` on authentication.
+  - Real-time operating system theme tracking via `Appearance.addChangeListener` when System Default is active.
+  - Android native dynamic status bar integration (`expo-status-bar` style `light` / `dark` and `RNStatusBar.setBackgroundColor` syncing to surface background).
+  - 100% theme token coverage across every application screen:
+    - `AccountScreen`: Dynamic background, cards, header, and active appearance subtitle.
+    - `HomeScreen`: Surface cards, search inputs, join group modal, and bottom bar.
+    - `FriendsScreen`: Summary owed/owe cards, filter chips, and friend list rows.
+    - `FriendDetailsScreen`: Friend balance card, activity history, and settlement action bar.
+    - `GroupDetailsScreen`: Cover header, tabs (Expenses, Settle Up, Balances, Totals, Charts), expense items, and comments modal.
+    - `GroupSettingsScreen`: Group card, settings options, toggle switches, and export actions.
+    - `StatisticsScreen`: Month navigator, spending summary card, category breakdown cards, and charts.
+    - `AddExpenseScreen`: Currency box, input rows, paid-by buttons, split breakdown cards, and modal dialogs.
+    - `CreateGroupScreen`: Header, group type selector chips, and photo picker.
+    - `EditProfileScreen`: Settings fields, editable rows, timezone/currency/blocklist dialogs, and guest banner.
+    - `JoinGroupScreen`: Hash icon, join code input, and submit button.
+    - `OnboardingScreen`: Google Sign-In button and feature highlights.
+  - Standardized all modal dialogs on semantic theme tokens:
+    - `SettleUpModal`: Dynamic background, payer/payee avatar transfer row, and payment note input.
+    - `AddFriendModal`: Dialog surface, tabs, user search input, search result items, and share invite banner.
+    - `ProfilePhotoModal`: Bottom sheet container, avatar preview ring, source pills, and action rows.
+    - `GroupCoverPhotoModal`: Bottom sheet container, category pills, action rows, and save button.
+    - `QrCodeModal`: Scan dialog, QR wrapper, code input, and snippet text.
+    - `TypedConfirmDialog`: Dialog box, destructive text input, and cancel button.
+    - `PayerSelectionModal`: Dialog surface, segmented tabs, multi-payer inputs, and confirm button.
+    - `SplitConfigurationModal`: Bottom sheet, split tabs, member share inputs, and summary preview.
+    - All 10 Group Settings Modals (`AddMembersModal`, `BalanceRemindersModal`, `CurrencySelectorModal`, `EditGroupInfoModal`, `ExpensePreferencesModal`, `GroupExportModal`, `GroupMembersModal`, `GroupNotificationsModal`, `MemberDetailsModal`, `RecentActivityModal`).
+  - Strict preservation of financial semantic colors across both light and dark themes:
+    - Emerald Green (`#10B981` in light / `#34D399` in dark) for positive balances, income, and lent amounts.
+    - Red (`#EF4444` in light / `#F87171` in dark) for negative balances, debts, and borrowed amounts.
+    - Slate muted text for settled balances.
+  - Emerald primary brand identity preserved across both modes (`#059669` in light / `#10B981` in dark).
+  - Automated theme unit test suite `tests/theme.test.ts` (6 passing suites covering resolution matrix, persistence roundtrip, corrupt-value fallback, token symmetry, financial semantics, and contrast).
+  - Added `npm run test:theme` and integrated into `npm test` pipeline (all 9 suites, 3,472 assertions passing).
 
 ### Added
 - **Complete Multilingual Internationalization (i18n) Implementation**:

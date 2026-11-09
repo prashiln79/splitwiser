@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -21,6 +21,7 @@ import { GroupMember, OptimizedSettlement } from '../../types';
 import { MemberAvatar } from '../common/MemberAvatar';
 import { formatCurrency } from '../../utils/currency';
 import { logGroupActivity } from '../../services/activityService';
+import { useAppTheme, ThemeColors } from '../../theme';
 
 interface BalanceRemindersModalProps {
   visible: boolean;
@@ -45,6 +46,8 @@ export const BalanceRemindersModal: React.FC<BalanceRemindersModalProps> = ({
   members,
   onClose,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [remindedUserIds, setRemindedUserIds] = useState<Set<string>>(new Set());
 
   // Members who owe ME money
@@ -198,139 +201,140 @@ export const BalanceRemindersModal: React.FC<BalanceRemindersModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    justifyContent: 'flex-end',
-  },
-  sheetContainer: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  sheetSubtitle: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
-  },
-  scrollBody: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 36,
-    paddingHorizontal: 20,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
-    marginTop: 12,
-    marginBottom: 6,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  infoBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F0F9FF',
-    borderWidth: 1,
-    borderColor: '#BAE6FD',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-  },
-  infoBannerText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#0369A1',
-    lineHeight: 16,
-  },
-  debtorsList: {
-    gap: 10,
-    marginBottom: 16,
-  },
-  debtorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 14,
-    padding: 12,
-  },
-  debtorMeta: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  debtorName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  debtorAmount: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#DC2626',
-    marginTop: 2,
-  },
-  remindBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#059669',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 18,
-  },
-  remindBtnSent: {
-    backgroundColor: '#6B7280',
-  },
-  remindBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  remindAllBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#059669',
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  remindAllBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+      justifyContent: 'flex-end',
+    },
+    sheetContainer: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '80%',
+      paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    },
+    sheetHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    sheetTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    sheetSubtitle: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    closeBtn: {
+      padding: 6,
+      borderRadius: 16,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+    },
+    scrollBody: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+    },
+    emptyContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 36,
+      paddingHorizontal: 20,
+    },
+    emptyTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginTop: 12,
+      marginBottom: 6,
+    },
+    emptySubtitle: {
+      fontSize: 13,
+      color: colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 18,
+    },
+    infoBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? 'rgba(3, 105, 161, 0.15)' : '#F0F9FF',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(3, 105, 161, 0.3)' : '#BAE6FD',
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 16,
+    },
+    infoBannerText: {
+      flex: 1,
+      fontSize: 12,
+      color: isDark ? '#38BDF8' : '#0369A1',
+      lineHeight: 16,
+    },
+    debtorsList: {
+      gap: 10,
+      marginBottom: 16,
+    },
+    debtorCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 14,
+      padding: 12,
+    },
+    debtorMeta: {
+      flex: 1,
+      marginLeft: 12,
+    },
+    debtorName: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    debtorAmount: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.expense,
+      marginTop: 2,
+    },
+    remindBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: 18,
+    },
+    remindBtnSent: {
+      backgroundColor: colors.textMuted,
+    },
+    remindBtnText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    remindAllBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+      paddingVertical: 12,
+      borderRadius: 12,
+      marginBottom: 20,
+    },
+    remindAllBtnText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '700',
+    },
+  });
 

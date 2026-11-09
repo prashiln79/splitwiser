@@ -38,6 +38,7 @@ import { getLocalGroupById, getLocalGroupMembers } from '../repositories/groupRe
 import { createExpenseLocal, updateExpenseLocal } from '../repositories/expenseRepository';
 import { getDirectGroupId } from '../repositories/friendRepository';
 import { useAuth } from '../context/AuthContext';
+import { useAppTheme, ThemeColors } from '../theme';
 import { MemberAvatar } from '../components/common/MemberAvatar';
 import {
   CATEGORIES_CONFIG,
@@ -75,7 +76,9 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
   const { groupId: passedGroupId, friendId, friendName, expenseToEdit } = route.params || {};
   const isEditing = Boolean(expenseToEdit);
   const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   const isDirectFriendExpense = Boolean(friendId && !passedGroupId);
   const groupId = passedGroupId || (friendId && user ? getDirectGroupId(user.uid, friendId) : '');
@@ -977,16 +980,16 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                     {currency}{exactTotal.toFixed(2)} of {currency}{numericAmount.toFixed(2)}
                   </Text>
                   {Math.abs(exactTotal - numericAmount) < 0.05 ? (
-                    <View style={[styles.validPill, { backgroundColor: '#ECFDF5' }]}>
-                      <Check size={12} color="#059669" strokeWidth={2.5} />
-                      <Text style={[styles.validPillText, { color: '#059669' }]}>
+                    <View style={[styles.validPill, styles.validPillSuccess]}>
+                      <Check size={12} color={isDark ? '#34D399' : '#059669'} strokeWidth={2.5} />
+                      <Text style={[styles.validPillText, styles.validPillSuccessText]}>
                         Balanced
                       </Text>
                     </View>
                   ) : (
-                    <View style={[styles.validPill, { backgroundColor: '#FEF2F2' }]}>
-                      <AlertCircle size={12} color="#E11D48" strokeWidth={2.5} />
-                      <Text style={[styles.validPillText, { color: '#E11D48' }]}>
+                    <View style={[styles.validPill, styles.validPillError]}>
+                      <AlertCircle size={12} color={isDark ? '#FB7185' : '#E11D48'} strokeWidth={2.5} />
+                      <Text style={[styles.validPillText, styles.validPillErrorText]}>
                         {currency}{Math.abs(exactTotal - numericAmount).toFixed(2)} off
                       </Text>
                     </View>
@@ -1027,16 +1030,16 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                     {percentageTotal.toFixed(1)}% of 100%
                   </Text>
                   {Math.abs(percentageTotal - 100) < 0.1 ? (
-                    <View style={[styles.validPill, { backgroundColor: '#ECFDF5' }]}>
-                      <Check size={12} color="#059669" strokeWidth={2.5} />
-                      <Text style={[styles.validPillText, { color: '#059669' }]}>
+                    <View style={[styles.validPill, styles.validPillSuccess]}>
+                      <Check size={12} color={isDark ? '#34D399' : '#059669'} strokeWidth={2.5} />
+                      <Text style={[styles.validPillText, styles.validPillSuccessText]}>
                         100%
                       </Text>
                     </View>
                   ) : (
-                    <View style={[styles.validPill, { backgroundColor: '#FEF2F2' }]}>
-                      <AlertCircle size={12} color="#E11D48" strokeWidth={2.5} />
-                      <Text style={[styles.validPillText, { color: '#E11D48' }]}>
+                    <View style={[styles.validPill, styles.validPillError]}>
+                      <AlertCircle size={12} color={isDark ? '#FB7185' : '#E11D48'} strokeWidth={2.5} />
+                      <Text style={[styles.validPillText, styles.validPillErrorText]}>
                         {percentageTotal < 100
                           ? `${(100 - percentageTotal).toFixed(1)}% left`
                           : `${(percentageTotal - 100).toFixed(1)}% over`}
@@ -1088,16 +1091,16 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                     {sharesTotal} {sharesTotal === 1 ? 'total share' : 'total shares'}
                   </Text>
                   {sharesTotal > 0 ? (
-                    <View style={[styles.validPill, { backgroundColor: '#ECFDF5' }]}>
-                      <Check size={12} color="#059669" strokeWidth={2.5} />
-                      <Text style={[styles.validPillText, { color: '#059669' }]}>
+                    <View style={[styles.validPill, styles.validPillSuccess]}>
+                      <Check size={12} color={isDark ? '#34D399' : '#059669'} strokeWidth={2.5} />
+                      <Text style={[styles.validPillText, styles.validPillSuccessText]}>
                         {sharesTotal} active
                       </Text>
                     </View>
                   ) : (
-                    <View style={[styles.validPill, { backgroundColor: '#FEF2F2' }]}>
-                      <AlertCircle size={12} color="#E11D48" strokeWidth={2.5} />
-                      <Text style={[styles.validPillText, { color: '#E11D48' }]}>
+                    <View style={[styles.validPill, styles.validPillError]}>
+                      <AlertCircle size={12} color={isDark ? '#FB7185' : '#E11D48'} strokeWidth={2.5} />
+                      <Text style={[styles.validPillText, styles.validPillErrorText]}>
                         0 shares
                       </Text>
                     </View>
@@ -1644,7 +1647,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                   onPress={goToPreviousMonth}
                   accessibilityLabel="Previous month"
                 >
-                  <ChevronLeft size={18} color="#374151" />
+                  <ChevronLeft size={18} color={colors.textPrimary} />
                 </TouchableOpacity>
 
                 <Text style={styles.calendarMonthText}>{calendarMonthTitle}</Text>
@@ -1654,7 +1657,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                   onPress={goToNextMonth}
                   accessibilityLabel="Next month"
                 >
-                  <ChevronRight size={18} color="#374151" />
+                  <ChevronRight size={18} color={colors.textPrimary} />
                 </TouchableOpacity>
               </View>
 
@@ -1771,16 +1774,16 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   loaderContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   // 1. Header
   header: {
@@ -1790,8 +1793,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
   },
   headerBtn: {
     width: 40,
@@ -1802,7 +1805,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   scrollContent: {
     paddingBottom: 48,
@@ -1814,19 +1817,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
   },
   withYouAndText: {
     fontSize: 15,
-    color: '#6B7280',
+    color: colors.textMuted,
     fontWeight: '500',
   },
   groupContextChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0FDF4',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#F0FDF4',
     borderWidth: 1,
-    borderColor: '#DCFCE7',
+    borderColor: isDark ? colors.border : '#DCFCE7',
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -1834,7 +1837,7 @@ const styles = StyleSheet.create({
   groupContextChipText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#059669',
+    color: colors.primary,
   },
   // 3 & 4. Form rows (Category + Description, Currency + Amount)
   formRow: {
@@ -1848,8 +1851,8 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -1857,13 +1860,13 @@ const styles = StyleSheet.create({
   descriptionInputWrapper: {
     flex: 1,
     borderBottomWidth: 1.5,
-    borderBottomColor: '#059669',
+    borderBottomColor: colors.primary,
     paddingBottom: 4,
   },
   descriptionInput: {
     fontSize: 17,
     fontWeight: '500',
-    color: '#111827',
+    color: colors.textPrimary,
     paddingVertical: 4,
   },
   currencyBox: {
@@ -1871,8 +1874,8 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -1880,18 +1883,18 @@ const styles = StyleSheet.create({
   currencyBoxText: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#374151',
+    color: colors.textPrimary,
   },
   amountInputWrapper: {
     flex: 1,
     borderBottomWidth: 1.5,
-    borderBottomColor: '#059669',
+    borderBottomColor: colors.primary,
     paddingBottom: 2,
   },
   amountInput: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
     paddingVertical: 0,
     letterSpacing: -0.5,
   },
@@ -1900,7 +1903,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
   },
   paidByRow: {
     flexDirection: 'row',
@@ -1911,13 +1914,13 @@ const styles = StyleSheet.create({
   },
   paidByText: {
     fontSize: 16,
-    color: '#374151',
+    color: colors.textPrimary,
     fontWeight: '500',
   },
   pillButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1.5,
-    borderColor: '#D1D5DB',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 5,
@@ -1930,11 +1933,11 @@ const styles = StyleSheet.create({
   pillButtonText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#059669',
+    color: colors.primary,
   },
   equalSummaryText: {
     fontSize: 13,
-    color: '#6B7280',
+    color: colors.textMuted,
     fontWeight: '500',
     marginTop: 8,
     textAlign: 'center',
@@ -1950,7 +1953,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
   },
   memberCheckLeft: {
     flexDirection: 'row',
@@ -1961,7 +1964,7 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   memberCheckRight: {
     flexDirection: 'row',
@@ -2001,6 +2004,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 99,
   },
+  validPillSuccess: {
+    backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
+  },
+  validPillSuccessText: {
+    color: isDark ? '#34D399' : '#059669',
+  },
+  validPillError: {
+    backgroundColor: isDark ? 'rgba(225, 29, 72, 0.2)' : '#FEF2F2',
+  },
+  validPillErrorText: {
+    color: isDark ? '#FB7185' : '#E11D48',
+  },
   validPillText: {
     fontSize: 12,
     fontWeight: '700',
@@ -2017,28 +2032,28 @@ const styles = StyleSheet.create({
   },
   exactInput: {
     borderBottomWidth: 1,
-    borderBottomColor: '#D1D5DB',
+    borderBottomColor: colors.border,
     paddingHorizontal: 4,
     paddingVertical: 4,
     fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.textPrimary,
     width: 80,
     textAlign: 'right',
   },
   calcShareText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textMuted,
     marginTop: 1,
   },
   pctInput: {
     borderBottomWidth: 1,
-    borderBottomColor: '#D1D5DB',
+    borderBottomColor: colors.border,
     paddingHorizontal: 4,
     paddingVertical: 4,
     fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.textPrimary,
     width: 56,
     textAlign: 'right',
   },
@@ -2052,14 +2067,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
     borderRadius: 12,
     marginHorizontal: 20,
     marginTop: 20,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   toolbarLeft: {
     flexDirection: 'row',
@@ -2070,7 +2085,7 @@ const styles = StyleSheet.create({
   toolbarGroupText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#374151',
+    color: colors.textPrimary,
   },
   toolbarRight: {
     flexDirection: 'row',
@@ -2083,13 +2098,13 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   toolbarActionBtnActive: {
-    borderColor: '#A7F3D0',
-    backgroundColor: '#ECFDF5',
+    borderColor: isDark ? '#059669' : '#A7F3D0',
+    backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
   },
   attachmentPreviewRow: {
     flexDirection: 'row',
@@ -2101,9 +2116,9 @@ const styles = StyleSheet.create({
   attachmentBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: isDark ? '#059669' : '#A7F3D0',
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -2143,14 +2158,14 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   categoryDialog: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 20,
     width: '100%',
     maxWidth: 380,
   },
   selectionDialog: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 20,
     width: '100%',
@@ -2165,7 +2180,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   modalCloseBtn: {
     padding: 4,
@@ -2182,12 +2197,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   categoryItemSelected: {
-    borderColor: '#059669',
-    backgroundColor: '#ECFDF5',
+    borderColor: colors.primary,
+    backgroundColor: isDark ? colors.surfaceSecondary : '#ECFDF5',
   },
   categoryItemIconWrap: {
     width: 44,
@@ -2200,11 +2215,11 @@ const styles = StyleSheet.create({
   categoryItemLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#4B5563',
+    color: colors.textMuted,
     textAlign: 'center',
   },
   categoryItemLabelSelected: {
-    color: '#059669',
+    color: colors.primary,
     fontWeight: '700',
   },
   selectionOptionRow: {
@@ -2214,10 +2229,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
   },
   selectionOptionRowSelected: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#ECFDF5',
     borderRadius: 8,
   },
   selectionOptionLeft: {
@@ -2228,10 +2243,10 @@ const styles = StyleSheet.create({
   selectionOptionText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.textPrimary,
   },
   selectionOptionTextSelected: {
-    color: '#059669',
+    color: colors.primary,
   },
   splitMethodOption: {
     flexDirection: 'row',
@@ -2240,18 +2255,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     marginBottom: 10,
+    backgroundColor: colors.surface,
   },
   splitMethodOptionSelected: {
-    borderColor: '#059669',
-    backgroundColor: '#ECFDF5',
+    borderColor: colors.primary,
+    backgroundColor: isDark ? colors.surfaceSecondary : '#ECFDF5',
   },
   splitMethodIconCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#DCFCE7',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -2263,27 +2279,28 @@ const styles = StyleSheet.create({
   splitMethodTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   splitMethodSub: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textMuted,
     lineHeight: 16,
   },
   notesTextInput: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: colors.border,
     borderRadius: 10,
     padding: 12,
     fontSize: 15,
-    color: '#111827',
+    color: colors.textPrimary,
+    backgroundColor: colors.inputBackground,
     minHeight: 90,
     textAlignVertical: 'top',
     marginBottom: 16,
   },
   notesSaveBtn: {
-    backgroundColor: '#059669',
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
@@ -2296,7 +2313,7 @@ const styles = StyleSheet.create({
   },
   dateSubtext: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.textMuted,
     marginTop: 2,
   },
   dateDividerRow: {
@@ -2308,20 +2325,20 @@ const styles = StyleSheet.create({
   dateDividerLine: {
     flex: 1,
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
   },
   dateDividerText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#9CA3AF',
+    color: colors.textMuted,
     letterSpacing: 0.5,
   },
   calendarContainer: {
-    backgroundColor: '#FAFAFA',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#FAFAFA',
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   calendarHeader: {
     flexDirection: 'row',
@@ -2333,21 +2350,21 @@ const styles = StyleSheet.create({
   calendarNavBtn: {
     padding: 6,
     borderRadius: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   calendarMonthText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   weekDaysRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginBottom: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
     paddingBottom: 6,
   },
   weekDayText: {
@@ -2355,7 +2372,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.textMuted,
   },
   daysGrid: {
     flexDirection: 'row',
@@ -2376,15 +2393,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dayCellSelected: {
-    backgroundColor: '#059669',
+    backgroundColor: colors.primary,
   },
   dayCellToday: {
     borderWidth: 1.5,
-    borderColor: '#059669',
+    borderColor: colors.primary,
   },
   dayText: {
     fontSize: 14,
-    color: '#1F2937',
+    color: colors.textPrimary,
     fontWeight: '500',
   },
   dayTextSelected: {
@@ -2392,7 +2409,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   dayTextToday: {
-    color: '#059669',
+    color: colors.primary,
     fontWeight: '700',
   },
   // Splitwise Payer & Shares controls
@@ -2406,12 +2423,12 @@ const styles = StyleSheet.create({
   selectAllBtnText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#059669',
+    color: colors.primary,
   },
   stepperWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
     borderRadius: 8,
     padding: 3,
     gap: 6,
@@ -2420,7 +2437,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -2432,18 +2449,18 @@ const styles = StyleSheet.create({
   stepperBtnText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
+    color: colors.textPrimary,
   },
   stepperValText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.textPrimary,
     minWidth: 54,
     textAlign: 'center',
   },
   segmentedControl: {
     flexDirection: 'row',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
     borderRadius: 10,
     padding: 3,
     marginBottom: 12,
@@ -2456,7 +2473,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   segmentedBtnActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -2466,14 +2483,14 @@ const styles = StyleSheet.create({
   segmentedBtnText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.textMuted,
   },
   segmentedBtnTextActive: {
-    color: '#111827',
+    color: colors.textPrimary,
     fontWeight: '700',
   },
   primaryModalBtn: {
-    backgroundColor: '#059669',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',

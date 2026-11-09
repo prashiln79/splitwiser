@@ -1,4 +1,6 @@
 import React, { useEffect } from 'react';
+import { StatusBar } from 'expo-status-bar';
+import { StatusBar as RNStatusBar, Platform } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -12,7 +14,7 @@ import { getDatabase } from './src/db/sqlite';
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function MainApp() {
-  const { paperTheme } = useAppTheme();
+  const { paperTheme, isDark, colors } = useAppTheme();
 
   useEffect(() => {
     // Warm up SQLite tables & indexes on app launch
@@ -21,8 +23,15 @@ function MainApp() {
     });
   }, []);
 
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      (RNStatusBar as any).setBackgroundColor?.(colors.background, true);
+    }
+  }, [colors.background]);
+
   return (
     <PaperProvider theme={paperTheme}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <AppNavigator />
     </PaperProvider>
   );

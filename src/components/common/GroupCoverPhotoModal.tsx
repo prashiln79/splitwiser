@@ -34,6 +34,7 @@ import {
 import { GroupCoverService } from '../../services/groupCoverService';
 import { MemberAvatar } from './MemberAvatar';
 import { compressCoverPhoto } from '../../utils/imageCompressor';
+import { useAppTheme, ThemeColors } from '../../theme';
 
 interface GroupCoverPhotoModalProps {
   visible: boolean;
@@ -50,6 +51,8 @@ export const GroupCoverPhotoModal: React.FC<GroupCoverPhotoModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
 
@@ -270,7 +273,7 @@ export const GroupCoverPhotoModal: React.FC<GroupCoverPhotoModalProps> = ({
             activeOpacity={0.7}
             accessibilityLabel="Close"
           >
-            <X size={22} color="#1F2937" strokeWidth={2.4} />
+            <X size={22} color={colors.textPrimary} strokeWidth={2.4} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Group Cover Photo</Text>
           <View style={{ width: 36 }} />
@@ -347,7 +350,7 @@ export const GroupCoverPhotoModal: React.FC<GroupCoverPhotoModalProps> = ({
               onPress={handlePickFromGallery}
               activeOpacity={0.8}
             >
-              <View style={[styles.actionIconCircle, { backgroundColor: '#E0F2FE' }]}>
+              <View style={[styles.actionIconCircle, { backgroundColor: isDark ? 'rgba(2, 132, 199, 0.2)' : '#E0F2FE' }]}>
                 <ImageIcon size={20} color="#0284C7" strokeWidth={2.2} />
               </View>
               <Text style={styles.actionBtnText}>Gallery</Text>
@@ -358,7 +361,7 @@ export const GroupCoverPhotoModal: React.FC<GroupCoverPhotoModalProps> = ({
               onPress={handleTakePhoto}
               activeOpacity={0.8}
             >
-              <View style={[styles.actionIconCircle, { backgroundColor: '#DCFCE7' }]}>
+              <View style={[styles.actionIconCircle, { backgroundColor: isDark ? 'rgba(22, 163, 74, 0.2)' : '#DCFCE7' }]}>
                 <Camera size={20} color="#16A34A" strokeWidth={2.2} />
               </View>
               <Text style={styles.actionBtnText}>Camera</Text>
@@ -370,7 +373,7 @@ export const GroupCoverPhotoModal: React.FC<GroupCoverPhotoModalProps> = ({
                 onPress={handleRemoveCover}
                 activeOpacity={0.8}
               >
-                <View style={[styles.actionIconCircle, { backgroundColor: '#FEE2E2' }]}>
+                <View style={[styles.actionIconCircle, { backgroundColor: isDark ? 'rgba(220, 38, 38, 0.2)' : '#FEE2E2' }]}>
                   <Trash2 size={20} color="#DC2626" strokeWidth={2.2} />
                 </View>
                 <Text style={styles.actionBtnText}>Remove</Text>
@@ -490,221 +493,223 @@ export const GroupCoverPhotoModal: React.FC<GroupCoverPhotoModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F3F4F6',
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  sectionHeading: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#6B7280',
-    letterSpacing: 0.6,
-    marginBottom: 8,
-  },
-  previewSection: {
-    marginBottom: 16,
-  },
-  previewCard: {
-    height: 140,
-    borderRadius: 16,
-    overflow: 'hidden',
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#1E293B',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  previewScrim: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-  },
-  previewInnerContent: {
-    alignItems: 'center',
-    zIndex: 2,
-  },
-  previewAvatarBorder: {
-    borderRadius: 26,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    marginBottom: 6,
-  },
-  previewGroupName: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -0.2,
-  },
-  previewSubtitle: {
-    fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.85)',
-    marginTop: 2,
-  },
-  previewSubtitleEmpty: {
-    fontSize: 11,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  actionButtonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingVertical: 14,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  actionBtn: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  actionIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  presetSection: {
-    marginTop: 4,
-  },
-  presetHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 10,
-  },
-  categoryPillsScroll: {
-    gap: 8,
-    paddingBottom: 12,
-  },
-  categoryPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  categoryPillActive: {
-    backgroundColor: '#059669',
-    borderColor: '#059669',
-  },
-  categoryPillText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#4B5563',
-  },
-  categoryPillTextActive: {
-    color: '#FFFFFF',
-  },
-  presetsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 4,
-  },
-  presetGridItem: {
-    height: 96,
-    borderRadius: 12,
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#E5E7EB',
-  },
-  presetThumbnail: {
-    width: '100%',
-    height: '100%',
-  },
-  presetTitleBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-  },
-  presetTitleText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  presetSelectedBadge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#059669',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-  },
-  bottomSaveBar: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  saveBtn: {
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveBtnActive: {
-    backgroundColor: '#059669',
-  },
-  saveBtnDisabled: {
-    backgroundColor: '#E5E7EB',
-  },
-  saveBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  saveBtnTextActive: {
-    color: '#FFFFFF',
-  },
-  saveBtnTextDisabled: {
-    color: '#9CA3AF',
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingBottom: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    closeBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+    },
+    headerTitle: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    scrollContent: {
+      paddingHorizontal: 16,
+      paddingTop: 16,
+    },
+    sectionHeading: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.textMuted,
+      letterSpacing: 0.6,
+      marginBottom: 8,
+    },
+    previewSection: {
+      marginBottom: 16,
+    },
+    previewCard: {
+      height: 140,
+      borderRadius: 16,
+      overflow: 'hidden',
+      position: 'relative',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: isDark ? colors.surfaceSecondary : '#1E293B',
+      elevation: 3,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+    },
+    previewScrim: {
+      ...StyleSheet.absoluteFill,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    },
+    previewInnerContent: {
+      alignItems: 'center',
+      zIndex: 2,
+    },
+    previewAvatarBorder: {
+      borderRadius: 26,
+      borderWidth: 2,
+      borderColor: '#FFFFFF',
+      marginBottom: 6,
+    },
+    previewGroupName: {
+      fontSize: 17,
+      fontWeight: '800',
+      color: '#FFFFFF',
+      letterSpacing: -0.2,
+    },
+    previewSubtitle: {
+      fontSize: 11,
+      color: 'rgba(255, 255, 255, 0.85)',
+      marginTop: 2,
+    },
+    previewSubtitleEmpty: {
+      fontSize: 11,
+      color: '#94A3B8',
+      marginTop: 2,
+    },
+    actionButtonsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      paddingVertical: 14,
+      marginBottom: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    actionBtn: {
+      alignItems: 'center',
+      gap: 6,
+    },
+    actionIconCircle: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    actionBtnText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    presetSection: {
+      marginTop: 4,
+    },
+    presetHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 10,
+    },
+    categoryPillsScroll: {
+      gap: 8,
+      paddingBottom: 12,
+    },
+    categoryPill: {
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      borderRadius: 18,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    categoryPillActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    categoryPillText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    categoryPillTextActive: {
+      color: '#FFFFFF',
+    },
+    presetsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+      marginTop: 4,
+    },
+    presetGridItem: {
+      height: 96,
+      borderRadius: 12,
+      overflow: 'hidden',
+      position: 'relative',
+      backgroundColor: colors.border,
+    },
+    presetThumbnail: {
+      width: '100%',
+      height: '100%',
+    },
+    presetTitleBar: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+      backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    },
+    presetTitleText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: '#FFFFFF',
+    },
+    presetSelectedBadge: {
+      position: 'absolute',
+      top: 6,
+      right: 6,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1.5,
+      borderColor: '#FFFFFF',
+    },
+    bottomSaveBar: {
+      backgroundColor: colors.surface,
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    saveBtn: {
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    saveBtnActive: {
+      backgroundColor: colors.primary,
+    },
+    saveBtnDisabled: {
+      backgroundColor: isDark ? colors.surfaceSecondary : '#E5E7EB',
+    },
+    saveBtnText: {
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    saveBtnTextActive: {
+      color: '#FFFFFF',
+    },
+    saveBtnTextDisabled: {
+      color: colors.textMuted,
+    },
+  });

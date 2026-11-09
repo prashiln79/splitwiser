@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Alert,
   StyleSheet,
@@ -15,9 +15,12 @@ import * as Haptics from 'expo-haptics';
 import { joinGroup } from '../services/groups';
 import { useAuth } from '../context/AuthContext';
 import { AppHeader } from '../components/common/AppHeader';
+import { useAppTheme, ThemeColors } from '../theme';
 
 const JoinGroupScreen = ({ navigation }: any) => {
   const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const insets = useSafeAreaInsets();
 
   const [joinCode, setJoinCode] = useState('');
@@ -57,7 +60,7 @@ const JoinGroupScreen = ({ navigation }: any) => {
       <View style={[styles.content, { paddingBottom: Math.max(insets.bottom + 24, 32) }]}>
         <View style={styles.card}>
           <View style={styles.iconCircle}>
-            <Hash size={28} color="#059669" strokeWidth={2.4} />
+            <Hash size={28} color={colors.primary} strokeWidth={2.4} />
           </View>
 
           <Text style={styles.cardTitle}>
@@ -73,7 +76,7 @@ const JoinGroupScreen = ({ navigation }: any) => {
               value={joinCode}
               onChangeText={(text) => setJoinCode(text.toUpperCase())}
               placeholder="e.g. 7X8K2M"
-              placeholderTextColor="#9E9E9E"
+              placeholderTextColor={colors.textMuted}
               autoCapitalize="characters"
               autoCorrect={false}
               maxLength={8}
@@ -88,7 +91,7 @@ const JoinGroupScreen = ({ navigation }: any) => {
             style={[
               styles.joinButton,
               {
-                backgroundColor: joinCode.trim().length >= 4 ? '#059669' : '#E8E8E8',
+                backgroundColor: joinCode.trim().length >= 4 ? colors.primary : colors.border,
               },
             ]}
             onPress={handleJoinGroup}
@@ -102,7 +105,7 @@ const JoinGroupScreen = ({ navigation }: any) => {
               <Text
                 style={[
                   styles.joinButtonText,
-                  { color: joinCode.trim().length >= 4 ? '#FFFFFF' : '#9E9E9E' },
+                  { color: joinCode.trim().length >= 4 ? '#FFFFFF' : colors.textMuted },
                 ]}
               >
                 Join Group
@@ -115,76 +118,77 @@ const JoinGroupScreen = ({ navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
-  content: {
-    padding: 16,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  iconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#F0FAF6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  cardSubtitle: {
-    fontSize: 14,
-    color: '#6B6B6B',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
-    paddingHorizontal: 8,
-  },
-  inputContainer: {
-    width: '100%',
-    marginBottom: 24,
-  },
-  codeInput: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    fontSize: 22,
-    fontWeight: '800',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    letterSpacing: 4,
-    textAlign: 'center',
-    color: '#1A1A1A',
-  },
-  joinButton: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 10,
-  },
-  joinButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      padding: 16,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 14,
+      padding: 24,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      marginTop: 12,
+    },
+    iconCircle: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#F0FAF6',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    },
+    cardTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginBottom: 6,
+      textAlign: 'center',
+    },
+    cardSubtitle: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 20,
+      marginBottom: 24,
+      paddingHorizontal: 8,
+    },
+    inputContainer: {
+      width: '100%',
+      marginBottom: 24,
+    },
+    codeInput: {
+      backgroundColor: colors.inputBackground,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      borderRadius: 10,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      fontSize: 22,
+      fontWeight: '800',
+      fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+      letterSpacing: 4,
+      textAlign: 'center',
+      color: colors.textPrimary,
+    },
+    joinButton: {
+      width: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 14,
+      borderRadius: 10,
+    },
+    joinButtonText: {
+      fontSize: 15,
+      fontWeight: '700',
+    },
+  });
 
 export default JoinGroupScreen;

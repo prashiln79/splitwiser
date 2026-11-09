@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar } from 'r
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { useAppTheme } from '../../theme';
 
 interface AppHeaderProps {
   title: string;
@@ -24,6 +25,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   avatar,
 }) => {
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useAppTheme();
 
   const handleBack = () => {
     if (Platform.OS !== 'web') {
@@ -38,13 +40,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         styles.container,
         {
           paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 12 : 0) + 4,
-          backgroundColor: transparent ? 'transparent' : '#FFFFFF',
-          borderBottomColor: transparent ? 'transparent' : '#E8E8E8',
+          backgroundColor: transparent ? 'transparent' : colors.surface,
+          borderBottomColor: transparent ? 'transparent' : colors.border,
           borderBottomWidth: transparent ? 0 : StyleSheet.hairlineWidth,
         },
       ]}
     >
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.contentRow}>
         <View style={styles.leftContainer}>
           {showBack && (
@@ -55,7 +57,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               accessibilityLabel="Go back"
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <ArrowLeft size={22} color="#1A1A1A" strokeWidth={2} />
+              <ArrowLeft size={22} color={colors.textPrimary} strokeWidth={2} />
             </TouchableOpacity>
           )}
           {avatar ? (
@@ -63,14 +65,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           ) : null}
           <View style={styles.titleContainer}>
             <Text
-              style={styles.title}
+              style={[styles.title, { color: colors.textPrimary }]}
               numberOfLines={1}
             >
               {title}
             </Text>
             {subtitle ? (
               <Text
-                style={styles.subtitle}
+                style={[styles.subtitle, { color: colors.textSecondary }]}
                 numberOfLines={1}
               >
                 {subtitle}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import { searchUsers, addFriendRemote } from '../../services/friendService';
 import { createLocalFriendship } from '../../repositories/friendRepository';
 import { networkMonitor } from '../../sync/networkMonitor';
 import { AppUser, Friendship } from '../../types';
+import { useAppTheme, ThemeColors } from '../../theme';
 
 interface AddFriendModalProps {
   visible: boolean;
@@ -37,6 +38,8 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
   onDismiss,
   onFriendAdded,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [activeTab, setActiveTab] = useState<'search' | 'manual'>('manual');
 
   // Search tab state
@@ -178,7 +181,7 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
               accessibilityLabel="Close"
               accessibilityRole="button"
             >
-              <X size={20} color="#6B7280" />
+              <X size={20} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
 
@@ -188,7 +191,7 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
               style={[styles.tabBtn, activeTab === 'manual' && styles.tabBtnActive]}
               onPress={() => setActiveTab('manual')}
             >
-              <User size={15} color={activeTab === 'manual' ? '#059669' : '#6B7280'} style={{ marginRight: 6 }} />
+              <User size={15} color={activeTab === 'manual' ? colors.primary : colors.textMuted} style={{ marginRight: 6 }} />
               <Text style={[styles.tabText, activeTab === 'manual' && styles.tabTextActive]}>
                 By Name
               </Text>
@@ -198,7 +201,7 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
               style={[styles.tabBtn, activeTab === 'search' && styles.tabBtnActive]}
               onPress={() => setActiveTab('search')}
             >
-              <Search size={15} color={activeTab === 'search' ? '#059669' : '#6B7280'} style={{ marginRight: 6 }} />
+              <Search size={15} color={activeTab === 'search' ? colors.primary : colors.textMuted} style={{ marginRight: 6 }} />
               <Text style={[styles.tabText, activeTab === 'search' && styles.tabTextActive]}>
                 Search App Users
               </Text>
@@ -212,7 +215,7 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
                 <TextInput
                   style={styles.textInput}
                   placeholder="e.g. Rahul Sharma"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={colors.textMuted}
                   value={name}
                   onChangeText={setName}
                   autoFocus
@@ -224,7 +227,7 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
                 <TextInput
                   style={styles.textInput}
                   placeholder="e.g. rahul@example.com"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={colors.textMuted}
                   value={email}
                   onChangeText={setEmail}
                   keyboardType="email-address"
@@ -234,7 +237,7 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
                 <TouchableOpacity
                   style={[
                     styles.primaryBtn,
-                    { backgroundColor: name.trim() ? '#059669' : '#E5E7EB' },
+                    { backgroundColor: name.trim() ? colors.primary : colors.border },
                   ]}
                   onPress={handleCreateManualFriend}
                   disabled={!name.trim() || isSubmitting}
@@ -244,8 +247,8 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
                     <>
-                      <UserPlus size={18} color={name.trim() ? '#FFFFFF' : '#9CA3AF'} style={{ marginRight: 8 }} />
-                      <Text style={[styles.primaryBtnText, { color: name.trim() ? '#FFFFFF' : '#9CA3AF' }]}>
+                      <UserPlus size={18} color={name.trim() ? '#FFFFFF' : colors.textMuted} style={{ marginRight: 8 }} />
+                      <Text style={[styles.primaryBtnText, { color: name.trim() ? '#FFFFFF' : colors.textMuted }]}>
                         Add Friend
                       </Text>
                     </>
@@ -255,18 +258,18 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
             ) : (
               <View style={styles.formContainer}>
                 <View style={styles.searchBarBox}>
-                  <Search size={16} color="#9CA3AF" style={{ marginRight: 8 }} />
+                  <Search size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
                   <TextInput
                     style={styles.searchBarInput}
                     placeholder="Search by name or email..."
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={colors.textMuted}
                     value={searchQuery}
                     onChangeText={handleSearch}
                     autoCapitalize="none"
                   />
                   {searchQuery.length > 0 && (
                     <TouchableOpacity onPress={() => handleSearch('')}>
-                      <X size={16} color="#9CA3AF" />
+                      <X size={16} color={colors.textMuted} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -339,206 +342,207 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalDialog: {
-    width: '100%',
-    maxWidth: 420,
-    maxHeight: '85%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  closeBtn: {
-    padding: 4,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 10,
-    padding: 3,
-    marginBottom: 16,
-  },
-  tabBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  tabBtnActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  tabTextActive: {
-    color: '#059669',
-  },
-  bodyScroll: {
-    maxHeight: 380,
-  },
-  formContainer: {
-    paddingVertical: 4,
-  },
-  inputLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  textInput: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: '#111827',
-  },
-  primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 10,
-    paddingVertical: 12,
-    marginTop: 20,
-  },
-  primaryBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  searchBarBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    height: 42,
-    marginBottom: 12,
-  },
-  searchBarInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#111827',
-    paddingVertical: 0,
-  },
-  resultsList: {
-    marginTop: 4,
-  },
-  userRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
-  },
-  userInfo: {
-    flex: 1,
-    marginLeft: 10,
-  },
-  userName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  userEmail: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 1,
-  },
-  addSmallBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-  },
-  addSmallBtnDone: {
-    backgroundColor: '#F3F4F6',
-    borderColor: '#E5E7EB',
-  },
-  addSmallBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#059669',
-  },
-  emptyResultsText: {
-    fontSize: 13,
-    color: '#6B7280',
-    textAlign: 'center',
-    paddingVertical: 16,
-  },
-  searchHintText: {
-    fontSize: 13,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    paddingVertical: 16,
-  },
-  shareBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAF9',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 20,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#E6F4EA',
-  },
-  shareIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#D1FAE5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shareTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#065F46',
-  },
-  shareSub: {
-    fontSize: 11,
-    color: '#6B7280',
-    marginTop: 1,
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    modalDialog: {
+      width: '100%',
+      maxWidth: 420,
+      maxHeight: '85%',
+      backgroundColor: colors.surface,
+      borderRadius: 18,
+      padding: 20,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: isDark ? 0.4 : 0.15,
+      shadowRadius: 12,
+      elevation: 6,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 16,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    closeBtn: {
+      padding: 4,
+    },
+    tabBar: {
+      flexDirection: 'row',
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+      borderRadius: 10,
+      padding: 3,
+      marginBottom: 16,
+    },
+    tabBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 8,
+      borderRadius: 8,
+    },
+    tabBtnActive: {
+      backgroundColor: colors.surface,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: isDark ? 0.2 : 0.08,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    tabText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    tabTextActive: {
+      color: colors.primary,
+    },
+    bodyScroll: {
+      maxHeight: 380,
+    },
+    formContainer: {
+      paddingVertical: 4,
+    },
+    inputLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: 6,
+    },
+    textInput: {
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      fontSize: 15,
+      color: colors.textPrimary,
+    },
+    primaryBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 10,
+      paddingVertical: 12,
+      marginTop: 20,
+    },
+    primaryBtnText: {
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    searchBarBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      height: 42,
+      marginBottom: 12,
+    },
+    searchBarInput: {
+      flex: 1,
+      fontSize: 14,
+      color: colors.textPrimary,
+      paddingVertical: 0,
+    },
+    resultsList: {
+      marginTop: 4,
+    },
+    userRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    userInfo: {
+      flex: 1,
+      marginLeft: 10,
+    },
+    userName: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    userEmail: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 1,
+    },
+    addSmallBtn: {
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      borderRadius: 8,
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#ECFDF5',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(5, 150, 105, 0.4)' : '#A7F3D0',
+    },
+    addSmallBtnDone: {
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+      borderColor: colors.border,
+    },
+    addSmallBtnText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    emptyResultsText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      textAlign: 'center',
+      paddingVertical: 16,
+    },
+    searchHintText: {
+      fontSize: 13,
+      color: colors.textMuted,
+      textAlign: 'center',
+      paddingVertical: 16,
+    },
+    shareBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F8FAF9',
+      borderRadius: 12,
+      padding: 12,
+      marginTop: 20,
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor: isDark ? colors.border : '#E6F4EA',
+    },
+    shareIconBox: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.25)' : '#D1FAE5',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    shareTitle: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    shareSub: {
+      fontSize: 11,
+      color: colors.textMuted,
+      marginTop: 1,
+    },
+  });
 
 export default AddFriendModal;
 

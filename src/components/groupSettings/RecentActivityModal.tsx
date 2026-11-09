@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react-native';
 import { GroupActivity } from '../../types';
 import { getGroupActivities } from '../../services/activityService';
+import { useAppTheme, ThemeColors } from '../../theme';
 
 interface RecentActivityModalProps {
   visible: boolean;
@@ -31,6 +32,8 @@ export const RecentActivityModal: React.FC<RecentActivityModalProps> = ({
   groupName,
   onClose,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [activities, setActivities] = useState<GroupActivity[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -113,119 +116,120 @@ export const RecentActivityModal: React.FC<RecentActivityModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    justifyContent: 'flex-end',
-  },
-  sheetContainer: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  sheetSubtitle: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
-  },
-  loaderBox: {
-    paddingVertical: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scrollBody: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-  emptyBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111827',
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  emptySubtitle: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-  timelineList: {
-    paddingBottom: 20,
-  },
-  timelineItem: {
-    flexDirection: 'row',
-    minHeight: 52,
-  },
-  timelineLeft: {
-    alignItems: 'center',
-    width: 28,
-  },
-  bulletNode: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1.5,
-    borderColor: '#A7F3D0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2,
-  },
-  timelineLine: {
-    width: 2,
-    flex: 1,
-    backgroundColor: '#E5E7EB',
-    marginTop: -2,
-    marginBottom: -2,
-  },
-  timelineRight: {
-    flex: 1,
-    marginLeft: 10,
-    paddingBottom: 14,
-  },
-  activityDesc: {
-    fontSize: 13.5,
-    fontWeight: '600',
-    color: '#1F2937',
-    lineHeight: 18,
-  },
-  timeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 3,
-  },
-  activityTime: {
-    fontSize: 11,
-    color: '#9CA3AF',
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+      justifyContent: 'flex-end',
+    },
+    sheetContainer: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '80%',
+      paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    },
+    sheetHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    sheetTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    sheetSubtitle: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    closeBtn: {
+      padding: 6,
+      borderRadius: 16,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+    },
+    loaderBox: {
+      paddingVertical: 50,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    scrollBody: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+    },
+    emptyBox: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 40,
+      paddingHorizontal: 20,
+    },
+    emptyTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      marginTop: 12,
+      marginBottom: 4,
+    },
+    emptySubtitle: {
+      fontSize: 12,
+      color: colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 16,
+    },
+    timelineList: {
+      paddingBottom: 20,
+    },
+    timelineItem: {
+      flexDirection: 'row',
+      minHeight: 52,
+    },
+    timelineLeft: {
+      alignItems: 'center',
+      width: 28,
+    },
+    bulletNode: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
+      borderWidth: 1.5,
+      borderColor: isDark ? 'rgba(5, 150, 105, 0.3)' : '#A7F3D0',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 2,
+    },
+    timelineLine: {
+      width: 2,
+      flex: 1,
+      backgroundColor: colors.border,
+      marginTop: -2,
+      marginBottom: -2,
+    },
+    timelineRight: {
+      flex: 1,
+      marginLeft: 10,
+      paddingBottom: 14,
+    },
+    activityDesc: {
+      fontSize: 13.5,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      lineHeight: 18,
+    },
+    timeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 3,
+    },
+    activityTime: {
+      fontSize: 11,
+      color: colors.textMuted,
+    },
+  });
 

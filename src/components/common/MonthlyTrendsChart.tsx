@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import Svg, { Rect, Line } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { formatCurrency } from '../../utils/currency';
+import { useAppTheme, ThemeColors } from '../../theme';
 
 export interface MonthTrendItem {
   monthLabel: string;
@@ -21,6 +22,8 @@ export const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({
   data,
   height = 160,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 
   const maxTotal = Math.max(...data.map((d) => d.total), 1);
@@ -118,93 +121,94 @@ export const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-  },
-  calloutBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#ECFDF5',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    alignSelf: 'center',
-  },
-  calloutMonthText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#065F46',
-  },
-  calloutAmountText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#064E3B',
-  },
-  calloutCountText: {
-    fontSize: 11,
-    color: '#047857',
-  },
-  calloutBannerHint: {
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  calloutHintText: {
-    fontSize: 11,
-    color: '#9CA3AF',
-  },
-  chartWrapper: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-  },
-  barColumn: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  topBadge: {
-    backgroundColor: '#111827',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginBottom: 4,
-  },
-  topBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  barTrack: {
-    width: 22,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    borderRadius: 6,
-    backgroundColor: '#F9FAFB',
-  },
-  barFill: {
-    width: '100%',
-    borderRadius: 6,
-  },
-  monthLabel: {
-    fontSize: 11,
-    color: '#6B7280',
-    fontWeight: '500',
-    marginTop: 8,
-  },
-  monthLabelSelected: {
-    color: '#059669',
-    fontWeight: '800',
-  },
-  monthLabelHighest: {
-    color: '#111827',
-    fontWeight: '700',
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      width: '100%',
+    },
+    calloutBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      borderRadius: 16,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(5, 150, 105, 0.3)' : '#A7F3D0',
+      alignSelf: 'center',
+    },
+    calloutMonthText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    calloutAmountText: {
+      fontSize: 13,
+      fontWeight: '800',
+      color: colors.primary,
+    },
+    calloutCountText: {
+      fontSize: 11,
+      color: colors.primary,
+    },
+    calloutBannerHint: {
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    calloutHintText: {
+      fontSize: 11,
+      color: colors.textMuted,
+    },
+    chartWrapper: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
+      paddingHorizontal: 8,
+    },
+    barColumn: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+    },
+    topBadge: {
+      backgroundColor: isDark ? colors.surfaceSecondary : '#111827',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 6,
+      marginBottom: 4,
+    },
+    topBadgeText: {
+      fontSize: 9,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    barTrack: {
+      width: 22,
+      justifyContent: 'flex-end',
+      alignItems: 'center',
+      borderRadius: 6,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
+    },
+    barFill: {
+      width: '100%',
+      borderRadius: 6,
+    },
+    monthLabel: {
+      fontSize: 11,
+      color: colors.textMuted,
+      fontWeight: '500',
+      marginTop: 8,
+    },
+    monthLabelSelected: {
+      color: colors.primary,
+      fontWeight: '800',
+    },
+    monthLabelHighest: {
+      color: colors.textPrimary,
+      fontWeight: '700',
+    },
+  });
 

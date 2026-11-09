@@ -13,6 +13,7 @@ import {
 import { ArrowLeft, Settings, Camera, Gem, Share2, Users } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAppTheme } from '../../theme';
 import { Group, OptimizedSettlement } from '../../types';
 import { formatCurrency } from '../../utils/currency';
 
@@ -58,6 +59,7 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
   children,
 }) => {
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useAppTheme();
 
   const handleShareCode = async () => {
     if (onShareCode) {
@@ -150,7 +152,7 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
       style={[
         styles.coverContainer,
         {
-          backgroundColor: hasCover ? '#1E293B' : '#FFFFFF',
+          backgroundColor: hasCover ? '#1E293B' : colors.surface,
           paddingTop: insets.top + (hasCover ? 48 : 32),
           minHeight: hasCover ? 200 : undefined,
         },
@@ -199,7 +201,7 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
         <Text
           style={[
             styles.groupTitleText,
-            hasCover ? styles.groupTitleDark : styles.groupTitleLight,
+            hasCover ? styles.groupTitleDark : [styles.groupTitleLight, { color: colors.textPrimary }],
           ]}
           numberOfLines={2}
         >
@@ -214,14 +216,14 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
           >
             <Users
               size={13}
-              color={hasCover ? 'rgba(255, 255, 255, 0.92)' : '#6B7280'}
+              color={hasCover ? 'rgba(255, 255, 255, 0.92)' : colors.textMuted}
               strokeWidth={2.4}
               style={{ marginRight: 4 }}
             />
             <Text
               style={[
                 styles.metaText,
-                hasCover ? styles.metaTextDark : styles.metaTextLight,
+                hasCover ? styles.metaTextDark : [styles.metaTextLight, { color: colors.textMuted }],
               ]}
             >
               {memberCount}
@@ -233,7 +235,7 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
               <Text
                 style={[
                   styles.metaDotSeparator,
-                  hasCover ? styles.metaDotDark : styles.metaDotLight,
+                  hasCover ? styles.metaDotDark : [styles.metaDotLight, { color: colors.textMuted }],
                 ]}
               >
                 •
@@ -241,7 +243,9 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
               <TouchableOpacity
                 style={[
                   styles.codeBadge,
-                  hasCover ? styles.codeBadgeDark : styles.codeBadgeLight,
+                  hasCover
+                    ? styles.codeBadgeDark
+                    : [styles.codeBadgeLight, { backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6', borderColor: isDark ? colors.border : '#E5E7EB' }],
                 ]}
                 onPress={handleShareCode}
                 activeOpacity={0.75}
@@ -250,14 +254,14 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
               >
                 <Share2
                   size={10.5}
-                  color={hasCover ? '#FFFFFF' : '#059669'}
+                  color={hasCover ? '#FFFFFF' : colors.primary}
                   strokeWidth={2.4}
                   style={{ marginRight: 4 }}
                 />
                 <Text
                   style={[
                     styles.codeBadgePrefix,
-                    hasCover ? styles.codeBadgePrefixDark : styles.codeBadgePrefixLight,
+                    hasCover ? styles.codeBadgePrefixDark : [styles.codeBadgePrefixLight, { color: colors.textMuted }],
                   ]}
                 >
                   Code:{' '}
@@ -265,7 +269,7 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
                 <Text
                   style={[
                     styles.codeBadgeValue,
-                    hasCover ? styles.codeBadgeValueDark : styles.codeBadgeValueLight,
+                    hasCover ? styles.codeBadgeValueDark : [styles.codeBadgeValueLight, { color: colors.primary }],
                   ]}
                 >
                   {group.joinCode}
@@ -284,7 +288,7 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
                   styles.balanceText,
                   hasCover
                     ? styles.balanceTextDark
-                    : styles.balanceSettledLight,
+                    : [styles.balanceSettledLight, { color: colors.primary }],
                 ]}
               >
                 {balanceSummary.text}
@@ -293,7 +297,7 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
               <Text
                 style={[
                   styles.balanceText,
-                  hasCover ? styles.balanceTextDark : styles.balancePrefixLight,
+                  hasCover ? styles.balanceTextDark : [styles.balancePrefixLight, { color: colors.textMuted }],
                 ]}
               >
                 {balanceSummary.prefix}
@@ -303,8 +307,8 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
                     hasCover
                       ? styles.balanceAmountDark
                       : balanceSummary.isPositive
-                      ? styles.balanceAmountPositiveLight
-                      : styles.balanceAmountNegativeLight,
+                      ? [styles.balanceAmountPositiveLight, { color: colors.income }]
+                      : [styles.balanceAmountNegativeLight, { color: colors.expense }],
                   ]}
                 >
                   {balanceSummary.amount}
@@ -341,6 +345,7 @@ export const GroupTopBar: React.FC<GroupTopBarProps> = ({
   scrollY,
 }) => {
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useAppTheme();
   const groupDisplayName = group?.name || initialGroupName || 'Group';
 
   // Smooth background fade-in as user scrolls down
@@ -387,10 +392,10 @@ export const GroupTopBar: React.FC<GroupTopBarProps> = ({
         style={[
           StyleSheet.absoluteFill,
           {
-            backgroundColor: '#FFFFFF',
+            backgroundColor: colors.surface,
             opacity: bgOpacity,
             borderBottomWidth: StyleSheet.hairlineWidth,
-            borderBottomColor: 'rgba(229, 231, 235, 0.9)',
+            borderBottomColor: colors.border,
           },
         ]}
       />
@@ -414,7 +419,7 @@ export const GroupTopBar: React.FC<GroupTopBarProps> = ({
           )}
           <ArrowLeft
             size={22}
-            color={hasCover ? '#FFFFFF' : '#1F2937'}
+            color={hasCover ? '#FFFFFF' : colors.textPrimary}
             strokeWidth={2.4}
           />
         </TouchableOpacity>
@@ -424,7 +429,7 @@ export const GroupTopBar: React.FC<GroupTopBarProps> = ({
           style={[styles.miniTitleWrapper, { opacity: miniTitleOpacity }]}
           pointerEvents="none"
         >
-          <Text style={styles.miniTitleText} numberOfLines={1}>
+          <Text style={[styles.miniTitleText, { color: colors.textPrimary }]} numberOfLines={1}>
             {groupDisplayName}
           </Text>
         </Animated.View>
@@ -433,7 +438,7 @@ export const GroupTopBar: React.FC<GroupTopBarProps> = ({
         <View style={styles.topBarRightActions}>
           {onEditCover && (
             <TouchableOpacity
-              style={hasCover ? styles.topBarBtn : styles.addCoverPillBtnLight}
+              style={hasCover ? styles.topBarBtn : [styles.addCoverPillBtnLight, isDark && { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
               onPress={() => {
                 if (Platform.OS !== 'web') {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -454,11 +459,11 @@ export const GroupTopBar: React.FC<GroupTopBarProps> = ({
               )}
               <Camera
                 size={hasCover ? 18 : 14}
-                color={hasCover ? '#FFFFFF' : '#059669'}
+                color={hasCover ? '#FFFFFF' : colors.primary}
                 strokeWidth={2.2}
               />
               {!hasCover && (
-                <Text style={styles.addCoverPillTextLight}>Add cover</Text>
+                <Text style={[styles.addCoverPillTextLight, isDark && { color: colors.primary }]}>Add cover</Text>
               )}
             </TouchableOpacity>
           )}
@@ -480,7 +485,7 @@ export const GroupTopBar: React.FC<GroupTopBarProps> = ({
             )}
             <Settings
               size={20}
-              color={hasCover ? '#FFFFFF' : '#1F2937'}
+              color={hasCover ? '#FFFFFF' : colors.textPrimary}
               strokeWidth={2.2}
             />
           </TouchableOpacity>
@@ -503,11 +508,13 @@ export const GroupPillTabs: React.FC<GroupPillTabsProps> = ({
   hasCover = false,
   isSticky = false,
 }) => {
+  const { colors, isDark } = useAppTheme();
+
   return (
     <View
       style={[
         styles.pillTabsContainer,
-        isSticky && styles.pillTabsContainerSticky,
+        isSticky && [styles.pillTabsContainerSticky, { backgroundColor: colors.surface, borderBottomColor: colors.border }],
       ]}
     >
       <ScrollView
@@ -522,14 +529,17 @@ export const GroupPillTabs: React.FC<GroupPillTabsProps> = ({
           let textColor: string;
 
           if (isActive) {
-            pillBgStyle = styles.pillActive;
+            pillBgStyle = [styles.pillActive, { backgroundColor: colors.primary }];
             textColor = '#FFFFFF';
           } else if (hasCover && !isSticky) {
-            pillBgStyle = styles.pillCoverInactive;
-            textColor = '#111827';
+            pillBgStyle = [styles.pillCoverInactive, isDark && { backgroundColor: colors.surface }];
+            textColor = isDark ? colors.textPrimary : '#111827';
           } else {
-            pillBgStyle = styles.pillLightInactive;
-            textColor = '#374151';
+            pillBgStyle = [
+              styles.pillLightInactive,
+              { backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6', borderColor: colors.border },
+            ];
+            textColor = isDark ? colors.textMuted : '#374151';
           }
 
           return (
@@ -542,7 +552,7 @@ export const GroupPillTabs: React.FC<GroupPillTabsProps> = ({
               {tab.hasSparkle && (
                 <Gem
                   size={13}
-                  color={isActive ? '#FFFFFF' : '#059669'}
+                  color={isActive ? '#FFFFFF' : colors.primary}
                   strokeWidth={2.5}
                   style={{ marginRight: 5 }}
                 />

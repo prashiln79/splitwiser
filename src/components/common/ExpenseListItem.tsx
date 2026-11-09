@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Clock, AlertCircle } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { CategoryIcon } from './CategoryIcon';
+import { useAppTheme, ThemeColors } from '../../theme';
 import { Expense } from '../../types';
 import { formatCurrency } from '../../utils/currency';
 
@@ -19,6 +20,9 @@ export const ExpenseListItem: React.FC<ExpenseListItemProps> = ({
   payerName,
   onPress,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+
   const handlePress = () => {
     if (onPress) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -44,7 +48,7 @@ export const ExpenseListItem: React.FC<ExpenseListItemProps> = ({
 
   return (
     <TouchableOpacity
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}
       onPress={handlePress}
       disabled={!onPress}
       activeOpacity={0.6}
@@ -53,8 +57,8 @@ export const ExpenseListItem: React.FC<ExpenseListItemProps> = ({
     >
       {/* Date column */}
       <View style={styles.dateCol}>
-        <Text style={styles.dateMonth}>{monthStr}</Text>
-        <Text style={styles.dateDay}>{dayStr}</Text>
+        <Text style={[styles.dateMonth, { color: colors.textMuted }]}>{monthStr}</Text>
+        <Text style={[styles.dateDay, { color: colors.textPrimary }]}>{dayStr}</Text>
       </View>
 
       {/* Category icon */}
@@ -69,21 +73,21 @@ export const ExpenseListItem: React.FC<ExpenseListItemProps> = ({
       {/* Description & payer */}
       <View style={styles.infoCol}>
         <View style={styles.descRow}>
-          <Text style={styles.description} numberOfLines={1}>
+          <Text style={[styles.description, { color: colors.textPrimary }]} numberOfLines={1}>
             {expense.description}
           </Text>
           {expense.syncStatus === 'pending' && (
             <View style={styles.syncBadge} testID="sync-pending-badge">
-              <Clock size={12} color="#9E9E9E" />
+              <Clock size={12} color={colors.textMuted} />
             </View>
           )}
           {expense.syncStatus === 'failed' && (
             <View style={styles.syncBadge} testID="sync-failed-badge">
-              <AlertCircle size={12} color="#E74C3C" />
+              <AlertCircle size={12} color={colors.danger} />
             </View>
           )}
         </View>
-        <Text style={styles.payer} numberOfLines={1}>
+        <Text style={[styles.payer, { color: colors.textMuted }]} numberOfLines={1}>
           {isPayerMe ? 'You' : payerName} paid {formatCurrency(expense.amount)}
         </Text>
       </View>
@@ -93,110 +97,111 @@ export const ExpenseListItem: React.FC<ExpenseListItemProps> = ({
         {isPayerMe ? (
           lentAmount > 0 ? (
             <>
-              <Text style={styles.lentLabel}>you lent</Text>
-              <Text style={styles.lentAmount}>
+              <Text style={[styles.lentLabel, { color: colors.income }]}>you lent</Text>
+              <Text style={[styles.lentAmount, { color: colors.income }]}>
                 {formatCurrency(lentAmount)}
               </Text>
             </>
           ) : (
-            <Text style={styles.notInvolved}>not involved</Text>
+            <Text style={[styles.notInvolved, { color: colors.textMuted }]}>not involved</Text>
           )
         ) : borrowedAmount > 0 ? (
           <>
-            <Text style={styles.borrowedLabel}>you borrowed</Text>
-            <Text style={styles.borrowedAmount}>
+            <Text style={[styles.borrowedLabel, { color: colors.expense }]}>you borrowed</Text>
+            <Text style={[styles.borrowedAmount, { color: colors.expense }]}>
               {formatCurrency(borrowedAmount)}
             </Text>
           </>
         ) : (
-          <Text style={styles.notInvolved}>not involved</Text>
+          <Text style={[styles.notInvolved, { color: colors.textMuted }]}>not involved</Text>
         )}
       </View>
     </TouchableOpacity>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E8E8E8',
-  },
-  dateCol: {
-    width: 34,
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  dateMonth: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#9E9E9E',
-    textTransform: 'capitalize',
-  },
-  dateDay: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6B6B6B',
-    marginTop: 1,
-  },
-  iconCol: {
-    marginRight: 12,
-  },
-  infoCol: {
-    flex: 1,
-    marginRight: 10,
-  },
-  descRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  syncBadge: {
-    marginLeft: 6,
-  },
-  description: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 2,
-    letterSpacing: -0.1,
-  },
-  payer: {
-    fontSize: 13,
-    color: '#6B6B6B',
-    fontWeight: '400',
-  },
-  amountCol: {
-    alignItems: 'flex-end',
-  },
-  lentLabel: {
-    fontSize: 12,
-    color: '#1CC88A',
-    fontWeight: '500',
-  },
-  lentAmount: {
-    fontSize: 14,
-    color: '#1CC88A',
-    fontWeight: '700',
-    marginTop: 1,
-  },
-  borrowedLabel: {
-    fontSize: 12,
-    color: '#E74C3C',
-    fontWeight: '500',
-  },
-  borrowedAmount: {
-    fontSize: 14,
-    color: '#E74C3C',
-    fontWeight: '700',
-    marginTop: 1,
-  },
-  notInvolved: {
-    fontSize: 12,
-    color: '#9E9E9E',
-    fontWeight: '400',
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      backgroundColor: colors.surface,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    dateCol: {
+      width: 34,
+      alignItems: 'center',
+      marginRight: 10,
+    },
+    dateMonth: {
+      fontSize: 12,
+      fontWeight: '500',
+      color: colors.textMuted,
+      textTransform: 'capitalize',
+    },
+    dateDay: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginTop: 1,
+    },
+    iconCol: {
+      marginRight: 12,
+    },
+    infoCol: {
+      flex: 1,
+      marginRight: 10,
+    },
+    descRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    syncBadge: {
+      marginLeft: 6,
+    },
+    description: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      marginBottom: 2,
+      letterSpacing: -0.1,
+    },
+    payer: {
+      fontSize: 13,
+      color: colors.textMuted,
+      fontWeight: '400',
+    },
+    amountCol: {
+      alignItems: 'flex-end',
+    },
+    lentLabel: {
+      fontSize: 12,
+      color: colors.income,
+      fontWeight: '500',
+    },
+    lentAmount: {
+      fontSize: 14,
+      color: colors.income,
+      fontWeight: '700',
+      marginTop: 1,
+    },
+    borrowedLabel: {
+      fontSize: 12,
+      color: colors.expense,
+      fontWeight: '500',
+    },
+    borrowedAmount: {
+      fontSize: 14,
+      color: colors.expense,
+      fontWeight: '700',
+      marginTop: 1,
+    },
+    notInvolved: {
+      fontSize: 12,
+      color: colors.textMuted,
+      fontWeight: '400',
+    },
+  });

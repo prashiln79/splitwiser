@@ -8,6 +8,7 @@ import Svg, { Rect, Path, Circle, Defs, ClipPath } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import { useAppTheme } from '../theme';
 import GroupsStackNavigator from './GroupsStackNavigator';
 import FriendsStackNavigator from './FriendsStackNavigator';
 import StatisticsScreen from '../screens/StatisticsScreen';
@@ -80,6 +81,7 @@ const AccountTabIcon = ({
 
 const MainNavigator = () => {
   const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation(['groups', 'friends', 'charts', 'settings']);
 
@@ -91,8 +93,8 @@ const MainNavigator = () => {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#059669',
-        tabBarInactiveTintColor: '#64748B',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarButton: (props) => (
           <PlatformPressable
             {...props}
@@ -102,8 +104,8 @@ const MainNavigator = () => {
           />
         ),
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopColor: '#E5E7EB',
+          backgroundColor: colors.tabBackground || colors.surface,
+          borderTopColor: colors.border,
           borderTopWidth: StyleSheet.hairlineWidth,
           height: tabHeight,
           paddingBottom: bottomPadding,
@@ -111,7 +113,7 @@ const MainNavigator = () => {
           elevation: 8,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -1 },
-          shadowOpacity: 0.05,
+          shadowOpacity: isDark ? 0.3 : 0.05,
           shadowRadius: 4,
         },
         tabBarLabelStyle: {

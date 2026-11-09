@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -23,6 +23,7 @@ import * as Haptics from 'expo-haptics';
 import { AppUser, GroupMember } from '../../types';
 import { searchUsers } from '../../services/friendService';
 import { MemberAvatar } from '../common/MemberAvatar';
+import { useAppTheme, ThemeColors } from '../../theme';
 
 interface AddMembersModalProps {
   visible: boolean;
@@ -45,6 +46,8 @@ export const AddMembersModal: React.FC<AddMembersModalProps> = ({
   onClose,
   onAddMembers,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<AppUser[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<AppUser[]>([]);
@@ -273,206 +276,207 @@ export const AddMembersModal: React.FC<AddMembersModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    justifyContent: 'flex-end',
-  },
-  sheetContainer: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '90%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  closeBtn: {
-    padding: 6,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
-  },
-  contentBody: {
-    paddingHorizontal: 20,
-    paddingTop: 14,
-  },
-  shareCodeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 14,
-  },
-  shareCodeInfo: {
-    flex: 1,
-  },
-  shareCodeTitle: {
-    fontSize: 11,
-    color: '#065F46',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  shareCodeNumber: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#047857',
-    letterSpacing: 2,
-    marginTop: 2,
-  },
-  shareBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#059669',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  shareBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  selectedRow: {
-    marginBottom: 12,
-  },
-  selectedChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#D1FAE5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    borderRadius: 16,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    gap: 6,
-  },
-  selectedChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#065F46',
-    maxWidth: 90,
-  },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 12,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#111827',
-  },
-  resultsScroll: {
-    maxHeight: 260,
-  },
-  emptyResults: {
-    alignItems: 'center',
-    paddingVertical: 24,
-    paddingHorizontal: 16,
-  },
-  emptyTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 4,
-  },
-  emptySubtitle: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-  userRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F3F4F6',
-  },
-  disabledUserRow: {
-    opacity: 0.5,
-  },
-  selectedUserRow: {
-    backgroundColor: '#F0FDF4',
-  },
-  userMeta: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  userName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  userEmail: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 1,
-  },
-  alreadyBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  alreadyText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#059669',
-  },
-  checkedCircle: {
-    padding: 2,
-  },
-  uncheckedCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: '#D1D5DB',
-  },
-  footerBar: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E5E7EB',
-  },
-  confirmAddBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#059669',
-    paddingVertical: 13,
-    borderRadius: 12,
-  },
-  confirmAddBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+      justifyContent: 'flex-end',
+    },
+    sheetContainer: {
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '90%',
+      paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    },
+    sheetHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    sheetTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    closeBtn: {
+      padding: 6,
+      borderRadius: 16,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+    },
+    contentBody: {
+      paddingHorizontal: 20,
+      paddingTop: 14,
+    },
+    shareCodeCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#ECFDF5',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(5, 150, 105, 0.3)' : '#A7F3D0',
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 14,
+    },
+    shareCodeInfo: {
+      flex: 1,
+    },
+    shareCodeTitle: {
+      fontSize: 11,
+      color: colors.primary,
+      fontWeight: '600',
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
+    },
+    shareCodeNumber: {
+      fontSize: 20,
+      fontWeight: '800',
+      color: colors.primary,
+      letterSpacing: 2,
+      marginTop: 2,
+    },
+    shareBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+    },
+    shareBtnText: {
+      color: '#FFFFFF',
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    selectedRow: {
+      marginBottom: 12,
+    },
+    selectedChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#D1FAE5',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(5, 150, 105, 0.3)' : '#A7F3D0',
+      borderRadius: 16,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      gap: 6,
+    },
+    selectedChipText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.primary,
+      maxWidth: 90,
+    },
+    searchBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      marginBottom: 12,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 14,
+      color: colors.textPrimary,
+    },
+    resultsScroll: {
+      maxHeight: 260,
+    },
+    emptyResults: {
+      alignItems: 'center',
+      paddingVertical: 24,
+      paddingHorizontal: 16,
+    },
+    emptyTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textPrimary,
+      marginBottom: 4,
+    },
+    emptySubtitle: {
+      fontSize: 12,
+      color: colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 16,
+    },
+    userRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    disabledUserRow: {
+      opacity: 0.5,
+    },
+    selectedUserRow: {
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#F0FDF4',
+    },
+    userMeta: {
+      flex: 1,
+      marginLeft: 12,
+    },
+    userName: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textPrimary,
+    },
+    userEmail: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 1,
+    },
+    alreadyBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    alreadyText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    checkedCircle: {
+      padding: 2,
+    },
+    uncheckedCircle: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+    },
+    footerBar: {
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.border,
+    },
+    confirmAddBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+      paddingVertical: 13,
+      borderRadius: 12,
+    },
+    confirmAddBtnText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '700',
+    },
+  });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
+import { useAppTheme, ThemeColors } from '../theme';
 import { createGroup } from '../services/groups';
 import { createGroupLocal, getLocalGroups } from '../repositories/groupRepository';
 import { networkMonitor } from '../sync/networkMonitor';
@@ -44,7 +45,9 @@ const GROUP_TYPES: { id: GroupType; label: string; icon: any }[] = [
 
 export const CreateGroupScreen = ({ navigation }: any) => {
   const { user } = useAuth();
+  const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
   const [name, setName] = useState('');
   const [selectedType, setSelectedType] = useState<GroupType>('home');
@@ -137,7 +140,7 @@ export const CreateGroupScreen = ({ navigation }: any) => {
           accessibilityLabel="Cancel"
           accessibilityRole="button"
         >
-          <X size={22} color="#1A1A1A" strokeWidth={2} />
+          <X size={22} color={colors.textPrimary} strokeWidth={2} />
         </TouchableOpacity>
 
         <Text style={styles.topBarTitle}>Create a group</Text>
@@ -150,9 +153,9 @@ export const CreateGroupScreen = ({ navigation }: any) => {
           accessibilityRole="button"
         >
           {isSubmitting ? (
-            <ActivityIndicator size="small" color="#059669" />
+            <ActivityIndicator size="small" color={colors.primary} />
           ) : (
-            <Text style={[styles.doneBtnText, { color: isDoneEnabled ? '#059669' : '#9E9E9E' }]}>
+            <Text style={[styles.doneBtnText, { color: isDoneEnabled ? colors.primary : colors.textMuted }]}>
               Done
             </Text>
           )}
@@ -299,10 +302,10 @@ export const CreateGroupScreen = ({ navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   topBar: {
     height: 52,
@@ -311,8 +314,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
   },
   closeBtn: {
     width: 40,
@@ -323,7 +326,7 @@ const styles = StyleSheet.create({
   topBarTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: colors.textPrimary,
   },
   doneBtn: {
     paddingHorizontal: 8,
@@ -351,8 +354,8 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#F9FAFB',
+    borderColor: colors.border,
+    backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -372,18 +375,18 @@ const styles = StyleSheet.create({
   },
   nameInputLabel: {
     fontSize: 13,
-    color: '#6B7280',
+    color: colors.textMuted,
     fontWeight: '500',
     marginBottom: 4,
   },
   nameTextInput: {
     fontSize: 18,
     fontWeight: '500',
-    color: '#111827',
+    color: colors.textPrimary,
     paddingVertical: 6,
     paddingHorizontal: 0,
     borderBottomWidth: 2,
-    borderBottomColor: '#059669', // Distinctive Splitwise teal underline
+    borderBottomColor: colors.primary, // Distinctive Splitwise teal underline
   },
   typeSection: {
     marginTop: 8,
@@ -391,7 +394,7 @@ const styles = StyleSheet.create({
   typeSectionTitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.textMuted,
     marginBottom: 14,
   },
   typeGrid: {
@@ -408,20 +411,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   typeChipSelected: {
-    borderColor: '#059669',
-    backgroundColor: '#ECFDF5',
+    borderColor: colors.primary,
+    backgroundColor: isDark ? colors.surfaceSecondary : '#ECFDF5',
   },
   typeChipText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#374151',
+    color: colors.textPrimary,
   },
   typeChipTextSelected: {
-    color: '#059669',
+    color: colors.primary,
   },
   coverSection: {
     marginTop: 24,
@@ -432,7 +435,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: '#1E293B',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#1E293B',
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 2,

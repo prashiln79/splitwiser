@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Alert,
   Modal,
@@ -28,6 +28,7 @@ import { useAuth } from '../../context/AuthContext';
 import { addFriendRemote } from '../../services/friendService';
 import { joinGroup } from '../../services/groups';
 import { MemberAvatar } from './MemberAvatar';
+import { useAppTheme, ThemeColors } from '../../theme';
 
 interface QrCodeModalProps {
   visible: boolean;
@@ -40,6 +41,8 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { colors, isDark } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const { user } = useAuth();
   const [mode, setMode] = useState<'my_code' | 'scanner' | 'manual'>('my_code');
   const [permission, requestPermission] = useCameraPermissions();
@@ -232,7 +235,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
                 : 'Enter Code'}
             </Text>
             <TouchableOpacity onPress={handleClose} style={styles.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <X size={20} color="#6B7280" />
+              <X size={20} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
 
@@ -364,7 +367,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
               <TextInput
                 style={styles.manualInput}
                 placeholder="e.g. 6-digit code or User ID"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textMuted}
                 value={manualCode}
                 onChangeText={setManualCode}
                 autoCapitalize="none"
@@ -404,239 +407,240 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  dialogCard: {
-    width: '100%',
-    maxWidth: 360,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  closeBtn: {
-    padding: 4,
-  },
-  dialogSub: {
-    fontSize: 13,
-    color: '#6B7280',
-    lineHeight: 18,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  myCodeContent: {
-    alignItems: 'center',
-  },
-  qrCodeWrapper: {
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-    marginBottom: 16,
-  },
-  userSnippetRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
-  },
-  userSnippetName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  userSnippetSub: {
-    fontSize: 11,
-    color: '#9CA3AF',
-  },
-  primaryActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#059669',
-    width: '100%',
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginBottom: 10,
-  },
-  primaryActionBtnText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  secondaryBtnRow: {
-    flexDirection: 'row',
-    gap: 10,
-    width: '100%',
-  },
-  secondaryBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-  },
-  secondaryBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#059669',
-  },
-  // Scanner
-  scannerContent: {
-    alignItems: 'center',
-  },
-  scannerSub: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 14,
-    textAlign: 'center',
-  },
-  cameraBox: {
-    width: 280,
-    height: 280,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: '#000000',
-    position: 'relative',
-    marginBottom: 16,
-  },
-  targetFrameOverlay: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  targetBox: {
-    width: 190,
-    height: 190,
-    position: 'relative',
-  },
-  cornerBracket: {
-    position: 'absolute',
-    width: 24,
-    height: 24,
-    borderColor: '#10B981',
-  },
-  topLeft: {
-    top: 0,
-    left: 0,
-    borderTopWidth: 3,
-    borderLeftWidth: 3,
-  },
-  topRight: {
-    top: 0,
-    right: 0,
-    borderTopWidth: 3,
-    borderRightWidth: 3,
-  },
-  bottomLeft: {
-    bottom: 0,
-    left: 0,
-    borderBottomWidth: 3,
-    borderLeftWidth: 3,
-  },
-  bottomRight: {
-    bottom: 0,
-    right: 0,
-    borderBottomWidth: 3,
-    borderRightWidth: 3,
-  },
-  processingOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  processingText: {
-    marginTop: 10,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#059669',
-  },
-  webFallbackBox: {
-    flex: 1,
-    backgroundColor: '#1F2937',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  webFallbackText: {
-    color: '#D1D5DB',
-    fontSize: 13,
-    textAlign: 'center',
-    marginBottom: 14,
-  },
-  webFallbackBtn: {
-    backgroundColor: '#059669',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  webFallbackBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  switchModeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-  },
-  switchModeBtnText: {
-    color: '#059669',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  // Manual
-  manualContent: {
-    alignItems: 'center',
-  },
-  manualInput: {
-    width: '100%',
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#111827',
-    marginBottom: 16,
-  },
-});
+const createStyles = (colors: ThemeColors, isDark: boolean) =>
+  StyleSheet.create({
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 20,
+    },
+    dialogCard: {
+      width: '100%',
+      maxWidth: 360,
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      padding: 20,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: isDark ? 0.4 : 0.15,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    closeBtn: {
+      padding: 4,
+    },
+    dialogSub: {
+      fontSize: 13,
+      color: colors.textMuted,
+      lineHeight: 18,
+      marginBottom: 16,
+      textAlign: 'center',
+    },
+    myCodeContent: {
+      alignItems: 'center',
+    },
+    qrCodeWrapper: {
+      padding: 16,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.3 : 0.05,
+      shadowRadius: 6,
+      elevation: 2,
+      marginBottom: 16,
+    },
+    userSnippetRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 12,
+      marginBottom: 18,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    userSnippetName: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.textPrimary,
+    },
+    userSnippetSub: {
+      fontSize: 11,
+      color: colors.textMuted,
+    },
+    primaryActionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+      width: '100%',
+      paddingVertical: 12,
+      borderRadius: 12,
+      marginBottom: 10,
+    },
+    primaryActionBtnText: {
+      color: '#FFFFFF',
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    secondaryBtnRow: {
+      flexDirection: 'row',
+      gap: 10,
+      width: '100%',
+    },
+    secondaryBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 10,
+      borderRadius: 10,
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#ECFDF5',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(5, 150, 105, 0.4)' : '#A7F3D0',
+    },
+    secondaryBtnText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    // Scanner
+    scannerContent: {
+      alignItems: 'center',
+    },
+    scannerSub: {
+      fontSize: 13,
+      color: colors.textMuted,
+      marginBottom: 14,
+      textAlign: 'center',
+    },
+    cameraBox: {
+      width: 280,
+      height: 280,
+      borderRadius: 16,
+      overflow: 'hidden',
+      backgroundColor: '#000000',
+      position: 'relative',
+      marginBottom: 16,
+    },
+    targetFrameOverlay: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    targetBox: {
+      width: 190,
+      height: 190,
+      position: 'relative',
+    },
+    cornerBracket: {
+      position: 'absolute',
+      width: 24,
+      height: 24,
+      borderColor: colors.primary,
+    },
+    topLeft: {
+      top: 0,
+      left: 0,
+      borderTopWidth: 3,
+      borderLeftWidth: 3,
+    },
+    topRight: {
+      top: 0,
+      right: 0,
+      borderTopWidth: 3,
+      borderRightWidth: 3,
+    },
+    bottomLeft: {
+      bottom: 0,
+      left: 0,
+      borderBottomWidth: 3,
+      borderLeftWidth: 3,
+    },
+    bottomRight: {
+      bottom: 0,
+      right: 0,
+      borderBottomWidth: 3,
+      borderRightWidth: 3,
+    },
+    processingOverlay: {
+      ...StyleSheet.absoluteFill,
+      backgroundColor: isDark ? 'rgba(21, 31, 50, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    processingText: {
+      marginTop: 10,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    webFallbackBox: {
+      flex: 1,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#1F2937',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 20,
+    },
+    webFallbackText: {
+      color: colors.textMuted,
+      fontSize: 13,
+      textAlign: 'center',
+      marginBottom: 14,
+    },
+    webFallbackBtn: {
+      backgroundColor: colors.primary,
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+    },
+    webFallbackBtnText: {
+      color: '#FFFFFF',
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    switchModeBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 10,
+    },
+    switchModeBtnText: {
+      color: colors.primary,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    // Manual
+    manualContent: {
+      alignItems: 'center',
+    },
+    manualInput: {
+      width: '100%',
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F9FAFB',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 15,
+      color: colors.textPrimary,
+      marginBottom: 16,
+    },
+  });

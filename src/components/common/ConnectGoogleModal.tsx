@@ -262,7 +262,7 @@ export const ConnectGoogleModal: React.FC<ConnectGoogleModalProps> = ({
               <TouchableOpacity
                 style={[
                   styles.googleButton,
-                  { backgroundColor: '#FFFFFF', borderColor: colors.border },
+                  { backgroundColor: colors.surface, borderColor: colors.border },
                   shadows.sm,
                 ]}
                 onPress={handleStartGoogleLinking}
@@ -276,7 +276,7 @@ export const ConnectGoogleModal: React.FC<ConnectGoogleModalProps> = ({
                 ) : (
                   <>
                     <GoogleIcon size={20} />
-                    <Text style={styles.googleButtonText}>
+                    <Text style={[styles.googleButtonText, { color: colors.textPrimary }]}>
                       Connect with Google
                     </Text>
                   </>
