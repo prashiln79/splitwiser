@@ -26,6 +26,7 @@ import {
   removeMemberLocal,
   leaveGroupLocal,
   upsertRemoteGroups,
+  upsertRemoteMembers,
 } from '../repositories/groupRepository';
 import { networkMonitor } from '../sync/networkMonitor';
 import { syncQueue } from '../sync/syncQueue';
@@ -51,15 +52,20 @@ function mapGroup(id: string, data: Record<string, any>): Group {
   return {
     id,
     name: data.name,
+    type: data.type || undefined,
+    description: data.description || undefined,
     currency: data.currency ?? 'INR',
     joinCode: data.joinCode,
     createdBy: data.createdBy,
-    createdAt: data.createdAt?.toDate() ?? new Date(),
+    createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
     imageUrl: data.imageUrl,
     bannerUrl: coverPhoto?.imageUrl || data.bannerUrl,
     coverPhoto,
     icon: data.icon,
     memberIds: data.memberIds ?? [],
+    settings: data.settings || undefined,
+    isArchived: Boolean(data.isArchived || data.status === 'archived'),
+    status: data.status || (data.isArchived ? 'archived' : 'active'),
   };
 }
 
@@ -127,7 +133,7 @@ export async function getGroupById(groupId: string): Promise<Group | null> {
 
 export async function updateGroup(
   groupId: string,
-  updates: Partial<Pick<Group, 'name' | 'imageUrl' | 'bannerUrl' | 'coverPhoto' | 'icon'>>
+  updates: Partial<Group>
 ): Promise<void> {
   // 1. Immediately update SQLite so local UI updates with zero latency
   await updateGroupLocal(groupId, updates);
@@ -148,6 +154,14 @@ export async function updateGroup(
       console.warn('[updateGroup] remote update skipped/failed:', e?.message);
     }
   }
+}
+
+export async function archiveGroup(groupId: string): Promise<void> {
+  await updateGroup(groupId, { isArchived: true, status: 'archived' });
+}
+
+export async function unarchiveGroup(groupId: string): Promise<void> {
+  await updateGroup(groupId, { isArchived: false, status: 'active' });
 }
 
 export async function deleteGroup(groupId: string): Promise<void> {
@@ -230,6 +244,58 @@ export async function updateMemberRole(
   role: MemberRole
 ): Promise<void> {
   await updateDoc(memberDoc(groupId, memberUid), { role });
+}
+
+export async function addMemberDirect(
+  groupId: string,
+  user: { uid: string; name: string; email?: string; photoUrl?: string },
+  role: MemberRole = 'member'
+): Promise<void> {
+  // 1. Immediately cache in SQLite
+  await upsertRemoteMembers(groupId, [
+    {
+      userId: user.uid,
+      userName: user.name,
+      role,
+      joinedAt: new Date(),
+      imageUrl: user.photoUrl,
+    },
+  ]);
+
+  // 2. Persist to Firestore if online
+  if (networkMonitor.isCurrentlyOnline()) {
+    try {
+      await setDoc(
+        memberDoc(groupId, user.uid),
+        {
+          userId: user.uid,
+          userName: user.name,
+          role,
+          imageUrl: user.photoUrl || null,
+          joinedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      await updateDoc(groupDoc(groupId), {
+        memberIds: arrayUnion(user.uid),
+      });
+    } catch (e: any) {
+      console.warn('[addMemberDirect] remote add failed:', e?.message);
+    }
+  }
+}
+
+export async function transferOwnership(
+  groupId: string,
+  currentAdminUid: string,
+  newAdminUid: string
+): Promise<void> {
+  if (networkMonitor.isCurrentlyOnline()) {
+    await updateDoc(memberDoc(groupId, newAdminUid), { role: 'admin' });
+    if (currentAdminUid !== newAdminUid) {
+      await updateDoc(memberDoc(groupId, currentAdminUid), { role: 'member' });
+    }
+  }
 }
 
 export async function leaveGroup(groupId: string, uid: string): Promise<void> {

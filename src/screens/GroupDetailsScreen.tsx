@@ -713,10 +713,10 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
               )}
             </TouchableOpacity>
 
-            {/* Stylized Modern Polygon Checkmark Badge */}
+            {/* Stylized Modern Checkmark Badge */}
             <View style={styles.modernCheckContainer}>
               <View style={styles.modernCheckBadge}>
-                <Check size={44} color="#7C3AED" strokeWidth={3.5} />
+                <Check size={44} color="#059669" strokeWidth={3.5} />
               </View>
             </View>
 
@@ -1325,20 +1325,19 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
         />
       </Animated.View>
 
-      {/* Floating Action Button (Screenshot-style Green Pill) */}
-      <TouchableOpacity
-        style={[
-          styles.floatingAddExpenseBtn,
-          { bottom: Math.max(insets.bottom + 16, 24) },
-        ]}
-        onPress={handleAddExpenseClick}
-        activeOpacity={0.85}
-        accessibilityRole="button"
-        accessibilityLabel="Add expense"
-      >
-        <Receipt size={18} color="#FFFFFF" strokeWidth={2.5} style={{ marginRight: 6 }} />
-        <Text style={styles.floatingAddExpenseBtnText}>Add expense</Text>
-      </TouchableOpacity>
+      {/* Floating Action Button (Bottom Right) */}
+      {!isLoading && (
+        <TouchableOpacity
+          style={styles.floatingAddExpenseBtn}
+          onPress={handleAddExpenseClick}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Add expense"
+        >
+          <Receipt size={17} color="#FFFFFF" strokeWidth={2.4} style={{ marginRight: 6 }} />
+          <Text style={styles.floatingAddExpenseBtnText}>Add expense</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Settlement Modal */}
       <SettleUpModal
@@ -1910,11 +1909,11 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: '#ECFDF5',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
-    borderColor: '#DDD6FE',
+    borderColor: '#A7F3D0',
   },
   settledNotice: {
     fontSize: 13,
@@ -2380,23 +2379,24 @@ const styles = StyleSheet.create({
   // Floating Action Button (Bottom Right)
   floatingAddExpenseBtn: {
     position: 'absolute',
-    right: 20,
+    right: 16,
+    bottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#059669',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 30,
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
     elevation: 6,
-    zIndex: 10,
+    zIndex: 20,
   },
   floatingAddExpenseBtnText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
     letterSpacing: 0.2,

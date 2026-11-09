@@ -122,6 +122,83 @@ export function getOptimizedSettlements(
   return optimizeSettlements(balances, members);
 }
 
+/**
+ * Computes direct bilateral pairwise settlements without cross-member simplification.
+ */
+export function getDirectPairwiseSettlements(
+  expenses: Expense[],
+  members: GroupMember[],
+  settlements: Settlement[] = []
+): OptimizedSettlement[] {
+  const memberMap = new Map(members.map((m) => [m.userId, m.userName]));
+  const pairDebts = new Map<string, number>();
+
+  const getPairKey = (u1: string, u2: string) =>
+    u1 < u2 ? `${u1}::${u2}` : `${u2}::${u1}`;
+
+  // 1. Process expenses
+  expenses.forEach((e) => {
+    if (e.isDeleted) return;
+    const payer = e.paidBy;
+    e.splits.forEach((s) => {
+      if (s.userId === payer) return;
+      const key = getPairKey(s.userId, payer);
+      const isSmallerPayer = s.userId < payer;
+      const current = pairDebts.get(key) || 0;
+      pairDebts.set(key, current + (isSmallerPayer ? s.amount : -s.amount));
+    });
+  });
+
+  // 2. Process recorded settlements
+  settlements.forEach((s) => {
+    const key = getPairKey(s.fromUserId, s.toUserId);
+    const isSmallerPayer = s.fromUserId < s.toUserId;
+    const current = pairDebts.get(key) || 0;
+    pairDebts.set(key, current - (isSmallerPayer ? s.amount : -s.amount));
+  });
+
+  // 3. Convert to settlements list
+  const results: OptimizedSettlement[] = [];
+  pairDebts.forEach((val, key) => {
+    const [u1, u2] = key.split('::');
+    const rounded = Math.round(val * 100) / 100;
+    if (rounded > 0.01) {
+      results.push({
+        fromUserId: u1,
+        fromUserName: memberMap.get(u1) || 'Unknown',
+        toUserId: u2,
+        toUserName: memberMap.get(u2) || 'Unknown',
+        amount: rounded,
+      });
+    } else if (rounded < -0.01) {
+      results.push({
+        fromUserId: u2,
+        fromUserName: memberMap.get(u2) || 'Unknown',
+        toUserId: u1,
+        toUserName: memberMap.get(u1) || 'Unknown',
+        amount: Math.abs(rounded),
+      });
+    }
+  });
+
+  return results;
+}
+
+/**
+ * Calculates group settlements respecting the group's simplifyDebts preference.
+ */
+export function calculateGroupSettlements(
+  expenses: Expense[],
+  members: GroupMember[],
+  settlements: Settlement[] = [],
+  simplifyDebts: boolean = true
+): OptimizedSettlement[] {
+  if (simplifyDebts) {
+    return getOptimizedSettlements(expenses, members, settlements);
+  }
+  return getDirectPairwiseSettlements(expenses, members, settlements);
+}
+
 // ─── Friends Balance (cross-group & direct) ───────────────────────────────────
 
 /**

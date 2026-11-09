@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Alert,
   ScrollView,
@@ -30,6 +30,8 @@ import {
   Shield,
   Smartphone,
   Share2,
+  Vibrate,
+  VibrateOff,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,6 +41,7 @@ import { MemberAvatar } from '../components/common/MemberAvatar';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 import { QrCodeModal } from '../components/common/QrCodeModal';
 import { submitSupportTicket } from '../services/support';
+import { hapticsService } from '../services/hapticsService';
 
 export const AccountScreen = ({ navigation }: any) => {
   const { user, signOut, updateProfile } = useAuth();
@@ -74,6 +77,19 @@ export const AccountScreen = ({ navigation }: any) => {
   const [biometricUnlock, setBiometricUnlock] = useState(false);
   const [requirePinOnOpen, setRequirePinOnOpen] = useState(false);
 
+  // Global Haptic Feedback preference
+  const [hapticsEnabled, setHapticsEnabled] = useState(hapticsService.isEnabled());
+
+  useEffect(() => {
+    const unsub = hapticsService.subscribe(setHapticsEnabled);
+    return unsub;
+  }, []);
+
+  const handleToggleHaptics = (val: boolean) => {
+    setHapticsEnabled(val);
+    hapticsService.setEnabled(val);
+  };
+
   const [selectedTheme, setSelectedTheme] = useState<'system' | 'light' | 'dark'>('system');
   const [feedbackText, setFeedbackText] = useState('');
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
@@ -93,9 +109,7 @@ export const AccountScreen = ({ navigation }: any) => {
         message: feedbackText.trim(),
       });
 
-      if (Platform.OS !== 'web') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      }
+      hapticsService.notification(Haptics.NotificationFeedbackType.Success);
 
       setSupportModalVisible(false);
       setFeedbackText('');
@@ -113,9 +127,7 @@ export const AccountScreen = ({ navigation }: any) => {
   const isGoogleLinked = !user?.isAnonymous && user?.authProvider === 'google';
 
   const handlePickAvatar = async () => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    }
+    hapticsService.impact(Haptics.ImpactFeedbackStyle.Light);
     try {
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
@@ -129,9 +141,7 @@ export const AccountScreen = ({ navigation }: any) => {
         const mime = asset.mimeType ?? 'image/jpeg';
         const imageUrl = asset.base64 ? `data:${mime};base64,${asset.base64}` : asset.uri;
         await updateProfile({ imageUrl });
-        if (Platform.OS !== 'web') {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-        }
+        hapticsService.notification(Haptics.NotificationFeedbackType.Success);
       }
     } catch {
       // Ignored
@@ -227,9 +237,7 @@ export const AccountScreen = ({ navigation }: any) => {
           <TouchableOpacity
             style={styles.editProfileBtn}
             onPress={() => {
-              if (Platform.OS !== 'web') {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-              }
+              hapticsService.impact(Haptics.ImpactFeedbackStyle.Light);
               navigation.navigate('EditProfile');
             }}
             accessibilityRole="button"
@@ -258,6 +266,27 @@ export const AccountScreen = ({ navigation }: any) => {
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>Preferences</Text>
           <View style={styles.sectionBody}>
+            {/* Haptic feedback */}
+            <View style={styles.settingItemRow}>
+              <View style={styles.settingItemLeft}>
+                {hapticsEnabled ? (
+                  <Vibrate size={19} color="#059669" strokeWidth={2} style={styles.rowIcon} />
+                ) : (
+                  <VibrateOff size={19} color="#9CA3AF" strokeWidth={2} style={styles.rowIcon} />
+                )}
+                <View style={styles.settingItemTextCol}>
+                  <Text style={styles.settingItemTitle}>Haptic feedback</Text>
+                  <Text style={styles.settingItemSubtitle}>Vibration on buttons, tabs and settlements</Text>
+                </View>
+              </View>
+              <Switch
+                value={hapticsEnabled}
+                onValueChange={handleToggleHaptics}
+                trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
+                thumbColor={hapticsEnabled ? '#059669' : '#F3F4F6'}
+              />
+            </View>
+
             {/* Email settings */}
             <TouchableOpacity
               style={styles.settingItemRow}
@@ -419,9 +448,7 @@ export const AccountScreen = ({ navigation }: any) => {
               style={styles.dialogPrimaryBtn}
               onPress={() => {
                 setEmailSettingsVisible(false);
-                if (Platform.OS !== 'web') {
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-                }
+                hapticsService.notification(Haptics.NotificationFeedbackType.Success);
               }}
             >
               <Text style={styles.dialogPrimaryBtnText}>Save Preferences</Text>
@@ -475,6 +502,19 @@ export const AccountScreen = ({ navigation }: any) => {
                 onValueChange={setPushGroupInvites}
                 trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
                 thumbColor={pushGroupInvites ? '#059669' : '#F3F4F6'}
+              />
+            </View>
+
+            <View style={styles.switchRow}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={styles.switchLabel}>Haptic vibration</Text>
+                <Text style={styles.switchSubLabel}>Vibrate on buttons, tabs and actions</Text>
+              </View>
+              <Switch
+                value={hapticsEnabled}
+                onValueChange={handleToggleHaptics}
+                trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
+                thumbColor={hapticsEnabled ? '#059669' : '#F3F4F6'}
               />
             </View>
 
@@ -855,6 +895,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#111827',
   },
+  settingItemTextCol: {
+    flex: 1,
+  },
+  settingItemSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
   // Log Out
   logOutBtn: {
     flexDirection: 'row',
@@ -966,6 +1014,11 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     flex: 1,
     marginRight: 10,
+  },
+  switchSubLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
   },
   // Theme options
   themeOptionRow: {

@@ -13,10 +13,9 @@ import { ArrowLeft, Settings, Camera, Gem } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Group, OptimizedSettlement } from '../../types';
-import { MemberAvatar } from './MemberAvatar';
 import { formatCurrency } from '../../utils/currency';
 
-export const COVER_SCROLL_DISTANCE = 150; // Scroll distance after which the cover body completely collapses
+export const COVER_SCROLL_DISTANCE = 140; // Scroll distance after which the cover body completely collapses
 
 export type TabKey = 'expenses' | 'settle' | 'balances' | 'total' | 'charts';
 
@@ -132,7 +131,8 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
         styles.coverContainer,
         {
           backgroundColor: hasCover ? '#1E293B' : '#FFFFFF',
-          paddingTop: insets.top + 50,
+          paddingTop: insets.top + (hasCover ? 48 : 32),
+          minHeight: hasCover ? 200 : undefined,
         },
       ]}
     >
@@ -147,7 +147,7 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
           <View
             style={[
               StyleSheet.absoluteFill,
-              { backgroundColor: 'rgba(0, 0, 0, 0.42)' },
+              { backgroundColor: 'rgba(0, 0, 0, 0.36)' },
             ]}
           />
           <View
@@ -156,8 +156,8 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
               top: 0,
               left: 0,
               right: 0,
-              height: insets.top + 56,
-              backgroundColor: 'rgba(0, 0, 0, 0.28)',
+              height: insets.top + 52,
+              backgroundColor: 'rgba(0, 0, 0, 0.22)',
             }}
           />
           <View
@@ -166,8 +166,8 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
               bottom: 0,
               left: 0,
               right: 0,
-              height: 70,
-              backgroundColor: 'rgba(0, 0, 0, 0.45)',
+              height: 72,
+              backgroundColor: 'rgba(0, 0, 0, 0.42)',
             }}
           />
         </>
@@ -175,22 +175,6 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
 
       {/* Cover Header Body Content */}
       <View style={styles.coverBodyContent}>
-        {/* Circular Group Avatar with Border & Subtle Shadow */}
-        <View style={styles.avatarWrapper}>
-          <View
-            style={[
-              styles.avatarRing,
-              hasCover ? styles.avatarRingDark : styles.avatarRingLight,
-            ]}
-          >
-            <MemberAvatar
-              name={groupDisplayName}
-              imageUrl={group?.imageUrl}
-              size={54}
-            />
-          </View>
-        </View>
-
         {/* Group Name Title (Centered, Splitwise Typography) */}
         <Text
           style={[
@@ -455,36 +439,19 @@ export const GroupPillTabs: React.FC<GroupPillTabsProps> = ({
       >
         {TABS.map((tab, idx) => {
           const isActive = activeTabIndex === idx;
-          const isSettleTab = tab.key === 'settle';
 
           let pillBgStyle: any;
           let textColor: string;
 
           if (isActive) {
-            if (isSettleTab) {
-              pillBgStyle = styles.pillSettleActive;
-              textColor = '#FFFFFF';
-            } else if (tab.key === 'expenses') {
-              pillBgStyle = styles.pillExpensesActive;
-              textColor = '#FFFFFF';
-            } else if (tab.key === 'charts') {
-              pillBgStyle = styles.pillChartsActive;
-              textColor = '#FFFFFF';
-            } else {
-              pillBgStyle = styles.pillActiveDefault;
-              textColor = '#FFFFFF';
-            }
+            pillBgStyle = styles.pillActive;
+            textColor = '#FFFFFF';
+          } else if (hasCover && !isSticky) {
+            pillBgStyle = styles.pillCoverInactive;
+            textColor = '#111827';
           } else {
-            if (isSettleTab) {
-              pillBgStyle = styles.pillSettleInactive;
-              textColor = '#FFFFFF';
-            } else if (hasCover && !isSticky) {
-              pillBgStyle = styles.pillCoverInactive;
-              textColor = '#111827';
-            } else {
-              pillBgStyle = styles.pillLightInactive;
-              textColor = '#374151';
-            }
+            pillBgStyle = styles.pillLightInactive;
+            textColor = '#374151';
           }
 
           return (
@@ -497,7 +464,7 @@ export const GroupPillTabs: React.FC<GroupPillTabsProps> = ({
               {tab.hasSparkle && (
                 <Gem
                   size={13}
-                  color={isActive ? '#FFFFFF' : '#7C3AED'}
+                  color={isActive ? '#FFFFFF' : '#059669'}
                   strokeWidth={2.5}
                   style={{ marginRight: 5 }}
                 />
@@ -527,49 +494,24 @@ const styles = StyleSheet.create({
   coverBodyContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 2,
     zIndex: 5,
   },
-  avatarWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  avatarRing: {
-    borderRadius: 30,
-    padding: 2,
-  },
-  avatarRingDark: {
-    borderWidth: 2.5,
-    borderColor: '#FFFFFF',
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  avatarRingLight: {
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2,
-  },
   groupTitleText: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
     textAlign: 'center',
-    letterSpacing: -0.3,
-    marginBottom: 4,
+    letterSpacing: -0.4,
+    lineHeight: 30,
+    marginBottom: 6,
   },
   groupTitleDark: {
     color: '#FFFFFF',
-    textShadowColor: 'rgba(0, 0, 0, 0.65)',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: { width: 0, height: 1.5 },
-    textShadowRadius: 3.5,
+    textShadowRadius: 4,
   },
   groupTitleLight: {
     color: '#111827',
@@ -578,18 +520,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   metaText: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: '500',
     textAlign: 'center',
   },
   metaTextDark: {
-    color: 'rgba(255, 255, 255, 0.90)',
-    textShadowColor: 'rgba(0, 0, 0, 0.55)',
+    color: 'rgba(255, 255, 255, 0.92)',
+    textShadowColor: 'rgba(0, 0, 0, 0.65)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2.5,
+    textShadowRadius: 3,
   },
   metaTextLight: {
     color: '#6B7280',
@@ -598,18 +540,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
+    marginBottom: 16,
   },
   balanceText: {
-    fontSize: 14.5,
+    fontSize: 15,
     textAlign: 'center',
   },
   balanceTextDark: {
     color: '#FFFFFF',
     fontWeight: '500',
-    textShadowColor: 'rgba(0, 0, 0, 0.6)',
+    textShadowColor: 'rgba(0, 0, 0, 0.7)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2.5,
+    textShadowRadius: 3,
   },
   balancePrefixLight: {
     color: '#4B5563',
@@ -728,39 +670,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  pillSettleActive: {
-    backgroundColor: '#FF5033', // Splitwise signature red-orange
-    shadowColor: '#FF5033',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  pillSettleInactive: {
-    backgroundColor: '#FF5033',
-    opacity: 0.9,
-  },
-  pillExpensesActive: {
+  pillActive: {
     backgroundColor: '#059669', // Emerald
     shadowColor: '#059669',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  pillChartsActive: {
-    backgroundColor: '#7C3AED', // Purple
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  pillActiveDefault: {
-    backgroundColor: '#1E293B',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
     shadowRadius: 3,
     elevation: 3,
   },

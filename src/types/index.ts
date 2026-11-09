@@ -22,6 +22,50 @@ export interface AppUser {
 // ─── Group ───────────────────────────────────────────────────────────────────
 export type MemberRole = 'admin' | 'member';
 
+export type GroupType = 'home' | 'trip' | 'couple' | 'family' | 'friends' | 'office' | 'other';
+
+export interface GroupSettings {
+  simplifyDebts?: boolean;
+  defaultSplitType?: SplitType;
+  defaultParticipants?: 'all' | 'custom' | 'last';
+  memberPermissions?: 'anyone' | 'admin_only';
+}
+
+export interface GroupUserPreferences {
+  hideUninvolvedExpenses: boolean;
+  muted: boolean;
+  notifications: {
+    newExpenses: boolean;
+    expenseUpdates: boolean;
+    settlements: boolean;
+    comments: boolean;
+    reminders: boolean;
+  };
+}
+
+export const DEFAULT_GROUP_PREFERENCES: GroupUserPreferences = {
+  hideUninvolvedExpenses: false,
+  muted: false,
+  notifications: {
+    newExpenses: true,
+    expenseUpdates: true,
+    settlements: true,
+    comments: true,
+    reminders: true,
+  },
+};
+
+export interface GroupActivity {
+  id: string;
+  groupId: string;
+  actorId: string;
+  actorName: string;
+  action: string;
+  description: string;
+  metadata?: Record<string, any>;
+  createdAt: Date;
+}
+
 export interface GroupMember {
   userId: string;
   userName: string;
@@ -42,6 +86,8 @@ export interface GroupCoverPhoto {
 export interface Group {
   id: string;
   name: string;
+  type?: GroupType;
+  description?: string;
   currency: string;
   joinCode: string;
   createdBy: string;
@@ -51,6 +97,9 @@ export interface Group {
   coverPhoto?: GroupCoverPhoto;
   icon?: string;
   memberIds: string[];
+  settings?: GroupSettings;
+  isArchived?: boolean;
+  status?: 'active' | 'archived' | 'deleted';
   updatedAt?: Date;
   syncStatus?: SyncStatus;
   isDeleted?: boolean;

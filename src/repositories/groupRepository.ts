@@ -198,7 +198,7 @@ export async function createGroupLocal(
  */
 export async function updateGroupLocal(
   groupId: string,
-  updates: Partial<Pick<Group, 'name' | 'imageUrl' | 'bannerUrl' | 'coverPhoto' | 'icon'>>
+  updates: Partial<Group>
 ): Promise<void> {
   const database = await getDatabase();
   const fields: string[] = [];
@@ -207,6 +207,10 @@ export async function updateGroupLocal(
   if (updates.name !== undefined) {
     fields.push('name = ?');
     params.push(updates.name);
+  }
+  if (updates.currency !== undefined) {
+    fields.push('currency = ?');
+    params.push(updates.currency);
   }
   if (updates.imageUrl !== undefined) {
     fields.push('image_url = ?');
@@ -222,6 +226,10 @@ export async function updateGroupLocal(
   if (updates.icon !== undefined) {
     fields.push('icon = ?');
     params.push(updates.icon);
+  }
+  if (updates.isDeleted !== undefined) {
+    fields.push('is_deleted = ?');
+    params.push(updates.isDeleted ? 1 : 0);
   }
 
   if (fields.length > 0) {
