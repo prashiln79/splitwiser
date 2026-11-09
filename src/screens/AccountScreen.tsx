@@ -40,21 +40,19 @@ import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../context/I18nContext';
-import { LOCALE_NATIVE_NAMES } from '../i18n';
+import { SUPPORTED_LOCALES, LOCALE_NATIVE_NAMES, LOCALE_DISPLAY_NAMES } from '../i18n';
 import { MemberAvatar } from '../components/common/MemberAvatar';
 import { compressAvatarPhoto } from '../utils/imageCompressor';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 import { QrCodeModal } from '../components/common/QrCodeModal';
 import { ProfilePhotoModal } from '../components/common/ProfilePhotoModal';
-import { LanguagePickerModal } from '../components/settings/LanguagePickerModal';
-import { ThemePickerModal } from '../components/settings/ThemePickerModal';
 import { useAppTheme, ThemeColors } from '../theme';
 import { submitSupportTicket } from '../services/support';
 import { hapticsService } from '../services/hapticsService';
 
 export const AccountScreen = ({ navigation }: any) => {
   const { user, signOut, updateProfile } = useAuth();
-  const { colors, isDark, themeMode } = useAppTheme();
+  const { colors, isDark, themeMode, setThemeMode } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const switchTrackColor = useMemo(
     () => ({ false: isDark ? '#4B5563' : '#D1D5DB', true: '#A7F3D0' }),
@@ -62,7 +60,7 @@ export const AccountScreen = ({ navigation }: any) => {
   );
   const getSwitchThumbColor = (val: boolean) =>
     val ? '#059669' : (isDark ? '#9CA3AF' : '#F4F3F4');
-  const { currentLocale, isSystemLanguage } = useI18n();
+  const { currentLocale, isSystemLanguage, changeLanguage } = useI18n();
   const { t } = useTranslation(['settings', 'common', 'auth']);
   const insets = useSafeAreaInsets();
 
@@ -432,11 +430,103 @@ export const AccountScreen = ({ navigation }: any) => {
         onClose={() => setQrModalVisible(false)}
       />
 
-      {/* ── Language Picker Modal ──────────────────────────────────────────── */}
-      <LanguagePickerModal
+      {/* ── Language Modal ─────────────────────────────────────────────────── */}
+      <Modal
         visible={languageModalVisible}
-        onClose={() => setLanguageModalVisible(false)}
-      />
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLanguageModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setLanguageModalVisible(false)}
+        >
+          <View style={styles.dialogCard}>
+            <Text style={styles.dialogTitle}>Language</Text>
+            <Text style={styles.dialogSub}>Select your preferred app language.</Text>
+
+            <ScrollView style={{ maxHeight: 260 }} showsVerticalScrollIndicator={false}>
+              {/* System default option */}
+              <TouchableOpacity
+                style={[
+                  styles.themeOptionRow,
+                  isSystemLanguage && styles.themeOptionRowSelected,
+                ]}
+                onPress={async () => {
+                  try {
+                    await Haptics.selectionAsync();
+                  } catch {
+                    // ignore
+                  }
+                  await changeLanguage(null, user?.uid);
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.themeOptionText,
+                      isSystemLanguage && { color: colors.primary, fontWeight: '700' },
+                    ]}
+                  >
+                    Device default
+                  </Text>
+                  <Text style={styles.themeOptionSubText}>System Default</Text>
+                </View>
+                {isSystemLanguage && <Check size={18} color={colors.primary} strokeWidth={2.5} />}
+              </TouchableOpacity>
+
+              {/* Supported Languages */}
+              {SUPPORTED_LOCALES.map((locale) => {
+                const isSelected = !isSystemLanguage && currentLocale === locale;
+                return (
+                  <TouchableOpacity
+                    key={locale}
+                    style={[
+                      styles.themeOptionRow,
+                      isSelected && styles.themeOptionRowSelected,
+                    ]}
+                    onPress={async () => {
+                      try {
+                        await Haptics.selectionAsync();
+                      } catch {
+                        // ignore
+                      }
+                      await changeLanguage(locale, user?.uid);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.themeOptionText,
+                          isSelected && { color: colors.primary, fontWeight: '700' },
+                        ]}
+                      >
+                        {LOCALE_NATIVE_NAMES[locale]}
+                      </Text>
+                      <Text style={styles.themeOptionSubText}>
+                        {LOCALE_DISPLAY_NAMES[locale]}
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <Check size={18} color={colors.primary} strokeWidth={2.5} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.dialogPrimaryBtn}
+              onPress={() => setLanguageModalVisible(false)}
+            >
+              <Text style={styles.dialogPrimaryBtnText}>Apply Language</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* ── Email Settings Modal ───────────────────────────────────────────── */}
       <Modal
@@ -619,10 +709,68 @@ export const AccountScreen = ({ navigation }: any) => {
       </Modal>
 
       {/* ── Appearance Modal ───────────────────────────────────────────────── */}
-      <ThemePickerModal
+      <Modal
         visible={appearanceVisible}
-        onClose={() => setAppearanceVisible(false)}
-      />
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAppearanceVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setAppearanceVisible(false)}
+        >
+          <View style={styles.dialogCard}>
+            <Text style={styles.dialogTitle}>Appearance</Text>
+            <Text style={styles.dialogSub}>Select your preferred app theme.</Text>
+
+            {(['system', 'light', 'dark'] as const).map((t) => {
+              const isSelected = themeMode === t;
+              return (
+                <TouchableOpacity
+                  key={t}
+                  style={[
+                    styles.themeOptionRow,
+                    isSelected && styles.themeOptionRowSelected,
+                  ]}
+                  onPress={async () => {
+                    try {
+                      await Haptics.selectionAsync();
+                    } catch {
+                      // ignore
+                    }
+                    await setThemeMode(t, user?.uid);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.themeOptionText,
+                      isSelected && { color: colors.primary, fontWeight: '700' },
+                    ]}
+                  >
+                    {t === 'system'
+                      ? 'System default'
+                      : t === 'light'
+                      ? 'Light mode'
+                      : 'Dark mode'}
+                  </Text>
+                  {isSelected && (
+                    <Check size={18} color={colors.primary} strokeWidth={2.5} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+
+            <TouchableOpacity
+              style={styles.dialogPrimaryBtn}
+              onPress={() => setAppearanceVisible(false)}
+            >
+              <Text style={styles.dialogPrimaryBtnText}>Apply Theme</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* ── Help Center Modal ──────────────────────────────────────────────── */}
       <Modal
@@ -1048,6 +1196,11 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
       fontSize: 15,
       color: colors.textPrimary,
       fontWeight: '500',
+    },
+    themeOptionSubText: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
     },
     // Help Center FAQs
     faqItem: {

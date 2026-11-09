@@ -174,6 +174,15 @@ export const LanguagePickerModal: React.FC<LanguagePickerModalProps> = ({
                   );
                 })}
               </ScrollView>
+              {/* Done button */}
+              <TouchableOpacity
+                style={[styles.doneBtn, { backgroundColor: colors.primary }]}
+                onPress={onClose}
+              >
+                <Text style={styles.doneBtnText}>
+                  {t('common:done', { defaultValue: 'Done' })}
+                </Text>
+              </TouchableOpacity>
             </View>
           </TouchableWithoutFeedback>
         </View>
@@ -185,25 +194,30 @@ export const LanguagePickerModal: React.FC<LanguagePickerModalProps> = ({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
   modalContent: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 360,
     maxHeight: '80%',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 20,
+    shadowRadius: 10,
+    elevation: 8,
+    paddingTop: 18,
+    paddingBottom: 18,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 18,
+    paddingBottom: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerLeft: {
@@ -226,42 +240,55 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   list: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   listContent: {
-    paddingVertical: 14,
-    gap: 10,
+    paddingVertical: 12,
+    gap: 8,
   },
   languageOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1.5,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
   },
   optionDetails: {
     flex: 1,
   },
   nativeName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     marginBottom: 2,
   },
   subName: {
-    fontSize: 13,
+    fontSize: 12,
   },
   checkBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 12,
+    marginLeft: 10,
   },
   divider: {
     height: 1,
     marginVertical: 4,
+  },
+  doneBtn: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doneBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
