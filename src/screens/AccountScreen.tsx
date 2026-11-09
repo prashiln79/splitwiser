@@ -47,6 +47,7 @@ import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 import { QrCodeModal } from '../components/common/QrCodeModal';
 import { ProfilePhotoModal } from '../components/common/ProfilePhotoModal';
 import { useAppTheme, ThemeColors } from '../theme';
+import { useNotifications } from '../context/NotificationContext';
 import { submitSupportTicket } from '../services/support';
 import { hapticsService } from '../services/hapticsService';
 
@@ -61,6 +62,7 @@ export const AccountScreen = ({ navigation }: any) => {
   const getSwitchThumbColor = (val: boolean) =>
     val ? '#059669' : (isDark ? '#9CA3AF' : '#F4F3F4');
   const { currentLocale, isSystemLanguage, changeLanguage } = useI18n();
+  const { unreadCount, preferences, updatePreferences, markAllAsRead } = useNotifications();
   const { t } = useTranslation(['settings', 'common', 'auth']);
   const insets = useSafeAreaInsets();
 
@@ -88,10 +90,6 @@ export const AccountScreen = ({ navigation }: any) => {
   const [emailWeeklySummary, setEmailWeeklySummary] = useState(true);
   const [emailExpenseAdded, setEmailExpenseAdded] = useState(true);
   const [emailSettledUp, setEmailSettledUp] = useState(true);
-
-  const [pushExpenseAdded, setPushExpenseAdded] = useState(true);
-  const [pushSettledUp, setPushSettledUp] = useState(true);
-  const [pushGroupInvites, setPushGroupInvites] = useState(true);
 
   const [biometricUnlock, setBiometricUnlock] = useState(false);
   const [requirePinOnOpen, setRequirePinOnOpen] = useState(false);
@@ -188,14 +186,34 @@ export const AccountScreen = ({ navigation }: any) => {
         ) : (
           <>
             <Text style={styles.headerTitle}>Account</Text>
-            <TouchableOpacity
-              onPress={() => setIsSearchActive(true)}
-              style={styles.headerSearchBtn}
-              accessibilityLabel="Search settings"
-              accessibilityRole="button"
-            >
-              <Search size={22} color={colors.textPrimary} strokeWidth={2.2} />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity
+                onPress={() => {
+                  hapticsService.impact(Haptics.ImpactFeedbackStyle.Light);
+                  navigation.navigate('NotificationCenter');
+                }}
+                style={styles.headerBellBtn}
+                accessibilityLabel="Notifications"
+                accessibilityRole="button"
+              >
+                <Bell size={22} color={colors.textPrimary} strokeWidth={2.2} />
+                {unreadCount > 0 && (
+                  <View style={[styles.headerBellBadge, { backgroundColor: colors.danger || '#EF4444' }]}>
+                    <Text style={styles.headerBellBadgeText}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setIsSearchActive(true)}
+                style={styles.headerSearchBtn}
+                accessibilityLabel="Search settings"
+                accessibilityRole="button"
+              >
+                <Search size={22} color={colors.textPrimary} strokeWidth={2.2} />
+              </TouchableOpacity>
+            </View>
           </>
         )}
       </View>
@@ -305,7 +323,7 @@ export const AccountScreen = ({ navigation }: any) => {
               <ChevronRight size={18} color={colors.textMuted} />
             </TouchableOpacity>
 
-            {/* Device and push notification settings */}
+            {/* Notification settings */}
             <TouchableOpacity
               style={styles.settingItemRow}
               onPress={() => setNotificationSettingsVisible(true)}
@@ -313,9 +331,16 @@ export const AccountScreen = ({ navigation }: any) => {
             >
               <View style={styles.settingItemLeft}>
                 <Bell size={19} color={colors.textPrimary} strokeWidth={2} style={styles.rowIcon} />
-                <Text style={styles.settingItemTitle}>Device and push notification settings</Text>
+                <Text style={styles.settingItemTitle}>Notification settings</Text>
               </View>
-              <ChevronRight size={18} color={colors.textMuted} />
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {unreadCount > 0 && (
+                  <View style={[styles.unreadBadgeSmall, { backgroundColor: colors.danger || '#EF4444' }]}>
+                    <Text style={styles.unreadBadgeSmallText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                  </View>
+                )}
+                <ChevronRight size={18} color={colors.textMuted} />
+              </View>
             </TouchableOpacity>
 
             {/* Security */}
@@ -589,7 +614,7 @@ export const AccountScreen = ({ navigation }: any) => {
         </TouchableOpacity>
       </Modal>
 
-      {/* ── Push Notification Settings Modal ───────────────────────────────── */}
+      {/* ── Notification Settings Modal ───────────────────────────────────── */}
       <Modal
         visible={notificationSettingsVisible}
         transparent
@@ -602,59 +627,153 @@ export const AccountScreen = ({ navigation }: any) => {
           onPress={() => setNotificationSettingsVisible(false)}
         >
           <View style={styles.dialogCard}>
-            <Text style={styles.dialogTitle}>Push Notifications</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <Text style={styles.dialogTitle}>Notification Settings</Text>
+              <TouchableOpacity
+                onPress={() => setNotificationSettingsVisible(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <X size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
             <Text style={styles.dialogSub}>
-              Control which alerts are delivered directly to your device.
+              Manage in-app notifications and real-time banner alerts.
             </Text>
 
-            <View style={styles.switchRow}>
-              <Text style={styles.switchLabel}>Expense updates & edits</Text>
-              <Switch
-                value={pushExpenseAdded}
-                onValueChange={setPushExpenseAdded}
-                trackColor={switchTrackColor}
-                thumbColor={getSwitchThumbColor(pushExpenseAdded)}
-              />
+            {/* Quick Actions: Inbox & Mark All Read */}
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+              <TouchableOpacity
+                style={[styles.notifInboxBtn, { backgroundColor: colors.primary }]}
+                onPress={() => {
+                  setNotificationSettingsVisible(false);
+                  navigation.navigate('NotificationCenter');
+                }}
+                activeOpacity={0.8}
+              >
+                <Bell size={15} color="#FFFFFF" strokeWidth={2.2} style={{ marginRight: 6 }} />
+                <Text style={styles.notifInboxBtnText}>View Inbox</Text>
+                {unreadCount > 0 && (
+                  <View style={styles.notifInboxBadge}>
+                    <Text style={styles.notifInboxBadgeText}>{unreadCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {unreadCount > 0 && (
+                <TouchableOpacity
+                  style={[styles.notifMarkAllBtn, { borderColor: colors.border }]}
+                  onPress={async () => {
+                    await markAllAsRead();
+                    hapticsService.notification(Haptics.NotificationFeedbackType.Success);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.notifMarkAllBtnText, { color: colors.textSecondary }]}>Mark all read</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
-            <View style={styles.switchRow}>
-              <Text style={styles.switchLabel}>Settlement notifications</Text>
-              <Switch
-                value={pushSettledUp}
-                onValueChange={setPushSettledUp}
-                trackColor={switchTrackColor}
-                thumbColor={getSwitchThumbColor(pushSettledUp)}
-              />
-            </View>
-
-            <View style={styles.switchRow}>
-              <Text style={styles.switchLabel}>Group invitations & friend requests</Text>
-              <Switch
-                value={pushGroupInvites}
-                onValueChange={setPushGroupInvites}
-                trackColor={switchTrackColor}
-                thumbColor={getSwitchThumbColor(pushGroupInvites)}
-              />
-            </View>
-
-            <View style={styles.switchRow}>
-              <View style={{ flex: 1, paddingRight: 10 }}>
-                <Text style={styles.switchLabel}>Haptic vibration</Text>
-                <Text style={styles.switchSubLabel}>Vibrate on buttons, tabs and actions</Text>
+            <ScrollView style={{ maxHeight: 280 }} showsVerticalScrollIndicator={false}>
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1, paddingRight: 10 }}>
+                  <Text style={styles.switchLabel}>In-App Banners</Text>
+                  <Text style={styles.switchSubLabel}>Show real-time toast banner at top of screen</Text>
+                </View>
+                <Switch
+                  value={preferences.inAppBanners}
+                  onValueChange={(val) => updatePreferences({ inAppBanners: val })}
+                  trackColor={switchTrackColor}
+                  thumbColor={getSwitchThumbColor(preferences.inAppBanners)}
+                />
               </View>
-              <Switch
-                value={hapticsEnabled}
-                onValueChange={handleToggleHaptics}
-                trackColor={switchTrackColor}
-                thumbColor={getSwitchThumbColor(hapticsEnabled)}
-              />
-            </View>
+
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1, paddingRight: 10 }}>
+                  <Text style={styles.switchLabel}>Expense Added</Text>
+                  <Text style={styles.switchSubLabel}>When someone records a new expense with you</Text>
+                </View>
+                <Switch
+                  value={preferences.expenseAdded}
+                  onValueChange={(val) => updatePreferences({ expenseAdded: val })}
+                  trackColor={switchTrackColor}
+                  thumbColor={getSwitchThumbColor(preferences.expenseAdded)}
+                />
+              </View>
+
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1, paddingRight: 10 }}>
+                  <Text style={styles.switchLabel}>Expense Edited or Deleted</Text>
+                  <Text style={styles.switchSubLabel}>When an expense is modified</Text>
+                </View>
+                <Switch
+                  value={preferences.expenseUpdated}
+                  onValueChange={(val) => updatePreferences({ expenseUpdated: val, expenseDeleted: val })}
+                  trackColor={switchTrackColor}
+                  thumbColor={getSwitchThumbColor(preferences.expenseUpdated)}
+                />
+              </View>
+
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1, paddingRight: 10 }}>
+                  <Text style={styles.switchLabel}>Settlements & Payments</Text>
+                  <Text style={styles.switchSubLabel}>When someone records a settlement</Text>
+                </View>
+                <Switch
+                  value={preferences.settlements}
+                  onValueChange={(val) => updatePreferences({ settlements: val })}
+                  trackColor={switchTrackColor}
+                  thumbColor={getSwitchThumbColor(preferences.settlements)}
+                />
+              </View>
+
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1, paddingRight: 10 }}>
+                  <Text style={styles.switchLabel}>Group Activity & Invites</Text>
+                  <Text style={styles.switchSubLabel}>Invitations and new members joining</Text>
+                </View>
+                <Switch
+                  value={preferences.groupInvites}
+                  onValueChange={(val) => updatePreferences({ groupInvites: val, memberActivity: val })}
+                  trackColor={switchTrackColor}
+                  thumbColor={getSwitchThumbColor(preferences.groupInvites)}
+                />
+              </View>
+
+              <View style={styles.switchRow}>
+                <View style={{ flex: 1, paddingRight: 10 }}>
+                  <Text style={styles.switchLabel}>Payment Reminders</Text>
+                  <Text style={styles.switchSubLabel}>Friendly reminders from group members</Text>
+                </View>
+                <Switch
+                  value={preferences.paymentReminders}
+                  onValueChange={(val) => updatePreferences({ paymentReminders: val })}
+                  trackColor={switchTrackColor}
+                  thumbColor={getSwitchThumbColor(preferences.paymentReminders)}
+                />
+              </View>
+
+              <View style={[styles.switchRow, { borderBottomWidth: 0 }]}>
+                <View style={{ flex: 1, paddingRight: 10 }}>
+                  <Text style={styles.switchLabel}>Comments & Mentions</Text>
+                  <Text style={styles.switchSubLabel}>When tagged or mentioned in notes</Text>
+                </View>
+                <Switch
+                  value={preferences.comments}
+                  onValueChange={(val) => updatePreferences({ comments: val })}
+                  trackColor={switchTrackColor}
+                  thumbColor={getSwitchThumbColor(preferences.comments)}
+                />
+              </View>
+            </ScrollView>
 
             <TouchableOpacity
               style={styles.dialogPrimaryBtn}
-              onPress={() => setNotificationSettingsVisible(false)}
+              onPress={() => {
+                setNotificationSettingsVisible(false);
+                hapticsService.notification(Haptics.NotificationFeedbackType.Success);
+              }}
             >
-              <Text style={styles.dialogPrimaryBtnText}>Save</Text>
+              <Text style={styles.dialogPrimaryBtnText}>Done</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -921,6 +1040,82 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
       height: 40,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    headerBellBtn: {
+      width: 40,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
+      marginRight: 4,
+    },
+    headerBellBadge: {
+      position: 'absolute',
+      top: 4,
+      right: 4,
+      minWidth: 17,
+      height: 17,
+      borderRadius: 8.5,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 4,
+    },
+    headerBellBadgeText: {
+      color: '#FFFFFF',
+      fontSize: 10,
+      fontWeight: '700',
+    },
+    unreadBadgeSmall: {
+      minWidth: 20,
+      height: 20,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 6,
+      marginRight: 6,
+    },
+    unreadBadgeSmallText: {
+      color: '#FFFFFF',
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    notifInboxBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+    },
+    notifInboxBtnText: {
+      color: '#FFFFFF',
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    notifInboxBadge: {
+      backgroundColor: 'rgba(255,255,255,0.3)',
+      borderRadius: 10,
+      paddingHorizontal: 6,
+      paddingVertical: 1,
+      marginLeft: 6,
+    },
+    notifInboxBadgeText: {
+      color: '#FFFFFF',
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    notifMarkAllBtn: {
+      borderWidth: 1,
+      borderRadius: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    notifMarkAllBtnText: {
+      fontSize: 13,
+      fontWeight: '600',
     },
     searchBar: {
       flex: 1,

@@ -30,6 +30,7 @@ import {
 } from '../repositories/groupRepository';
 import { networkMonitor } from '../sync/networkMonitor';
 import { syncQueue } from '../sync/syncQueue';
+import { dispatchNotificationEvent } from './notificationService';
 
 // ─── Path helpers ─────────────────────────────────────────────────────────────
 // All data lives under /splitwiser/data/groups/...
@@ -211,6 +212,28 @@ export async function joinGroup(
 
   await updateDoc(groupDoc(groupId), { memberIds: arrayUnion(uid) });
 
+  // In-app notification to existing members about newly joined member
+  try {
+    const existingMembers: string[] = groupDocSnap.data().memberIds || [];
+    const targetUserIds = existingMembers.filter((m) => m !== uid);
+    if (targetUserIds.length > 0) {
+      dispatchNotificationEvent({
+        type: 'member_joined',
+        actor: { id: uid, name: userName },
+        groupId,
+        groupName: groupDocSnap.data().name,
+        targetUserIds,
+        params: {
+          actorName: userName,
+          groupName: groupDocSnap.data().name || 'group',
+        },
+        dedupeKey: `member_joined_${groupId}_${uid}`,
+      }).catch(() => {});
+    }
+  } catch (e: any) {
+    // Non-blocking
+  }
+
   return mapGroup(groupId, groupDocSnap.data());
 }
 
@@ -279,6 +302,19 @@ export async function addMemberDirect(
       await updateDoc(groupDoc(groupId), {
         memberIds: arrayUnion(user.uid),
       });
+
+      // In-app notification to the invited/added member
+      dispatchNotificationEvent({
+        type: 'group_invitation',
+        actor: { id: 'admin', name: 'Group Admin' },
+        groupId,
+        targetUserIds: [user.uid],
+        params: {
+          actorName: 'Group Admin',
+          groupName: 'group',
+        },
+        dedupeKey: `group_invitation_${groupId}_${user.uid}`,
+      }).catch(() => {});
     } catch (e: any) {
       console.warn('[addMemberDirect] remote add failed:', e?.message);
     }

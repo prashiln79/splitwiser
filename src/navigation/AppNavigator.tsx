@@ -1,12 +1,16 @@
 import React, { useEffect } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme } from '../theme';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import MainNavigator from './MainNavigator';
+import NotificationCenterScreen from '../screens/NotificationCenterScreen';
+import { InAppNotificationBanner } from '../components/notifications/InAppNotificationBanner';
+
+export const navigationRef = createNavigationContainerRef();
 
 const Stack = createNativeStackNavigator();
 
@@ -27,15 +31,26 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer theme={navTheme}>
-      {user ? (
-        <MainNavigator />
-      ) : (
-        // @ts-ignore react-navigation v7 id prop
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-        </Stack.Navigator>
-      )}
+    <NavigationContainer theme={navTheme} ref={navigationRef}>
+      <View style={{ flex: 1 }}>
+        <InAppNotificationBanner navigationRef={navigationRef} />
+        {user ? (
+          // @ts-ignore react-navigation v7 id prop
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="Main" component={MainNavigator} />
+            <Stack.Screen
+              name="NotificationCenter"
+              component={NotificationCenterScreen}
+              options={{ animation: 'slide_from_right' }}
+            />
+          </Stack.Navigator>
+        ) : (
+          // @ts-ignore react-navigation v7 id prop
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+          </Stack.Navigator>
+        )}
+      </View>
     </NavigationContainer>
   );
 };

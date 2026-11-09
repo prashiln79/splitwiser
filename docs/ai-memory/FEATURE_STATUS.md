@@ -275,6 +275,18 @@ This document provides a rigorous, verified audit of all features across the cod
 - **Test Coverage**: 6 automated test suites in `tests/theme.test.ts` (100% pass).
 - **Known Limitations**: None. Operates completely offline with automatic cloud synchronization.
 
+### 6.6 Complete In-App Notification Center Using Firebase Firestore
+- **Status**: **Implemented**
+- **Description**: Robust in-app notification center operating completely without Firebase Cloud Messaging (FCM) or remote push permissions. Delivers real-time notifications via in-app floating banner toasts, a dedicated `NotificationCenterScreen` inbox grouped chronologically (Today, Yesterday, Earlier) with filter tabs (All, Unread, Expenses, Settlements), interactive unread badge counts on headers across `HomeScreen`, `FriendsScreen`, and `AccountScreen`, fine-grained per-user preferences in Account settings, Firestore cloud persistence with atomic unread counters (`notificationMeta/summary`), deterministic deduplication hashes, and resilient deep-linking route verification.
+- **Screens**: `NotificationCenterScreen.tsx`, `HomeScreen.tsx`, `FriendsScreen.tsx`, `AccountScreen.tsx`.
+- **Source Files**: `src/screens/NotificationCenterScreen.tsx`, `src/context/NotificationContext.tsx`, `src/services/notificationService.ts`, `src/services/notificationRouter.ts`, `src/utils/notificationUtils.ts`, `src/components/notifications/InAppNotificationBanner.tsx`, `src/components/common/AppHeader.tsx`, `src/types/notifications.ts`, `functions/index.js`.
+- **Components & Modals**: `InAppNotificationBanner`, `NotificationCenterScreen`, `AppHeader`, `NotificationSettingsModal`.
+- **Services**: `notificationService.ts`, `notificationRouter.ts`, `notificationUtils.ts`.
+- **Firebase Dependencies**: All Firestore data lives under `/splitwiser/data/...`: `splitwiser/data/users/{userId}/notifications/{notificationId}`, `splitwiser/data/users/{userId}/notificationMeta/summary`, `splitwiser/data/users/{userId}/notificationMeta/preferences`. Governed by standard `/splitwiser/{document=**}` namespace rule.
+- **Business Rules**: Zero FCM device tokens or remote push permissions. Notifications triggered by expense, settlement, group, and reminder operations. Actor is strictly excluded from receiving self-notifications. Muted groups and user preferences honored before write/display. Offline caching with automatic foreground resume reconciliation via `AppState`.
+- **Test Coverage**: 7 automated unit & integration test suites in `tests/notifications.test.ts` (100% pass).
+- **Known Limitations**: Operates exclusively in-app; notifications generated while offline are synchronized upon reconnect and foreground resume.
+
 ---
 
 ## 7. Advanced & Future Capabilities
@@ -282,7 +294,7 @@ This document provides a rigorous, verified audit of all features across the cod
 | Feature | Status | Notes |
 |---|---|---|
 | **Receipt OCR & Item Parsing** | **Planned** | Camera scan UI exists; on-device Gemini API / Vision OCR parser is scheduled for v2.1. |
-| **Push Notifications via FCM** | **Partially Implemented** | Preferences UI and database toggles are implemented; Firebase Cloud Functions dispatch trigger is pending. |
+| **In-App Notification Center** | **Implemented** | Complete Firestore-backed in-app inbox, real-time banner toasts, unread badges, and routing. Zero FCM dependency. |
 | **Live Multi-Currency FX Rates** | **Planned** | Planned for travel groups with multi-currency bills. |
 | **PDF Summary Generation** | **Planned** | CSV and Text exports are implemented; native PDF formatting planned. |
 

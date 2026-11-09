@@ -4,6 +4,25 @@ All notable changes are documented in this file. Changes are listed in reverse c
 
 ---
 
+## [v2.3.0] — 2026-11-09
+
+### Added
+- **Complete In-App Notification Center Using Firebase Firestore (Zero FCM / Push Dependency)**:
+  - Full in-app notification infrastructure operating completely without Firebase Cloud Messaging (FCM) or remote push permissions.
+  - Dedicated `NotificationCenterScreen.tsx` displaying grouped notifications (Today, Yesterday, Earlier), quick filter tabs (All, Unread, Expenses, Settlements), swipe/long-press actions (Mark read, Mark unread, Archive, Delete), and empty states.
+  - Interactive top notification toast banner `InAppNotificationBanner.tsx` displaying real-time floating banners with auto-dismiss timers, actor avatars, event category badges, and tap-to-navigate action.
+  - Unified header notification bell with live unread badge count across `HomeScreen.tsx`, `FriendsScreen.tsx`, and `AccountScreen.tsx`.
+  - Notification Preferences modal integrated into `AccountScreen.tsx` with toggle switches for all event categories (`expenseAdded`, `expenseUpdated`, `settlements`, `groupInvites`, `paymentReminders`, `comments`, `inAppBanners`), View Inbox button, and Mark All Read action.
+  - Deterministic 32-character hexadecimal notification ID generator (`generateDeterministicNotificationId`) preventing duplicates during retries, multi-device synchronization, and offline reconciliations.
+  - Atomic summary tracking in `users/{userId}/notificationMeta/summary` using Firestore `runTransaction` for race-condition-free unread count tracking.
+  - Deep-link target route resolver (`resolveNotificationRoute`) with target existence validation to prevent broken screen transitions.
+  - Offline caching via AsyncStorage with automatic foreground reconciliation via React Native `AppState` listener.
+  - Cloud Functions idempotency trigger template in `functions/index.js` for background event processing.
+  - Strict Firestore Security Rules authored via mandatory `firestore-rules-author` subagent protecting `users/{userId}/notifications` and `users/{userId}/notificationMeta`.
+  - Comprehensive unit and integration test suite in `tests/notifications.test.ts` (100% pass across all 7 suites).
+
+---
+
 ## [v2.2.0] — 2026-11-09
 
 ### Added

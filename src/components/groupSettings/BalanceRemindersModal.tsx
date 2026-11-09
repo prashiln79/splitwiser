@@ -21,6 +21,7 @@ import { GroupMember, OptimizedSettlement } from '../../types';
 import { MemberAvatar } from '../common/MemberAvatar';
 import { formatCurrency } from '../../utils/currency';
 import { logGroupActivity } from '../../services/activityService';
+import { dispatchNotificationEvent } from '../../services/notificationService';
 import { useAppTheme, ThemeColors } from '../../theme';
 
 interface BalanceRemindersModalProps {
@@ -83,6 +84,21 @@ export const BalanceRemindersModal: React.FC<BalanceRemindersModalProps> = ({
           currency
         )})`
       );
+
+      // In-app notification to the debtor
+      dispatchNotificationEvent({
+        type: 'payment_reminder',
+        actor: { id: currentUserId, name: currentUserName },
+        groupId,
+        groupName,
+        targetUserIds: [settlement.fromUserId],
+        params: {
+          actorName: currentUserName,
+          groupName,
+          amount: formatCurrency(settlement.amount, currency),
+        },
+        dedupeKey: `reminder_${currentUserId}_${settlement.fromUserId}_${Date.now()}`,
+      }).catch(() => {});
     } catch {
       // Ignored
     }
@@ -111,6 +127,20 @@ export const BalanceRemindersModal: React.FC<BalanceRemindersModalProps> = ({
         'reminder_sent',
         `${currentUserName} sent a balance reminder to all debtors in the group`
       );
+
+      // In-app notifications to all debtors
+      dispatchNotificationEvent({
+        type: 'payment_reminder',
+        actor: { id: currentUserId, name: currentUserName },
+        groupId,
+        groupName,
+        targetUserIds: debtorsToMe.map((d) => d.fromUserId),
+        params: {
+          actorName: currentUserName,
+          groupName,
+        },
+        dedupeKey: `reminder_all_${currentUserId}_${groupId}_${Date.now()}`,
+      }).catch(() => {});
     } catch {
       // Ignored
     }

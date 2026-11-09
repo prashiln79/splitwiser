@@ -6,6 +6,7 @@ import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
 import { I18nProvider } from './src/context/I18nContext';
+import { NotificationProvider } from './src/context/NotificationContext';
 import { ThemeProvider, useAppTheme } from './src/theme';
 import AppNavigator from './src/navigation/AppNavigator';
 import { getDatabase } from './src/db/sqlite';
@@ -43,7 +44,9 @@ export default function App() {
       <ThemeProvider>
         <AuthProvider>
           <I18nProvider>
-            <MainApp />
+            <NotificationProvider>
+              <MainApp />
+            </NotificationProvider>
           </I18nProvider>
         </AuthProvider>
       </ThemeProvider>

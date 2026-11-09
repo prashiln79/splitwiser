@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Expense, ExpenseCreateInput } from '../types';
+import { dispatchNotificationEvent } from './notificationService';
 
 // ─── Path helpers ─────────────────────────────────────────────────────────────
 // /splitwiser/data/groups/{groupId}/expenses/{expenseId}
@@ -60,6 +61,34 @@ export async function createExpense(
     createdAt: createdAtTimestamp ?? now,
     updatedAt: now,
   });
+
+  // Dispatch in-app notification to group members involved (excluding creator)
+  try {
+    const targetUserIds = (input.splits ?? [])
+      .map((s) => s.userId)
+      .filter((uid) => uid && uid !== createdBy);
+
+    if (targetUserIds.length > 0) {
+      dispatchNotificationEvent({
+        type: 'expense_created',
+        actor: {
+          id: createdBy,
+          name: input.paidBy || 'A member',
+        },
+        groupId,
+        expenseId: ref.id,
+        targetUserIds,
+        params: {
+          actorName: input.paidBy || 'A member',
+          expenseDescription: input.description,
+          amount: String(input.amount),
+        },
+        dedupeKey: `expense_created_${ref.id}`,
+      }).catch((err) => console.warn('[createExpense] Notification dispatch failed:', err?.message));
+    }
+  } catch (e: any) {
+    // Non-blocking notification dispatch
+  }
 
   return {
     id: ref.id,

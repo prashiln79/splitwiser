@@ -36,6 +36,7 @@ import { networkMonitor } from '../sync/networkMonitor';
 import { syncQueue } from '../sync/syncQueue';
 import { computeFriendBalances } from '../utils/balanceCalculator';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 import { useAppTheme, ThemeColors } from '../theme';
 import { AppHeader } from '../components/common/AppHeader';
 import { MemberAvatar } from '../components/common/MemberAvatar';
@@ -47,6 +48,7 @@ type FilterType = 'all' | 'owes_you' | 'you_owe' | 'settled';
 
 export const FriendsScreen = ({ navigation }: any) => {
   const { user } = useAuth();
+  const { unreadCount } = useNotifications();
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const isFocused = useIsFocused();
@@ -495,6 +497,9 @@ export const FriendsScreen = ({ navigation }: any) => {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <AppHeader
         title="Friends"
+        showNotificationBell
+        unreadCount={unreadCount}
+        onNotificationPress={() => navigation.navigate('NotificationCenter')}
         rightAction={
           <View style={styles.headerActions}>
             <TouchableOpacity

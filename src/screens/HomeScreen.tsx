@@ -42,6 +42,7 @@ import { networkMonitor } from '../sync/networkMonitor';
 import { getGroupExpenses } from '../services/expenses';
 import { getOptimizedSettlements } from '../utils/balanceCalculator';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 import { useAppTheme, ThemeColors } from '../theme';
 import { AppHeader } from '../components/common/AppHeader';
 import { BalanceCard } from '../components/common/BalanceCard';
@@ -56,6 +57,7 @@ interface GroupSettlementData {
 
 const HomeScreen = ({ navigation }: any) => {
   const { user } = useAuth();
+  const { unreadCount } = useNotifications();
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const insets = useSafeAreaInsets();
@@ -474,6 +476,9 @@ const HomeScreen = ({ navigation }: any) => {
       {/* Header */}
       <AppHeader
         title="Groups"
+        showNotificationBell
+        unreadCount={unreadCount}
+        onNotificationPress={() => navigation.navigate('NotificationCenter')}
         rightAction={
           <View style={styles.headerActions}>
             <TouchableOpacity

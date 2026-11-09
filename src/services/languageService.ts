@@ -13,7 +13,7 @@ export async function syncLanguageToFirestore(
   if (!uid || !locale) return;
 
   try {
-    const userRef = doc(db, 'users', uid);
+    const userRef = doc(db, 'splitwiser', 'data', 'users', uid);
     await updateDoc(userRef, {
       language: locale,
       updatedAt: new Date(),
@@ -33,7 +33,7 @@ export async function fetchLanguageFromFirestore(
   if (!uid) return null;
 
   try {
-    const userRef = doc(db, 'users', uid);
+    const userRef = doc(db, 'splitwiser', 'data', 'users', uid);
     const snap = await getDoc(userRef);
     if (snap.exists()) {
       const data = snap.data();

@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Settlement } from '../types';
+import { dispatchNotificationEvent } from './notificationService';
 
 // ─── Path helpers ─────────────────────────────────────────────────────────────
 // /splitwiser/data/groups/{groupId}/settlements/{settlementId}
@@ -52,6 +53,29 @@ export async function recordSettlement(
     createdAt: serverTimestamp(),
     note: note ?? null,
   });
+
+  // Dispatch in-app notification to the recipient of the settlement
+  try {
+    if (toUserId && toUserId !== fromUserId) {
+      dispatchNotificationEvent({
+        type: 'settlement_created',
+        actor: {
+          id: fromUserId,
+          name: fromUserName || 'A member',
+        },
+        groupId,
+        settlementId: ref.id,
+        targetUserIds: [toUserId],
+        params: {
+          actorName: fromUserName || 'A member',
+          amount: String(amount),
+        },
+        dedupeKey: `settlement_created_${ref.id}`,
+      }).catch((err) => console.warn('[recordSettlement] Notification dispatch failed:', err?.message));
+    }
+  } catch (e: any) {
+    // Non-blocking
+  }
 
   return {
     id: ref.id,

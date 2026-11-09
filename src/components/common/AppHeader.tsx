@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, Bell } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAppTheme } from '../../theme';
 
@@ -13,6 +13,9 @@ interface AppHeaderProps {
   rightAction?: React.ReactNode;
   transparent?: boolean;
   avatar?: React.ReactNode;
+  showNotificationBell?: boolean;
+  onNotificationPress?: () => void;
+  unreadCount?: number;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -23,6 +26,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   rightAction,
   transparent = false,
   avatar,
+  showNotificationBell = false,
+  onNotificationPress,
+  unreadCount = 0,
 }) => {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
@@ -32,6 +38,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
     if (onBack) onBack();
+  };
+
+  const handleNotification = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    if (onNotificationPress) onNotificationPress();
   };
 
   return (
@@ -81,9 +94,27 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           </View>
         </View>
 
-        {rightAction ? (
-          <View style={styles.rightContainer}>{rightAction}</View>
-        ) : null}
+        <View style={styles.rightContainer}>
+          {showNotificationBell && (
+            <TouchableOpacity
+              onPress={handleNotification}
+              style={styles.bellButton}
+              accessibilityRole="button"
+              accessibilityLabel={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Bell size={21} color={colors.textPrimary} strokeWidth={2} />
+              {unreadCount > 0 && (
+                <View style={[styles.badgeContainer, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.badgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
+          {rightAction}
+        </View>
       </View>
     </View>
   );
@@ -136,5 +167,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 8,
+  },
+  bellButton: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 4,
+    position: 'relative',
+  },
+  badgeContainer: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 });

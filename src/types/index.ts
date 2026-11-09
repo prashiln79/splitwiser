@@ -220,3 +220,5 @@ export interface FriendTransactionItem {
   groupName?: string;
   balanceImpact: number; // positive = increased what friend owes me, negative = decreased
 }
+
+export * from './notifications';
