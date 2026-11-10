@@ -2,6 +2,7 @@ import * as Crypto from 'expo-crypto';
 import { getDatabase } from '../db/sqlite';
 import { Expense, ExpenseCreateInput, ExpenseSplit, SplitType, SyncStatus } from '../types';
 import { syncQueue } from '../sync/syncQueue';
+import { dispatchNotificationEvent } from '../services/notificationService';
 
 export interface LocalExpenseRow {
   id: string;
@@ -124,6 +125,32 @@ export async function createExpenseLocal(
     updatedAt: now,
   });
 
+  // Dispatch in-app notification to group members involved (excluding creator)
+  try {
+    const targetUserIds = (input.splits ?? [])
+      .map((s) => s.userId)
+      .filter((uid) => uid && uid !== createdBy);
+
+    if (targetUserIds.length > 0) {
+      dispatchNotificationEvent({
+        type: 'expense_created',
+        actor: {
+          id: createdBy,
+          name: input.paidBy || 'A member',
+        },
+        groupId,
+        expenseId: id,
+        targetUserIds,
+        params: {
+          actorName: input.paidBy || 'A member',
+          expenseDescription: input.description,
+          amount: String(input.amount),
+        },
+        dedupeKey: `expense_created_${id}`,
+      }).catch((err) => console.warn('[createExpenseLocal] Notification dispatch failed:', err?.message));
+    }
+  } catch {}
+
   return expense;
 }
 
@@ -194,6 +221,31 @@ export async function updateExpenseLocal(
     createdAt: updatedCreatedAt,
     updatedAt: now,
   });
+
+  try {
+    const targetUserIds = (updatedSplits ?? [])
+      .map((s: any) => s.userId)
+      .filter((uid: string) => uid && uid !== existing?.created_by);
+
+    if (targetUserIds.length > 0) {
+      dispatchNotificationEvent({
+        type: 'expense_updated',
+        actor: {
+          id: existing?.created_by || 'system',
+          name: updatedPaidBy || 'A member',
+        },
+        groupId,
+        expenseId,
+        targetUserIds,
+        params: {
+          actorName: updatedPaidBy || 'A member',
+          expenseDescription: updatedDescription,
+          amount: String(updatedAmount),
+        },
+        dedupeKey: `expense_updated_${expenseId}_${now}`,
+      }).catch(() => {});
+    }
+  } catch {}
 }
 
 /**
@@ -202,6 +254,11 @@ export async function updateExpenseLocal(
 export async function deleteExpenseLocal(groupId: string, expenseId: string): Promise<void> {
   const database = await getDatabase();
   const now = Date.now();
+
+  const existing = await database.getFirstAsync<LocalExpenseRow>(
+    `SELECT * FROM local_expenses WHERE id = ?`,
+    [expenseId]
+  );
 
   await database.runAsync(
     `UPDATE local_expenses SET is_deleted = 1, sync_status = 'pending', updated_at = ? WHERE id = ?`,
@@ -212,6 +269,36 @@ export async function deleteExpenseLocal(groupId: string, expenseId: string): Pr
     id: expenseId,
     groupId,
   });
+
+  try {
+    if (existing) {
+      let splits: ExpenseSplit[] = [];
+      try {
+        splits = JSON.parse(existing.splits_json);
+      } catch {}
+      const targetUserIds = splits
+        .map((s) => s.userId)
+        .filter((uid) => uid && uid !== existing.created_by);
+
+      if (targetUserIds.length > 0) {
+        dispatchNotificationEvent({
+          type: 'expense_deleted',
+          actor: {
+            id: existing.created_by,
+            name: existing.paid_by || 'A member',
+          },
+          groupId,
+          expenseId,
+          targetUserIds,
+          params: {
+            actorName: existing.paid_by || 'A member',
+            expenseDescription: existing.description,
+          },
+          dedupeKey: `expense_deleted_${expenseId}_${now}`,
+        }).catch(() => {});
+      }
+    }
+  } catch {}
 }
 
 /**

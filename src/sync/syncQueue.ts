@@ -3,6 +3,7 @@ import * as Crypto from 'expo-crypto';
 import { db } from '../config/firebase';
 import { getDatabase } from '../db/sqlite';
 import { networkMonitor } from './networkMonitor';
+import { dispatchNotificationEvent } from '../services/notificationService';
 
 export type QueueOperation = 
   | 'CREATE_EXPENSE'
@@ -188,6 +189,32 @@ class SyncQueue {
           createdAt: createdAt ? Timestamp.fromMillis(createdAt) : serverTimestamp(),
           updatedAt: updatedAt ? Timestamp.fromMillis(updatedAt) : serverTimestamp(),
         });
+
+        // Dispatch in-app notification to group members involved
+        try {
+          const targetUserIds = (splits ?? [])
+            .map((s: any) => s.userId)
+            .filter((uid: string) => uid && uid !== createdBy);
+
+          if (targetUserIds.length > 0) {
+            dispatchNotificationEvent({
+              type: 'expense_created',
+              actor: {
+                id: createdBy,
+                name: paidBy || 'A member',
+              },
+              groupId,
+              expenseId: id,
+              targetUserIds,
+              params: {
+                actorName: paidBy || 'A member',
+                expenseDescription: description,
+                amount: String(amount),
+              },
+              dedupeKey: `expense_created_${id}`,
+            }).catch(() => {});
+          }
+        } catch {}
         break;
       }
 
@@ -226,6 +253,26 @@ class SyncQueue {
           note: note || null,
           createdAt: createdAt ? Timestamp.fromMillis(createdAt) : serverTimestamp(),
         });
+
+        try {
+          if (toUserId && toUserId !== fromUserId) {
+            dispatchNotificationEvent({
+              type: 'settlement_created',
+              actor: {
+                id: fromUserId,
+                name: fromUserName,
+              },
+              groupId,
+              settlementId: id,
+              targetUserIds: [toUserId],
+              params: {
+                actorName: fromUserName,
+                amount: String(amount),
+              },
+              dedupeKey: `settlement_created_${id}`,
+            }).catch(() => {});
+          }
+        } catch {}
         break;
       }
 

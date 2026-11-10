@@ -2,6 +2,7 @@ import * as Crypto from 'expo-crypto';
 import { getDatabase } from '../db/sqlite';
 import { Settlement, SettlementStatus, SyncStatus } from '../types';
 import { syncQueue } from '../sync/syncQueue';
+import { dispatchNotificationEvent } from '../services/notificationService';
 
 export interface LocalSettlementRow {
   id: string;
@@ -96,6 +97,27 @@ export async function recordSettlementLocal(
     note: note ?? null,
     createdAt: now,
   });
+
+  // Dispatch in-app notification to payee
+  try {
+    if (toUserId && toUserId !== fromUserId) {
+      dispatchNotificationEvent({
+        type: 'settlement_created',
+        actor: {
+          id: fromUserId,
+          name: fromUserName,
+        },
+        groupId,
+        settlementId: id,
+        targetUserIds: [toUserId],
+        params: {
+          actorName: fromUserName,
+          amount: String(amount),
+        },
+        dedupeKey: `settlement_created_${id}`,
+      }).catch((err) => console.warn('[recordSettlementLocal] Notification failed:', err?.message));
+    }
+  } catch {}
 
   return settlement;
 }

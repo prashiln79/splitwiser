@@ -122,35 +122,35 @@ export async function dispatchNotificationEvent(event: NotificationEventInput): 
         dedupeKey: `${event.dedupeKey}_${recipientId}`,
       };
 
-      if (networkMonitor.isCurrentlyOnline()) {
-        await runTransaction(db, async (tx) => {
-          const existing = await tx.get(targetDocRef);
-          if (existing.exists()) {
-            // Already created; idempotent skip
-            return;
-          }
+      await runTransaction(db, async (tx) => {
+        // 1. ALL READS FIRST (Firestore requires all reads before any writes)
+        const existing = await tx.get(targetDocRef);
+        const sumSnap = await tx.get(summaryRef);
 
-          // Write notification document
-          tx.set(targetDocRef, payload);
+        if (existing.exists()) {
+          // Already created; idempotent skip
+          return;
+        }
 
-          // Atomic summary unread count increment
-          const sumSnap = await tx.get(summaryRef);
-          if (sumSnap.exists()) {
-            const currentCount = sumSnap.data().unreadCount || 0;
-            tx.update(summaryRef, {
-              unreadCount: currentCount + 1,
-              lastNotificationAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-            });
-          } else {
-            tx.set(summaryRef, {
-              unreadCount: 1,
-              lastNotificationAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-            });
-          }
-        });
-      }
+        // 2. ALL WRITES AFTER
+        tx.set(targetDocRef, payload);
+
+        // Atomic summary unread count increment
+        if (sumSnap.exists()) {
+          const currentCount = sumSnap.data().unreadCount || 0;
+          tx.update(summaryRef, {
+            unreadCount: currentCount + 1,
+            lastNotificationAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          tx.set(summaryRef, {
+            unreadCount: 1,
+            lastNotificationAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        }
+      });
 
       createdIds.push(notifId);
     } catch (e: any) {
@@ -196,25 +196,23 @@ export async function getUserNotifications(
   try {
     let q = query(
       userNotificationsCol(userId),
-      where('archivedAt', '==', null),
       orderBy('createdAt', 'desc'),
-      limit(pageSize + 1)
+      limit(pageSize * 2)
     );
 
     if (lastSnapshot) {
       q = query(
         userNotificationsCol(userId),
-        where('archivedAt', '==', null),
         orderBy('createdAt', 'desc'),
         startAfter(lastSnapshot),
-        limit(pageSize + 1)
+        limit(pageSize * 2)
       );
     }
 
     const snap = await getDocs(q);
-    const docs = snap.docs;
-    const hasMore = docs.length > pageSize;
-    const resultDocs = hasMore ? docs.slice(0, pageSize) : docs;
+    const nonArchivedDocs = snap.docs.filter((d) => d.data().archivedAt == null);
+    const hasMore = nonArchivedDocs.length > pageSize;
+    const resultDocs = hasMore ? nonArchivedDocs.slice(0, pageSize) : nonArchivedDocs;
     const notifications = resultDocs.map((d) => mapNotificationDoc(d.id, d.data()));
 
     // Cache first page locally
@@ -247,29 +245,30 @@ export async function markNotificationAsRead(userId: string, notificationId: str
   const summaryRef = userSummaryDoc(userId);
 
   try {
-    if (networkMonitor.isCurrentlyOnline()) {
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(docRef);
-        if (!snap.exists()) return;
+    await runTransaction(db, async (tx) => {
+      // 1. ALL READS FIRST
+      const snap = await tx.get(docRef);
+      const sumSnap = await tx.get(summaryRef);
 
-        const data = snap.data();
-        if (data.readAt) {
-          // Already read; do not decrement again
-          return;
-        }
+      if (!snap.exists()) return;
 
-        tx.update(docRef, { readAt: serverTimestamp() });
+      const data = snap.data();
+      if (data.readAt) {
+        // Already read; do not decrement again
+        return;
+      }
 
-        const sumSnap = await tx.get(summaryRef);
-        if (sumSnap.exists()) {
-          const currentCount = sumSnap.data().unreadCount || 0;
-          tx.update(summaryRef, {
-            unreadCount: Math.max(0, currentCount - 1),
-            updatedAt: serverTimestamp(),
-          });
-        }
-      });
-    }
+      // 2. ALL WRITES AFTER
+      tx.update(docRef, { readAt: serverTimestamp() });
+
+      if (sumSnap.exists()) {
+        const currentCount = sumSnap.data().unreadCount || 0;
+        tx.update(summaryRef, {
+          unreadCount: Math.max(0, currentCount - 1),
+          updatedAt: serverTimestamp(),
+        });
+      }
+    });
 
     // Update local cache
     const raw = await AsyncStorage.getItem(NOTIF_CACHE_KEY(userId));
@@ -288,32 +287,33 @@ export async function markNotificationAsRead(userId: string, notificationId: str
 // ─── Mark All Notifications As Read ───────────────────────────────────────────
 export async function markAllNotificationsAsRead(userId: string): Promise<void> {
   try {
-    if (networkMonitor.isCurrentlyOnline()) {
-      const q = query(
-        userNotificationsCol(userId),
-        where('readAt', '==', null),
-        where('archivedAt', '==', null),
-        limit(100)
-      );
+    const q = query(
+      userNotificationsCol(userId),
+      limit(100)
+    );
 
-      const snap = await getDocs(q);
-      if (snap.docs.length > 0) {
-        const batch = writeBatch(db);
-        snap.docs.forEach((d) => {
-          batch.update(d.ref, { readAt: serverTimestamp() });
-        });
-        batch.set(userSummaryDoc(userId), {
-          unreadCount: 0,
-          updatedAt: serverTimestamp(),
-        }, { merge: true });
+    const snap = await getDocs(q);
+    const unreadDocs = snap.docs.filter((d) => {
+      const data = d.data();
+      return data.readAt == null && data.archivedAt == null;
+    });
 
-        await batch.commit();
-      } else {
-        await setDoc(userSummaryDoc(userId), {
-          unreadCount: 0,
-          updatedAt: serverTimestamp(),
-        }, { merge: true });
-      }
+    if (unreadDocs.length > 0) {
+      const batch = writeBatch(db);
+      unreadDocs.forEach((d) => {
+        batch.update(d.ref, { readAt: serverTimestamp() });
+      });
+      batch.set(userSummaryDoc(userId), {
+        unreadCount: 0,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+
+      await batch.commit();
+    } else {
+      await setDoc(userSummaryDoc(userId), {
+        unreadCount: 0,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
     }
 
     // Update local cache
@@ -334,28 +334,27 @@ export async function archiveNotification(userId: string, notificationId: string
   const summaryRef = userSummaryDoc(userId);
 
   try {
-    if (networkMonitor.isCurrentlyOnline()) {
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(docRef);
-        if (!snap.exists()) return;
+    await runTransaction(db, async (tx) => {
+      // 1. ALL READS FIRST
+      const snap = await tx.get(docRef);
+      const sumSnap = await tx.get(summaryRef);
 
-        const data = snap.data();
-        const wasUnread = !data.readAt;
+      if (!snap.exists()) return;
 
-        tx.update(docRef, { archivedAt: serverTimestamp() });
+      const data = snap.data();
+      const wasUnread = !data.readAt && !data.archivedAt;
 
-        if (wasUnread) {
-          const sumSnap = await tx.get(summaryRef);
-          if (sumSnap.exists()) {
-            const current = sumSnap.data().unreadCount || 0;
-            tx.update(summaryRef, {
-              unreadCount: Math.max(0, current - 1),
-              updatedAt: serverTimestamp(),
-            });
-          }
-        }
-      });
-    }
+      // 2. ALL WRITES AFTER
+      tx.update(docRef, { archivedAt: serverTimestamp() });
+
+      if (wasUnread && sumSnap.exists()) {
+        const current = sumSnap.data().unreadCount || 0;
+        tx.update(summaryRef, {
+          unreadCount: Math.max(0, current - 1),
+          updatedAt: serverTimestamp(),
+        });
+      }
+    });
 
     // Remove from local cache
     const raw = await AsyncStorage.getItem(NOTIF_CACHE_KEY(userId));
@@ -375,28 +374,27 @@ export async function deleteNotification(userId: string, notificationId: string)
   const summaryRef = userSummaryDoc(userId);
 
   try {
-    if (networkMonitor.isCurrentlyOnline()) {
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(docRef);
-        if (!snap.exists()) return;
+    await runTransaction(db, async (tx) => {
+      // 1. ALL READS FIRST
+      const snap = await tx.get(docRef);
+      const sumSnap = await tx.get(summaryRef);
 
-        const data = snap.data();
-        const wasUnread = !data.readAt && !data.archivedAt;
+      if (!snap.exists()) return;
 
-        tx.delete(docRef);
+      const data = snap.data();
+      const wasUnread = !data.readAt && !data.archivedAt;
 
-        if (wasUnread) {
-          const sumSnap = await tx.get(summaryRef);
-          if (sumSnap.exists()) {
-            const current = sumSnap.data().unreadCount || 0;
-            tx.update(summaryRef, {
-              unreadCount: Math.max(0, current - 1),
-              updatedAt: serverTimestamp(),
-            });
-          }
-        }
-      });
-    }
+      // 2. ALL WRITES AFTER
+      tx.delete(docRef);
+
+      if (wasUnread && sumSnap.exists()) {
+        const current = sumSnap.data().unreadCount || 0;
+        tx.update(summaryRef, {
+          unreadCount: Math.max(0, current - 1),
+          updatedAt: serverTimestamp(),
+        });
+      }
+    });
 
     // Remove from local cache
     const raw = await AsyncStorage.getItem(NOTIF_CACHE_KEY(userId));
@@ -417,11 +415,13 @@ export async function reconcileUnreadCount(userId: string): Promise<number> {
   try {
     const q = query(
       userNotificationsCol(userId),
-      where('readAt', '==', null),
-      where('archivedAt', '==', null)
+      limit(100)
     );
     const snap = await getDocs(q);
-    const actualUnread = snap.docs.length;
+    const actualUnread = snap.docs.filter((d) => {
+      const data = d.data();
+      return data.readAt == null && data.archivedAt == null;
+    }).length;
 
     await setDoc(
       userSummaryDoc(userId),
@@ -528,9 +528,8 @@ export function subscribeToUserNotifications(
 ): Unsubscribe {
   const q = query(
     userNotificationsCol(userId),
-    where('archivedAt', '==', null),
     orderBy('createdAt', 'desc'),
-    limit(25)
+    limit(30)
   );
 
   let isFirstBatch = true;
@@ -545,7 +544,9 @@ export function subscribeToUserNotifications(
       }
 
       snap.docChanges().forEach((change) => {
-        const item = mapNotificationDoc(change.doc.id, change.doc.data());
+        const data = change.doc.data();
+        if (data.archivedAt != null) return;
+        const item = mapNotificationDoc(change.doc.id, data);
         if (change.type === 'added') {
           onAdded(item);
         } else if (change.type === 'modified' && onModified) {
@@ -556,6 +557,7 @@ export function subscribeToUserNotifications(
       });
     },
     (err) => {
+      console.warn('[subscribeToUserNotifications] Firestore listener error:', err?.message);
       if (onError) onError(err);
     }
   );
