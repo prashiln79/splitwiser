@@ -19,7 +19,13 @@ import {
   updateNotificationPreferences,
   reconcileUnreadCount,
 } from '../services/notificationService';
-import { triggerLocalNotification } from '../services/localNotificationService';
+import {
+  triggerLocalNotification,
+  triggerPendingLocalNotifications,
+  dismissLocalNotification,
+  dismissAllLocalNotifications,
+  isAlreadyNotified,
+} from '../services/localNotificationService';
 
 interface NotificationContextType {
   notifications: InAppNotification[];
@@ -108,6 +114,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       lastDocRef.current = res.lastVisible;
       setHasMore(res.hasMore);
       setPreferences(prefs);
+
+      // Trigger native local OS notifications for any unread transactions received while app was closed
+      await triggerPendingLocalNotifications(res.notifications);
     } catch (e) {
       console.warn('[NotificationContext] Refresh error:', e);
     } finally {
@@ -140,6 +149,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         prev.map((item) => (item.id === id ? { ...item, readAt: new Date() } : item))
       );
       setUnreadCount((c) => Math.max(0, c - 1));
+      dismissLocalNotification(id).catch(() => {});
       await markNotificationAsRead(user.uid, id);
     },
     [user?.uid]
@@ -151,6 +161,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       prev.map((item) => ({ ...item, readAt: item.readAt || new Date() }))
     );
     setUnreadCount(0);
+    dismissAllLocalNotifications().catch(() => {});
     await markAllNotificationsAsRead(user.uid);
   }, [user?.uid]);
 
