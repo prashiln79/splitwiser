@@ -9,6 +9,7 @@ import OnboardingScreen from '../screens/OnboardingScreen';
 import MainNavigator from './MainNavigator';
 import NotificationCenterScreen from '../screens/NotificationCenterScreen';
 import { InAppNotificationBanner } from '../components/notifications/InAppNotificationBanner';
+import { attachNotificationResponseListener } from '../services/localNotificationService';
 
 export const navigationRef = createNavigationContainerRef();
 
@@ -24,6 +25,20 @@ const AppNavigator = () => {
       SplashScreen.hideAsync().catch(() => {});
     }
   }, [isLoading]);
+
+  // Handle user tapping on native OS notifications
+  useEffect(() => {
+    const cleanup = attachNotificationResponseListener((data) => {
+      if (navigationRef.isReady()) {
+        if (data.groupId) {
+          (navigationRef as any).navigate('GroupDetails', { groupId: data.groupId });
+        } else {
+          (navigationRef as any).navigate('NotificationCenter');
+        }
+      }
+    });
+    return cleanup;
+  }, []);
 
   if (isLoading) {
     // Return null while loading so native splash screen stays visible without flicker

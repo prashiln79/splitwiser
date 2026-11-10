@@ -207,7 +207,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setUnreadCount(summary.unreadCount);
     });
 
-    // 2. Subscribe to new incoming notifications for in-app banner
+    // 2. Subscribe to new incoming notifications for native local notification dispatch
     const unsubStream = subscribeToUserNotifications(
       user.uid,
       (newNotif: InAppNotification) => {
@@ -216,7 +216,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           if (prev.some((n) => n.id === newNotif.id)) return prev;
           return [newNotif, ...prev];
         });
-        showBanner(newNotif);
+        // Dispatched exclusively via native local Android notification (in-app top banner suppressed)
         triggerLocalNotification(newNotif).catch(() => {});
       },
       (modifiedNotif: InAppNotification) => {

@@ -128,3 +128,26 @@ export async function triggerLocalNotification(notif: InAppNotification): Promis
   }
 }
 
+// ─── Listen for User Taps on Local OS Notifications ───────────────────────────
+export function attachNotificationResponseListener(
+  onNotificationSelected: (data: any) => void
+): () => void {
+  if (Platform.OS === 'web' || !Notifications) return () => {};
+
+  try {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response?.notification?.request?.content?.data;
+      if (data) {
+        onNotificationSelected(data);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  } catch (err: any) {
+    console.warn('[attachNotificationResponseListener] Failed to attach listener:', err?.message);
+    return () => {};
+  }
+}
+
