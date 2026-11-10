@@ -24,6 +24,7 @@ import { useAppTheme } from '../../theme';
 import { useNotifications } from '../../context/NotificationContext';
 import { InAppNotification, InAppNotificationType } from '../../types/notifications';
 import { resolveNotificationRoute } from '../../services/notificationRouter';
+import { resolveNotificationDisplay } from '../../services/localNotificationService';
 import { MemberAvatar } from '../common/MemberAvatar';
 
 interface InAppNotificationBannerProps {
@@ -120,8 +121,7 @@ export const InAppNotificationBanner: React.FC<InAppNotificationBannerProps> = (
   if (!activeBanner) return null;
 
   const eventColors = getEventColor(activeBanner.type, isDark);
-  const title = String(t(activeBanner.titleKey as any, activeBanner.params as any));
-  const body = String(t(activeBanner.bodyKey as any, activeBanner.params as any));
+  const { title, body } = resolveNotificationDisplay(activeBanner);
 
   const handleBannerPress = async () => {
     const bannerToOpen = activeBanner;

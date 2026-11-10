@@ -11,7 +11,7 @@
       "android",
       "web"
     ],
-    "version": "4.0.1",
+    "version": "4.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -38,7 +38,8 @@
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
-        "CAMERA"
+        "CAMERA",
+        "POST_NOTIFICATIONS"
       ],
       "blockedPermissions": [
         "android.permission.READ_MEDIA_IMAGES",
@@ -55,6 +56,13 @@
     "plugins": [
       "expo-localization",
       "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#015c43"
+        }
+      ],
       [
         "expo-splash-screen",
         {

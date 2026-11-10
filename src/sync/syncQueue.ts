@@ -197,19 +197,34 @@ class SyncQueue {
             .filter((uid: string) => uid && uid !== createdBy);
 
           if (targetUserIds.length > 0) {
+            let actorName = 'A member';
+            try {
+              const database = await getDatabase();
+              const row = await database.getFirstAsync<{ user_name: string }>(
+                `SELECT user_name FROM local_group_members WHERE group_id = ? AND user_id = ?`,
+                [groupId, paidBy || createdBy]
+              );
+              if (row?.user_name) actorName = row.user_name;
+            } catch {}
+
+            const num = Number(amount) || 0;
+            const formatted = '₹' + num.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+
             dispatchNotificationEvent({
               type: 'expense_created',
               actor: {
                 id: createdBy,
-                name: paidBy || 'A member',
+                name: actorName,
               },
               groupId,
               expenseId: id,
               targetUserIds,
               params: {
-                actorName: paidBy || 'A member',
+                actorName,
                 expenseDescription: description,
                 amount: String(amount),
+                amountFormatted: formatted,
+                currency: currency || 'INR',
               },
               dedupeKey: `expense_created_${id}`,
             }).catch(() => {});
@@ -268,6 +283,8 @@ class SyncQueue {
               params: {
                 actorName: fromUserName,
                 amount: String(amount),
+                amountFormatted: '₹' + (Number(amount) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 }),
+                currency: 'INR',
               },
               dedupeKey: `settlement_created_${id}`,
             }).catch(() => {});

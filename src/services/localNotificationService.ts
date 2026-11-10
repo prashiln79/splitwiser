@@ -1,0 +1,130 @@
+import { Platform } from 'react-native';
+import { InAppNotification } from '../types/notifications';
+import i18n from '../i18n';
+
+let Notifications: any = null;
+
+try {
+  Notifications = require('expo-notifications');
+} catch (err) {
+  console.warn('[localNotificationService] expo-notifications not available:', err);
+}
+
+// ─── Initialize Local Notification Configuration ──────────────────────────────
+export async function initLocalNotifications(): Promise<void> {
+  if (Platform.OS === 'web' || !Notifications) return;
+
+  try {
+    // 1. Set notification presentation handler so local alerts show in foreground
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+
+    // 2. Set Android Notification Channel
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'Splitwiser Notifications',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#059669',
+        sound: 'default',
+        enableVibrate: true,
+        showBadge: true,
+      });
+    }
+
+    // 3. Request permissions on Android 13+ (POST_NOTIFICATIONS) and iOS
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+  } catch (e: any) {
+    console.warn('[initLocalNotifications] Setup notice:', e?.message);
+  }
+}
+
+// ─── Format Notification Text Helper ──────────────────────────────────────────
+export function resolveNotificationDisplay(notif: InAppNotification): {
+  title: string;
+  body: string;
+} {
+  const params: Record<string, any> = { ...notif.params };
+
+  // 1. Format amount if missing or raw
+  if (!params.amountFormatted && params.amount !== undefined) {
+    const num = Number(params.amount) || 0;
+    const currency = params.currency || 'INR';
+    const symbol =
+      currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '₹';
+    params.amountFormatted = `${symbol}${num.toLocaleString('en-IN', {
+      maximumFractionDigits: 2,
+    })}`;
+  }
+
+  // 2. Clean actor name if it's a raw Firebase UID (e.g. 28-char alphanumeric like NavivPwQfZOoXw2a8XWPi3ibvp42)
+  if (params.actorName && typeof params.actorName === 'string') {
+    const raw = params.actorName.trim();
+    if (raw.length >= 20 && !raw.includes(' ') && /^[a-zA-Z0-9_-]+$/.test(raw)) {
+      params.actorName =
+        notif.actorName && notif.actorName !== raw && !/^[a-zA-Z0-9_-]{20,}$/.test(notif.actorName)
+          ? notif.actorName
+          : 'A member';
+    }
+  }
+
+  const titleKey = notif.titleKey || 'notifications.newExpense';
+  const bodyKey = notif.bodyKey || 'notifications.newExpense';
+
+  let title = String(i18n.t(titleKey, params));
+  let body = String(i18n.t(bodyKey, params));
+
+  // Fallback cleanup if translation key missing or literal placeholder remains
+  if (body.includes('{{amountFormatted}}')) {
+    const fallbackAmount = params.amountFormatted || (params.amount ? `₹${params.amount}` : '');
+    body = body.replace(/\{\{amountFormatted\}\}/g, fallbackAmount);
+  }
+  if (body.includes('{{actorName}}')) {
+    body = body.replace(/\{\{actorName\}\}/g, params.actorName || notif.actorName || 'A member');
+  }
+  if (body.includes('{{expenseDescription}}')) {
+    body = body.replace(/\{\{expenseDescription\}\}/g, params.expenseDescription || 'Expense');
+  }
+
+  return { title, body };
+}
+
+// ─── Trigger Native Local OS Notification ─────────────────────────────────────
+export async function triggerLocalNotification(notif: InAppNotification): Promise<void> {
+  if (Platform.OS === 'web' || !Notifications) return;
+
+  try {
+    const { title, body } = resolveNotificationDisplay(notif);
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        data: {
+          notificationId: notif.id,
+          groupId: notif.groupId,
+          expenseId: notif.expenseId,
+          settlementId: notif.settlementId,
+          type: notif.type,
+        },
+        sound: 'default',
+        channelId: 'default',
+        badge: 1,
+      },
+      trigger: null, // null means trigger immediately
+    });
+  } catch (err: any) {
+    console.warn('[triggerLocalNotification] Failed to present notification:', err?.message);
+  }
+}
+

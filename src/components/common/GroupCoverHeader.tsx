@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -146,9 +146,16 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
   }, [netBalance, settlements, currentUserId]);
 
   const groupDisplayName = group?.name || initialGroupName || 'Group';
+  const [headerHeight, setHeaderHeight] = useState<number>(0);
 
   return (
     <View
+      onLayout={(e) => {
+        const h = Math.round(e.nativeEvent.layout.height);
+        if (h > 0 && Math.abs(h - headerHeight) > 1) {
+          setHeaderHeight(h);
+        }
+      }}
       style={[
         styles.coverContainer,
         {
@@ -163,14 +170,19 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
         <>
           <Image
             source={{ uri: coverImageUrl! }}
-            style={styles.coverImageBackground}
+            style={[
+              styles.coverImageBackground,
+              headerHeight > 0 ? { height: headerHeight } : null,
+            ]}
             resizeMode="cover"
           />
           <View
             style={[
               StyleSheet.absoluteFill,
               { backgroundColor: 'rgba(0, 0, 0, 0.36)' },
+              headerHeight > 0 ? { height: headerHeight } : null,
             ]}
+            pointerEvents="none"
           />
         </>
       )}
@@ -558,9 +570,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   coverImageBackground: {
-    ...StyleSheet.absoluteFill,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     width: '100%',
-    height: '100%',
   },
   coverBodyContent: {
     alignItems: 'center',

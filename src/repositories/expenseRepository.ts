@@ -132,19 +132,39 @@ export async function createExpenseLocal(
       .filter((uid) => uid && uid !== createdBy);
 
     if (targetUserIds.length > 0) {
+      // Resolve human name from group members table instead of raw UID
+      let actorName = 'A member';
+      let actorAvatarUrl: string | undefined = undefined;
+      try {
+        const memberRow = await database.getFirstAsync<{ user_name: string; image_url: string | null }>(
+          `SELECT user_name, image_url FROM local_group_members WHERE group_id = ? AND user_id = ?`,
+          [groupId, input.paidBy || createdBy]
+        );
+        if (memberRow?.user_name) {
+          actorName = memberRow.user_name;
+          actorAvatarUrl = memberRow.image_url || undefined;
+        }
+      } catch {}
+
+      const numAmount = Number(input.amount) || 0;
+      const formattedAmount = '₹' + numAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+
       dispatchNotificationEvent({
         type: 'expense_created',
         actor: {
           id: createdBy,
-          name: input.paidBy || 'A member',
+          name: actorName,
+          avatarUrl: actorAvatarUrl,
         },
         groupId,
         expenseId: id,
         targetUserIds,
         params: {
-          actorName: input.paidBy || 'A member',
+          actorName,
           expenseDescription: input.description,
           amount: String(input.amount),
+          amountFormatted: formattedAmount,
+          currency: 'INR',
         },
         dedupeKey: `expense_created_${id}`,
       }).catch((err) => console.warn('[createExpenseLocal] Notification dispatch failed:', err?.message));
@@ -228,19 +248,33 @@ export async function updateExpenseLocal(
       .filter((uid: string) => uid && uid !== existing?.created_by);
 
     if (targetUserIds.length > 0) {
+      let actorName = 'A member';
+      try {
+        const memberRow = await database.getFirstAsync<{ user_name: string }>(
+          `SELECT user_name FROM local_group_members WHERE group_id = ? AND user_id = ?`,
+          [groupId, updatedPaidBy || existing?.created_by]
+        );
+        if (memberRow?.user_name) actorName = memberRow.user_name;
+      } catch {}
+
+      const numAmount = Number(updatedAmount) || 0;
+      const formattedAmount = '₹' + numAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+
       dispatchNotificationEvent({
         type: 'expense_updated',
         actor: {
           id: existing?.created_by || 'system',
-          name: updatedPaidBy || 'A member',
+          name: actorName,
         },
         groupId,
         expenseId,
         targetUserIds,
         params: {
-          actorName: updatedPaidBy || 'A member',
+          actorName,
           expenseDescription: updatedDescription,
           amount: String(updatedAmount),
+          amountFormatted: formattedAmount,
+          currency: 'INR',
         },
         dedupeKey: `expense_updated_${expenseId}_${now}`,
       }).catch(() => {});
@@ -281,17 +315,26 @@ export async function deleteExpenseLocal(groupId: string, expenseId: string): Pr
         .filter((uid) => uid && uid !== existing.created_by);
 
       if (targetUserIds.length > 0) {
+        let actorName = 'A member';
+        try {
+          const memberRow = await database.getFirstAsync<{ user_name: string }>(
+            `SELECT user_name FROM local_group_members WHERE group_id = ? AND user_id = ?`,
+            [groupId, existing.paid_by || existing.created_by]
+          );
+          if (memberRow?.user_name) actorName = memberRow.user_name;
+        } catch {}
+
         dispatchNotificationEvent({
           type: 'expense_deleted',
           actor: {
             id: existing.created_by,
-            name: existing.paid_by || 'A member',
+            name: actorName,
           },
           groupId,
           expenseId,
           targetUserIds,
           params: {
-            actorName: existing.paid_by || 'A member',
+            actorName,
             expenseDescription: existing.description,
           },
           dedupeKey: `expense_deleted_${expenseId}_${now}`,

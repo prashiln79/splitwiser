@@ -113,6 +113,8 @@ export async function recordSettlementLocal(
         params: {
           actorName: fromUserName,
           amount: String(amount),
+          amountFormatted: '₹' + (Number(amount) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 }),
+          currency: 'INR',
         },
         dedupeKey: `settlement_created_${id}`,
       }).catch((err) => console.warn('[recordSettlementLocal] Notification failed:', err?.message));

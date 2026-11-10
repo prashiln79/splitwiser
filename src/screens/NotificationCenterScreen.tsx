@@ -34,6 +34,7 @@ import { InAppNotification, InAppNotificationType } from '../types/notifications
 import { resolveNotificationRoute } from '../services/notificationRouter';
 import { AppHeader } from '../components/common/AppHeader';
 import { MemberAvatar } from '../components/common/MemberAvatar';
+import { resolveNotificationDisplay } from '../services/localNotificationService';
 
 type FilterTab = 'all' | 'unread' | 'expenses' | 'settlements';
 
@@ -179,9 +180,10 @@ export const NotificationCenterScreen = ({ navigation }: any) => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
+    const { title, body } = resolveNotificationDisplay(item);
     Alert.alert(
-      String(t(item.titleKey as any, item.params as any)),
-      String(t(item.bodyKey as any, item.params as any)),
+      title,
+      body,
       [
         {
           text: !item.readAt
@@ -378,8 +380,7 @@ export const NotificationCenterScreen = ({ navigation }: any) => {
           const notif = item.item!;
           const isUnread = !notif.readAt;
           const badge = getEventBadge(notif.type);
-          const title = String(t(notif.titleKey as any, notif.params as any));
-          const body = String(t(notif.bodyKey as any, notif.params as any));
+          const { title, body } = resolveNotificationDisplay(notif);
 
           return (
             <TouchableOpacity

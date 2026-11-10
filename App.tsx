@@ -10,6 +10,7 @@ import { NotificationProvider } from './src/context/NotificationContext';
 import { ThemeProvider, useAppTheme } from './src/theme';
 import AppNavigator from './src/navigation/AppNavigator';
 import { getDatabase } from './src/db/sqlite';
+import { initLocalNotifications } from './src/services/localNotificationService';
 
 // Keep the native splash screen visible while app initializes resources
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -21,6 +22,11 @@ function MainApp() {
     // Warm up SQLite tables & indexes on app launch
     getDatabase().catch((e) => {
       console.warn('[App] SQLite init warning:', e);
+    });
+
+    // Initialize local Android/iOS notifications & channels
+    initLocalNotifications().catch((e) => {
+      console.warn('[App] Local notification setup notice:', e);
     });
   }, []);
 

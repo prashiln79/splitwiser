@@ -19,6 +19,7 @@ import {
   updateNotificationPreferences,
   reconcileUnreadCount,
 } from '../services/notificationService';
+import { triggerLocalNotification } from '../services/localNotificationService';
 
 interface NotificationContextType {
   notifications: InAppNotification[];
@@ -216,6 +217,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           return [newNotif, ...prev];
         });
         showBanner(newNotif);
+        triggerLocalNotification(newNotif).catch(() => {});
       },
       (modifiedNotif: InAppNotification) => {
         setNotifications((prev) =>
