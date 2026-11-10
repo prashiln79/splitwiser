@@ -82,7 +82,13 @@ const OnboardingScreen = () => {
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       }
-      await signInWithGoogle(tokens.idToken, tokens.accessToken);
+      await signInWithGoogle(
+        tokens.idToken,
+        tokens.accessToken,
+        tokens.photoUrl,
+        tokens.displayName,
+        tokens.email
+      );
     } catch (err: any) {
       console.error('[Onboarding Google Login] Error:', err);
       Alert.alert('Google Sign-In Failed', err.message || 'Could not sign in with Google.');

@@ -43,7 +43,13 @@ export const ConnectGoogleModal: React.FC<ConnectGoogleModalProps> = ({
     setIsLoading(true);
     try {
       const prevUid = user?.uid;
-      const result = await linkGoogleAccount(tokens.idToken, tokens.accessToken);
+      const result = await linkGoogleAccount(
+        tokens.idToken,
+        tokens.accessToken,
+        tokens.photoUrl,
+        tokens.displayName,
+        tokens.email
+      );
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       Alert.alert(
@@ -94,7 +100,13 @@ export const ConnectGoogleModal: React.FC<ConnectGoogleModalProps> = ({
     if (!conflictTokens) return;
     setIsLoading(true);
     try {
-      await signInWithGoogle(conflictTokens.idToken, conflictTokens.accessToken);
+      await signInWithGoogle(
+        conflictTokens.idToken,
+        conflictTokens.accessToken,
+        conflictTokens.photoUrl,
+        conflictTokens.displayName,
+        conflictTokens.email
+      );
       setConflictTokens(null);
       Alert.alert('Signed In', 'Logged into your existing Google Splitwiser account.');
       onDismiss();
@@ -110,7 +122,13 @@ export const ConnectGoogleModal: React.FC<ConnectGoogleModalProps> = ({
     if (!conflictTokens) return;
     setIsLoading(true);
     try {
-      await migrateAnonymousDataToGoogle(conflictTokens.idToken, conflictTokens.accessToken);
+      await migrateAnonymousDataToGoogle(
+        conflictTokens.idToken,
+        conflictTokens.accessToken,
+        conflictTokens.photoUrl,
+        conflictTokens.displayName,
+        conflictTokens.email
+      );
       setConflictTokens(null);
       Alert.alert('Data Merged!', 'All your current groups and expenses have been securely transferred to your Google account.');
       onDismiss();

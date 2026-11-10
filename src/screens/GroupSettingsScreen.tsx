@@ -1134,7 +1134,7 @@ const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create
   },
   headerCoverPreview: {
     width: '100%',
-    height: 100,
+    aspectRatio: 16 / 9,
     backgroundColor: isDark ? colors.surfaceSecondary : '#1E293B',
     position: 'relative',
   },

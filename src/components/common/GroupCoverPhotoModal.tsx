@@ -537,7 +537,8 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
       marginBottom: 16,
     },
     previewCard: {
-      height: 140,
+      width: '100%',
+      aspectRatio: 16 / 9,
       borderRadius: 16,
       overflow: 'hidden',
       position: 'relative',

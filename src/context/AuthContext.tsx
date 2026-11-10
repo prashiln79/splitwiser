@@ -29,11 +29,29 @@ interface AuthContextValue {
   /** Update the user's profile (name, imageUrl, preferences) */
   updateProfile: (updates: Partial<AppUser>) => Promise<void>;
   /** Link Google Account to the current anonymous user preserving UID */
-  linkGoogleAccount: (idToken: string, accessToken?: string) => Promise<{ user: AppUser; isSameUid: boolean }>;
+  linkGoogleAccount: (
+    idToken: string,
+    accessToken?: string,
+    photoUrl?: string | null,
+    displayName?: string | null,
+    email?: string | null
+  ) => Promise<{ user: AppUser; isSameUid: boolean }>;
   /** Sign in with existing Google account (login on a second device) */
-  signInWithGoogle: (idToken: string, accessToken?: string) => Promise<AppUser>;
+  signInWithGoogle: (
+    idToken: string,
+    accessToken?: string,
+    photoUrl?: string | null,
+    displayName?: string | null,
+    email?: string | null
+  ) => Promise<AppUser>;
   /** Migrate anonymous data to an existing Google account in case of conflict */
-  migrateAnonymousDataToGoogle: (idToken: string, accessToken?: string) => Promise<AppUser>;
+  migrateAnonymousDataToGoogle: (
+    idToken: string,
+    accessToken?: string,
+    photoUrl?: string | null,
+    displayName?: string | null,
+    email?: string | null
+  ) => Promise<AppUser>;
   /** Sign out */
   signOut: () => Promise<void>;
   /** Reload profile */
@@ -96,20 +114,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const linkGoogleAccount = async (
     idToken: string,
-    accessToken?: string
+    accessToken?: string,
+    photoUrl?: string | null,
+    displayName?: string | null,
+    email?: string | null
   ): Promise<{ user: AppUser; isSameUid: boolean }> => {
-    const result = await linkGoogleCredential(idToken, accessToken);
+    const result = await linkGoogleCredential(
+      idToken,
+      accessToken,
+      photoUrl,
+      displayName,
+      email
+    );
     setUser(result.user);
     return result;
   };
 
   const signInWithGoogle = async (
     idToken: string,
-    accessToken?: string
+    accessToken?: string,
+    photoUrl?: string | null,
+    displayName?: string | null,
+    email?: string | null
   ): Promise<AppUser> => {
     setIsLoading(true);
     try {
-      const profile = await signInWithGoogleCredential(idToken, accessToken);
+      const profile = await signInWithGoogleCredential(
+        idToken,
+        accessToken,
+        photoUrl,
+        displayName,
+        email
+      );
       setUser(profile);
       return profile;
     } finally {
@@ -119,7 +155,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const migrateAnonymousDataToGoogle = async (
     idToken: string,
-    accessToken?: string
+    accessToken?: string,
+    photoUrl?: string | null,
+    displayName?: string | null,
+    email?: string | null
   ): Promise<AppUser> => {
     if (!user) throw new Error('No active user to migrate.');
     setIsLoading(true);
@@ -127,7 +166,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const profile = await migrateAnonymousDataToExistingGoogleAccount(
         user.uid,
         idToken,
-        accessToken
+        accessToken,
+        photoUrl,
+        displayName,
+        email
       );
       setUser(profile);
       return profile;

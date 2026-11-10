@@ -34,6 +34,7 @@ import { LOCALE_NATIVE_NAMES } from '../i18n';
 import { useTranslation } from 'react-i18next';
 import { APP_LIMITS } from '../constants/limits';
 import { useAppTheme, ThemeColors } from '../theme';
+import { resolveProfilePicture } from '../utils/profilePhotoHelper';
 
 const TIMEZONES = [
   '(GMT+05:30) Chennai, Kolkata, Mumbai, New Delhi',
@@ -90,6 +91,9 @@ export const EditProfileScreen = ({ navigation }: any) => {
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
 
   const isGoogleLinked = !user?.isAnonymous && user?.authProvider === 'google';
+
+  // Resolve best available profile photo (custom → google → initials)
+  const { displayUrl: resolvedPhotoUrl } = resolveProfilePicture(user);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -219,7 +223,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
           >
             <ProfileAvatar
               name={name || user?.name || 'User'}
-              imageUrl={user?.imageUrl}
+              imageUrl={resolvedPhotoUrl ?? user?.imageUrl}
               size={80}
             />
             <View style={styles.cameraBadge}>

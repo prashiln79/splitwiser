@@ -431,7 +431,8 @@ const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create
     marginBottom: 16,
   },
   coverPreviewCard: {
-    height: 110,
+    width: '100%',
+    aspectRatio: 16 / 9,
     borderRadius: 12,
     overflow: 'hidden',
     position: 'relative',

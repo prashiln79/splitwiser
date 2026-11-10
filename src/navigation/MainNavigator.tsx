@@ -9,6 +9,7 @@ import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme } from '../theme';
+import { resolveProfilePicture } from '../utils/profilePhotoHelper';
 import GroupsStackNavigator from './GroupsStackNavigator';
 import FriendsStackNavigator from './FriendsStackNavigator';
 import StatisticsScreen from '../screens/StatisticsScreen';
@@ -46,7 +47,13 @@ const AccountTabIcon = ({
   focused: boolean;
   photoURL?: string | null;
 }) => {
-  if (photoURL) {
+  const [imageError, setImageError] = React.useState(false);
+
+  React.useEffect(() => {
+    setImageError(false);
+  }, [photoURL]);
+
+  if (photoURL && !imageError) {
     return (
       <View
         style={[
@@ -54,7 +61,11 @@ const AccountTabIcon = ({
           focused && styles.accountAvatarBoxFocused,
         ]}
       >
-        <Image source={{ uri: photoURL }} style={styles.accountAvatarImg} />
+        <Image
+          source={{ uri: photoURL }}
+          onError={() => setImageError(true)}
+          style={styles.accountAvatarImg}
+        />
       </View>
     );
   }
@@ -173,12 +184,15 @@ const MainNavigator = () => {
         component={AccountStackNavigator}
         options={{
           tabBarLabel: t('settings:account', { defaultValue: 'Account' }),
-          tabBarIcon: ({ focused }) => (
-            <AccountTabIcon
-              focused={focused}
-              photoURL={user?.photoURL || user?.imageUrl}
-            />
-          ),
+          tabBarIcon: ({ focused }) => {
+            const { displayUrl } = resolveProfilePicture(user);
+            return (
+              <AccountTabIcon
+                focused={focused}
+                photoURL={displayUrl || user?.imageUrl || user?.photoURL}
+              />
+            );
+          },
         }}
       />
     </Tab.Navigator>

@@ -1,5 +1,5 @@
 import { auth, db } from '../config/firebase';
-import { signOutNativeGoogle } from './useGoogleAuth';
+import { signOutNativeGoogle, getNativeGoogleUser } from './useGoogleAuth';
 import {
   signInAnonymously,
   onAuthStateChanged,
@@ -150,7 +150,10 @@ export async function updateUserProfile(
  */
 export async function linkGoogleCredential(
   idToken: string,
-  accessToken?: string
+  accessToken?: string,
+  nativePhotoUrl?: string | null,
+  nativeDisplayName?: string | null,
+  nativeEmail?: string | null
 ): Promise<{ user: AppUser; isSameUid: boolean }> {
   const currentUser = auth.currentUser;
   if (!currentUser) {
@@ -176,15 +179,40 @@ export async function linkGoogleCredential(
   const googleProvider = linkedFirebaseUser.providerData?.find(
     (p) => p.providerId === 'google.com'
   );
-  const googlePhoto = googleProvider?.photoURL || linkedFirebaseUser.photoURL || null;
+  let googlePhoto =
+    googleProvider?.photoURL ||
+    nativePhotoUrl ||
+    linkedFirebaseUser.photoURL ||
+    null;
+  let googleDisplayName =
+    linkedFirebaseUser.displayName ||
+    nativeDisplayName ||
+    googleProvider?.displayName ||
+    null;
+  let googleEmail =
+    linkedFirebaseUser.email ||
+    nativeEmail ||
+    googleProvider?.email ||
+    null;
+
+  if (!googlePhoto || !googleEmail) {
+    try {
+      const nativeGoogle = await getNativeGoogleUser();
+      if (nativeGoogle) {
+        if (!googlePhoto && nativeGoogle.photo) googlePhoto = nativeGoogle.photo;
+        if (!googleDisplayName && nativeGoogle.name) googleDisplayName = nativeGoogle.name;
+        if (!googleEmail && nativeGoogle.email) googleEmail = nativeGoogle.email;
+      }
+    } catch {}
+  }
 
   // Check existing profile to guarantee we never overwrite a manually uploaded custom picture!
   const existingProfile = await loadUserProfile(linkedFirebaseUser.uid);
   const sync = calculateGoogleSyncUpdates(
     existingProfile,
     googlePhoto,
-    linkedFirebaseUser.displayName,
-    linkedFirebaseUser.email
+    googleDisplayName,
+    googleEmail
   );
 
   // Update Firestore user document with Google profile information
@@ -201,6 +229,15 @@ export async function linkGoogleCredential(
   if (googlePhoto) {
     updates.googlePhotoUrl = googlePhoto;
     updates.photoURL = googlePhoto;
+    const isCustomActive = existingProfile?.photoSource === 'custom' && existingProfile?.customPhotoUrl;
+    if (!isCustomActive) {
+      updates.imageUrl = googlePhoto;
+      updates.photoSource = 'google';
+    }
+  }
+
+  if (googleEmail) {
+    updates.email = googleEmail;
   }
 
   await setDoc(usersPath(linkedFirebaseUser.uid), updates, { merge: true });
@@ -233,14 +270,23 @@ export async function linkGoogleCredential(
  */
 export async function signInWithGoogleCredential(
   idToken: string,
-  accessToken?: string
+  accessToken?: string,
+  nativePhotoUrl?: string | null,
+  nativeDisplayName?: string | null,
+  nativeEmail?: string | null
 ): Promise<AppUser> {
   const currentUser = auth.currentUser;
 
   // If there is an active anonymous session, link the Google credentials directly to preserve the UID!
   if (currentUser && currentUser.isAnonymous) {
     try {
-      const { user } = await linkGoogleCredential(idToken, accessToken);
+      const { user } = await linkGoogleCredential(
+        idToken,
+        accessToken,
+        nativePhotoUrl,
+        nativeDisplayName,
+        nativeEmail
+      );
       return user;
     } catch (linkError: any) {
       if (linkError?.code === 'auth/credential-already-in-use') {
@@ -249,7 +295,10 @@ export async function signInWithGoogleCredential(
         return await migrateAnonymousDataToExistingGoogleAccount(
           currentUser.uid,
           idToken,
-          accessToken
+          accessToken,
+          nativePhotoUrl,
+          nativeDisplayName,
+          nativeEmail
         );
       }
       throw linkError;
@@ -262,7 +311,32 @@ export async function signInWithGoogleCredential(
 
   // Retrieve provider-specific Google photo and display name
   const googleProvider = googleUser.providerData?.find((p) => p.providerId === 'google.com');
-  const googlePhoto = googleProvider?.photoURL || googleUser.photoURL || null;
+  let googlePhoto =
+    googleProvider?.photoURL ||
+    nativePhotoUrl ||
+    googleUser.photoURL ||
+    null;
+  let googleDisplayName =
+    googleUser.displayName ||
+    nativeDisplayName ||
+    googleProvider?.displayName ||
+    null;
+  let googleEmail =
+    googleUser.email ||
+    nativeEmail ||
+    googleProvider?.email ||
+    null;
+
+  if (!googlePhoto || !googleEmail) {
+    try {
+      const nativeGoogle = await getNativeGoogleUser();
+      if (nativeGoogle) {
+        if (!googlePhoto && nativeGoogle.photo) googlePhoto = nativeGoogle.photo;
+        if (!googleDisplayName && nativeGoogle.name) googleDisplayName = nativeGoogle.name;
+        if (!googleEmail && nativeGoogle.email) googleEmail = nativeGoogle.email;
+      }
+    } catch {}
+  }
 
   // Check if profile exists
   let profile = await loadUserProfile(googleUser.uid);
@@ -271,8 +345,8 @@ export async function signInWithGoogleCredential(
     const now = serverTimestamp();
     const newProfile = {
       uid: googleUser.uid,
-      name: googleUser.displayName || 'Splitwiser User',
-      email: googleUser.email || null,
+      name: googleDisplayName || googleUser.displayName || 'Splitwiser User',
+      email: googleEmail || googleUser.email || null,
       photoURL: googlePhoto,
       googlePhotoUrl: googlePhoto,
       photoSource: googlePhoto ? 'google' : 'none',
@@ -284,18 +358,41 @@ export async function signInWithGoogleCredential(
     };
     await setDoc(usersPath(googleUser.uid), newProfile);
     profile = await loadUserProfile(googleUser.uid);
+    if (profile) {
+      await updateLocalMemberProfile(profile.uid, profile.name, profile.imageUrl);
+      await updateUserAcrossGroups(profile.uid, profile.name, profile.imageUrl).catch(() => {});
+    }
   } else {
     // Existing user: check if Google profile changed externally, while strictly preserving any custom photo!
     const sync = calculateGoogleSyncUpdates(
       profile,
       googlePhoto,
-      googleUser.displayName,
-      googleUser.email
+      googleDisplayName || googleUser.displayName,
+      googleEmail || googleUser.email
     );
-    if (sync.hasChanges) {
+
+    const isCustomActive = profile.photoSource === 'custom' && profile.customPhotoUrl;
+    const needsPhotoFix =
+      googlePhoto &&
+      !isCustomActive &&
+      (!profile.imageUrl || profile.imageUrl !== googlePhoto || profile.photoSource !== 'google');
+
+    if (sync.hasChanges || needsPhotoFix) {
+      const firestoreUpdates = {
+        ...sync.updates,
+        ...(needsPhotoFix
+          ? {
+              googlePhotoUrl: googlePhoto,
+              imageUrl: googlePhoto,
+              photoSource: 'google' as const,
+              photoURL: googlePhoto,
+            }
+          : {}),
+        ...(googleEmail && !profile.email ? { email: googleEmail } : {}),
+      };
       await setDoc(
         usersPath(googleUser.uid),
-        { ...sync.updates, updatedAt: serverTimestamp() },
+        { ...firestoreUpdates, updatedAt: serverTimestamp() },
         { merge: true }
       );
       profile = await loadUserProfile(googleUser.uid);
@@ -309,10 +406,10 @@ export async function signInWithGoogleCredential(
   return (
     profile || {
       uid: googleUser.uid,
-      name: googleUser.displayName || 'Splitwiser User',
-      email: googleUser.email || undefined,
-      photoURL: googleUser.photoURL || undefined,
-      imageUrl: googleUser.photoURL || undefined,
+      name: googleDisplayName || googleUser.displayName || 'Splitwiser User',
+      email: googleEmail || googleUser.email || undefined,
+      photoURL: googlePhoto || googleUser.photoURL || undefined,
+      imageUrl: googlePhoto || googleUser.photoURL || undefined,
       isAnonymous: false,
       authProvider: 'google',
       createdAt: new Date(),
@@ -328,7 +425,10 @@ export async function signInWithGoogleCredential(
 export async function migrateAnonymousDataToExistingGoogleAccount(
   anonymousUid: string,
   idToken: string,
-  accessToken?: string
+  accessToken?: string,
+  nativePhotoUrl?: string | null,
+  nativeDisplayName?: string | null,
+  nativeEmail?: string | null
 ): Promise<AppUser> {
   // 1. First, find all groups belonging to the anonymous user before switching accounts
   const q = query(groupsCol(), where('memberIds', 'array-contains', anonymousUid));
@@ -433,14 +533,39 @@ export async function migrateAnonymousDataToExistingGoogleAccount(
   // Load and return the Google user profile
   let profile = await loadUserProfile(googleUid);
   const googleProvider = userCredential.user.providerData?.find((p) => p.providerId === 'google.com');
-  const googlePhoto = googleProvider?.photoURL || userCredential.user.photoURL || null;
+  let googlePhoto =
+    googleProvider?.photoURL ||
+    nativePhotoUrl ||
+    userCredential.user.photoURL ||
+    null;
+  let resolvedDisplayName =
+    nativeDisplayName ||
+    googleUserName ||
+    googleProvider?.displayName ||
+    null;
+  let resolvedEmail =
+    nativeEmail ||
+    userCredential.user.email ||
+    googleProvider?.email ||
+    null;
+
+  if (!googlePhoto || !resolvedEmail) {
+    try {
+      const nativeGoogle = await getNativeGoogleUser();
+      if (nativeGoogle) {
+        if (!googlePhoto && nativeGoogle.photo) googlePhoto = nativeGoogle.photo;
+        if (!resolvedDisplayName && nativeGoogle.name) resolvedDisplayName = nativeGoogle.name;
+        if (!resolvedEmail && nativeGoogle.email) resolvedEmail = nativeGoogle.email;
+      }
+    } catch {}
+  }
 
   if (!profile) {
     const now = serverTimestamp();
     const newProfile = {
       uid: googleUid,
-      name: googleUserName,
-      email: userCredential.user.email || null,
+      name: resolvedDisplayName || 'Splitwiser User',
+      email: resolvedEmail || null,
       photoURL: googlePhoto,
       googlePhotoUrl: googlePhoto,
       photoSource: googlePhoto ? 'google' : 'none',
@@ -452,21 +577,48 @@ export async function migrateAnonymousDataToExistingGoogleAccount(
     };
     await setDoc(usersPath(googleUid), newProfile);
     profile = await loadUserProfile(googleUid);
+    if (profile) {
+      await updateLocalMemberProfile(profile.uid, profile.name, profile.imageUrl);
+      await updateUserAcrossGroups(profile.uid, profile.name, profile.imageUrl).catch(() => {});
+    }
   } else {
     // Preserve customPhotoUrl if present
     const sync = calculateGoogleSyncUpdates(
       profile,
       googlePhoto,
-      googleUserName,
-      userCredential.user.email
+      resolvedDisplayName || googleUserName,
+      resolvedEmail || userCredential.user.email
     );
-    if (sync.hasChanges) {
+
+    const isCustomActive = profile.photoSource === 'custom' && profile.customPhotoUrl;
+    const needsPhotoFix =
+      googlePhoto &&
+      !isCustomActive &&
+      (!profile.imageUrl || profile.imageUrl !== googlePhoto || profile.photoSource !== 'google');
+
+    if (sync.hasChanges || needsPhotoFix) {
+      const firestoreUpdates = {
+        ...sync.updates,
+        ...(needsPhotoFix
+          ? {
+              googlePhotoUrl: googlePhoto,
+              imageUrl: googlePhoto,
+              photoSource: 'google' as const,
+              photoURL: googlePhoto,
+            }
+          : {}),
+        ...(resolvedEmail && !profile.email ? { email: resolvedEmail } : {}),
+      };
       await setDoc(
         usersPath(googleUid),
-        { ...sync.updates, updatedAt: serverTimestamp() },
+        { ...firestoreUpdates, updatedAt: serverTimestamp() },
         { merge: true }
       );
       profile = await loadUserProfile(googleUid);
+      if (profile) {
+        await updateLocalMemberProfile(profile.uid, profile.name, profile.imageUrl);
+        await updateUserAcrossGroups(profile.uid, profile.name, profile.imageUrl).catch(() => {});
+      }
     }
   }
   return profile!;
@@ -503,25 +655,65 @@ export async function syncGoogleProfileOnAuth(
   const profile = await loadUserProfile(firebaseUser.uid);
   if (!profile) return null;
 
-  const isGoogle = firebaseUser.providerData?.some((p) => p.providerId === 'google.com');
+  const isGoogle =
+    profile.authProvider === 'google' ||
+    firebaseUser.providerData?.some((p) => p.providerId === 'google.com');
+
   if (isGoogle) {
     const googleProvider = firebaseUser.providerData.find((p) => p.providerId === 'google.com');
-    const googlePhoto = googleProvider?.photoURL || firebaseUser.photoURL || null;
+    let googlePhoto = googleProvider?.photoURL || firebaseUser.photoURL || null;
+    let googleDisplayName = firebaseUser.displayName || googleProvider?.displayName || null;
+    let googleEmail = firebaseUser.email || googleProvider?.email || null;
+
+    if (!googlePhoto || !googleEmail) {
+      try {
+        const nativeGoogle = await getNativeGoogleUser();
+        if (nativeGoogle) {
+          if (!googlePhoto && nativeGoogle.photo) googlePhoto = nativeGoogle.photo;
+          if (!googleDisplayName && nativeGoogle.name) googleDisplayName = nativeGoogle.name;
+          if (!googleEmail && nativeGoogle.email) googleEmail = nativeGoogle.email;
+        }
+      } catch {}
+    }
 
     const sync = calculateGoogleSyncUpdates(
       profile,
       googlePhoto,
-      firebaseUser.displayName,
-      firebaseUser.email
+      googleDisplayName,
+      googleEmail
     );
 
-    if (sync.hasChanges) {
+    // Also force-fix if googlePhoto exists and imageUrl/photoSource need to be set
+    const isCustomActive = profile.photoSource === 'custom' && profile.customPhotoUrl;
+    const needsPhotoFix =
+      googlePhoto &&
+      !isCustomActive &&
+      (!profile.imageUrl || profile.imageUrl !== googlePhoto || profile.photoSource !== 'google');
+
+    if (sync.hasChanges || needsPhotoFix) {
+      const firestoreUpdates = {
+        ...sync.updates,
+        ...(needsPhotoFix
+          ? {
+              googlePhotoUrl: googlePhoto,
+              imageUrl: googlePhoto,
+              photoSource: 'google' as const,
+              photoURL: googlePhoto,
+            }
+          : {}),
+        ...(googleEmail && !profile.email ? { email: googleEmail } : {}),
+      };
       await setDoc(
         usersPath(firebaseUser.uid),
-        { ...sync.updates, updatedAt: serverTimestamp() },
+        { ...firestoreUpdates, updatedAt: serverTimestamp() },
         { merge: true }
       );
-      return await loadUserProfile(firebaseUser.uid);
+      const updated = await loadUserProfile(firebaseUser.uid);
+      if (updated) {
+        await updateLocalMemberProfile(updated.uid, updated.name, updated.imageUrl);
+        await updateUserAcrossGroups(updated.uid, updated.name, updated.imageUrl).catch(() => {});
+        return updated;
+      }
     }
   }
 

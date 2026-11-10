@@ -9,6 +9,9 @@ import { googleAuthConfig } from '../config/firebase';
 export interface GoogleAuthTokens {
   idToken: string;
   accessToken?: string;
+  photoUrl?: string | null;
+  displayName?: string | null;
+  email?: string | null;
 }
 
 export type GoogleSignInResult =
@@ -95,6 +98,34 @@ export async function signOutNativeGoogle(): Promise<void> {
 }
 
 /**
+ * Retrieve cached native Google user profile from Google Play Services, if available.
+ */
+export async function getNativeGoogleUser(): Promise<{
+  photo: string | null;
+  name: string | null;
+  email: string | null;
+} | null> {
+  if (Platform.OS === 'web') return null;
+  const mod = getGoogleSigninModule();
+  if (!mod?.GoogleSignin) return null;
+
+  try {
+    configureGoogleSignIn();
+    const currentUser = await mod.GoogleSignin.getCurrentUser();
+    if (currentUser?.user) {
+      return {
+        photo: currentUser.user.photo || null,
+        name: currentUser.user.name || null,
+        email: currentUser.user.email || null,
+      };
+    }
+  } catch (err) {
+    // Non-fatal: user might not be signed into Google Play Services
+  }
+  return null;
+}
+
+/**
  * Initiates native Android Google Play Services Sign-In bottom sheet.
  * Never opens Chrome, Custom Tabs, or a browser window.
  */
@@ -138,6 +169,12 @@ export async function signInWithNativeGoogle(): Promise<GoogleSignInResult> {
       let idToken = response.data?.idToken;
       let accessToken: string | undefined = undefined;
 
+      // Extract native user profile (v13+ stores under response.data.user, legacy under response.user)
+      const nativeUser = response.data?.user || (response as any).user;
+      const photoUrl = nativeUser?.photo || null;
+      const displayName = nativeUser?.name || null;
+      const email = nativeUser?.email || null;
+
       // Some Android devices/play services versions return idToken via getTokens()
       if (!idToken) {
         try {
@@ -160,6 +197,9 @@ export async function signInWithNativeGoogle(): Promise<GoogleSignInResult> {
         tokens: {
           idToken,
           accessToken,
+          photoUrl,
+          displayName,
+          email,
         },
       };
     }

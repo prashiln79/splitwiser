@@ -172,26 +172,6 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
               { backgroundColor: 'rgba(0, 0, 0, 0.36)' },
             ]}
           />
-          <View
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: insets.top + 52,
-              backgroundColor: 'rgba(0, 0, 0, 0.22)',
-            }}
-          />
-          <View
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 72,
-              backgroundColor: 'rgba(0, 0, 0, 0.42)',
-            }}
-          />
         </>
       )}
 
@@ -527,13 +507,16 @@ export const GroupPillTabs: React.FC<GroupPillTabsProps> = ({
 
           let pillBgStyle: any;
           let textColor: string;
+          let textShadowStyle: any = null;
 
           if (isActive) {
             pillBgStyle = [styles.pillActive, { backgroundColor: colors.primary }];
             textColor = '#FFFFFF';
           } else if (hasCover && !isSticky) {
-            pillBgStyle = [styles.pillCoverInactive, isDark && { backgroundColor: colors.surface }];
-            textColor = isDark ? colors.textPrimary : '#111827';
+            // Over cover image: frosted translucent glass chip allowing the cover image to show through
+            pillBgStyle = styles.pillCoverInactive;
+            textColor = '#FFFFFF';
+            textShadowStyle = styles.pillCoverTextShadow;
           } else {
             pillBgStyle = [
               styles.pillLightInactive,
@@ -552,12 +535,12 @@ export const GroupPillTabs: React.FC<GroupPillTabsProps> = ({
               {tab.hasSparkle && (
                 <Gem
                   size={13}
-                  color={isActive ? '#FFFFFF' : colors.primary}
+                  color={isActive ? '#FFFFFF' : (hasCover && !isSticky ? '#FFFFFF' : colors.primary)}
                   strokeWidth={2.5}
                   style={{ marginRight: 5 }}
                 />
               )}
-              <Text style={[styles.pillText, { color: textColor }]}>
+              <Text style={[styles.pillText, { color: textColor }, textShadowStyle]}>
                 {tab.label}
               </Text>
             </TouchableOpacity>
@@ -653,7 +636,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   codeBadgeDark: {
-    backgroundColor: 'rgba(0, 0, 0, 0.40)',
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.35)',
   },
@@ -836,12 +819,14 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   pillCoverInactive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1.5 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 2,
+    backgroundColor: 'rgba(0, 0, 0, 0.42)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  pillCoverTextShadow: {
+    textShadowColor: 'rgba(0, 0, 0, 0.65)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   pillLightInactive: {
     backgroundColor: '#F3F4F6',

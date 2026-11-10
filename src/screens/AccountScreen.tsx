@@ -43,6 +43,7 @@ import { useI18n } from '../context/I18nContext';
 import { SUPPORTED_LOCALES, LOCALE_NATIVE_NAMES, LOCALE_DISPLAY_NAMES } from '../i18n';
 import { MemberAvatar } from '../components/common/MemberAvatar';
 import { compressAvatarPhoto } from '../utils/imageCompressor';
+import { resolveProfilePicture } from '../utils/profilePhotoHelper';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 import { QrCodeModal } from '../components/common/QrCodeModal';
 import { ProfilePhotoModal } from '../components/common/ProfilePhotoModal';
@@ -142,6 +143,9 @@ export const AccountScreen = ({ navigation }: any) => {
 
   const isGoogleLinked = !user?.isAnonymous && user?.authProvider === 'google';
 
+  // Resolve the best available profile photo (custom → google → initials)
+  const { displayUrl: resolvedPhotoUrl } = resolveProfilePicture(user);
+
   const handlePickAvatar = () => {
     hapticsService.impact(Haptics.ImpactFeedbackStyle.Light);
     setProfilePhotoModalVisible(true);
@@ -236,7 +240,7 @@ export const AccountScreen = ({ navigation }: any) => {
           >
             <MemberAvatar
               name={user?.name || 'User'}
-              imageUrl={user?.imageUrl}
+              imageUrl={resolvedPhotoUrl ?? user?.imageUrl}
               size={64}
             />
             <View style={styles.cameraIconBadge}>
