@@ -31,7 +31,13 @@ const AppNavigator = () => {
     const cleanup = attachNotificationResponseListener((data) => {
       if (navigationRef.isReady()) {
         if (data.groupId) {
-          (navigationRef as any).navigate('GroupDetails', { groupId: data.groupId });
+          (navigationRef as any).navigate('Main', {
+            screen: 'Groups',
+            params: {
+              screen: 'GroupDetails',
+              params: { groupId: data.groupId },
+            },
+          });
         } else {
           (navigationRef as any).navigate('NotificationCenter');
         }

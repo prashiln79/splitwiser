@@ -165,12 +165,45 @@ export const NotificationCenterScreen = ({ navigation }: any) => {
       await markAsRead(item.id);
     }
 
+    const groupId = item.groupId || (item.params as any)?.groupId;
+    const groupName = item.groupName || (item.params as any)?.groupName || 'Group';
+
+    // If it is a transaction or group-related notification with a groupId, navigate directly to GroupDetails
+    if (groupId) {
+      try {
+        (navigation as any).navigate('Main', {
+          screen: 'Groups',
+          params: {
+            screen: 'GroupDetails',
+            params: {
+              groupId,
+              groupName,
+              highlightExpenseId: item.expenseId,
+            },
+          },
+        });
+        return;
+      } catch (e: any) {
+        console.warn('[NotificationCenterScreen] Navigation to GroupDetails failed:', e?.message);
+      }
+    }
+
     try {
       const target = await resolveNotificationRoute(item);
       if (target.unavailableNotice) {
         Alert.alert('Notice', target.unavailableNotice);
       }
-      navigation.navigate(target.screen, target.params);
+      if (target.screen === 'GroupDetails' && target.params?.groupId) {
+        (navigation as any).navigate('Main', {
+          screen: 'Groups',
+          params: {
+            screen: 'GroupDetails',
+            params: target.params,
+          },
+        });
+      } else {
+        navigation.navigate(target.screen, target.params);
+      }
     } catch (e: any) {
       console.warn('[NotificationCenterScreen] Navigation failed:', e?.message);
     }
