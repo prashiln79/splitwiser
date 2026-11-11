@@ -11,7 +11,7 @@
       "android",
       "web"
     ],
-    "version": "4.0.3",
+    "version": "4.0.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -24,7 +24,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Allow Splitwiser to select a group icon from your photo library.",
-        "NSCameraUsageDescription": "Allow Splitwiser to scan friend and group QR codes."
+        "NSCameraUsageDescription": "Allow Splitwiser to scan friend and group QR codes.",
+        "NSFaceIDUsageDescription": "Allow Splitwiser to authenticate using Face ID to protect your financial data."
       }
     },
     "owner": "prashiln79",

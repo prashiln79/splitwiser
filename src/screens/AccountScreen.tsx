@@ -49,11 +49,14 @@ import { QrCodeModal } from '../components/common/QrCodeModal';
 import { ProfilePhotoModal } from '../components/common/ProfilePhotoModal';
 import { useAppTheme, ThemeColors } from '../theme';
 import { useNotifications } from '../context/NotificationContext';
+import { useSecurity } from '../context/SecurityContext';
+import { SecuritySettingsModal } from '../components/security/SecuritySettingsModal';
 import { submitSupportTicket } from '../services/support';
 import { hapticsService } from '../services/hapticsService';
 
 export const AccountScreen = ({ navigation }: any) => {
   const { user, signOut, updateProfile } = useAuth();
+  const { isSecurityEnabled, isBiometricsEnabled, biometricType } = useSecurity();
   const { colors, isDark, themeMode, setThemeMode } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const switchTrackColor = useMemo(
@@ -91,9 +94,6 @@ export const AccountScreen = ({ navigation }: any) => {
   const [emailWeeklySummary, setEmailWeeklySummary] = useState(true);
   const [emailExpenseAdded, setEmailExpenseAdded] = useState(true);
   const [emailSettledUp, setEmailSettledUp] = useState(true);
-
-  const [biometricUnlock, setBiometricUnlock] = useState(false);
-  const [requirePinOnOpen, setRequirePinOnOpen] = useState(false);
 
   // Global Haptic Feedback preference
   const [hapticsEnabled, setHapticsEnabled] = useState(hapticsService.isEnabled());
@@ -357,7 +357,18 @@ export const AccountScreen = ({ navigation }: any) => {
                 <Lock size={19} color={colors.textPrimary} strokeWidth={2} style={styles.rowIcon} />
                 <Text style={styles.settingItemTitle}>Security</Text>
               </View>
-              <ChevronRight size={18} color={colors.textMuted} />
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 14, color: colors.textMuted, marginRight: 6 }}>
+                  {isSecurityEnabled
+                    ? isBiometricsEnabled
+                      ? biometricType === 'face'
+                        ? 'Face ID'
+                        : 'Biometrics'
+                      : 'Passcode'
+                    : 'Off'}
+                </Text>
+                <ChevronRight size={18} color={colors.textMuted} />
+              </View>
             </TouchableOpacity>
 
             {/* Appearance */}
@@ -784,52 +795,10 @@ export const AccountScreen = ({ navigation }: any) => {
       </Modal>
 
       {/* ── Security Modal ─────────────────────────────────────────────────── */}
-      <Modal
+      <SecuritySettingsModal
         visible={securitySettingsVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSecuritySettingsVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setSecuritySettingsVisible(false)}
-        >
-          <View style={styles.dialogCard}>
-            <Text style={styles.dialogTitle}>App Security</Text>
-            <Text style={styles.dialogSub}>
-              Protect your personal balances and financial history.
-            </Text>
-
-            <View style={styles.switchRow}>
-              <Text style={styles.switchLabel}>Unlock with Face ID / Biometrics</Text>
-              <Switch
-                value={biometricUnlock}
-                onValueChange={setBiometricUnlock}
-                trackColor={switchTrackColor}
-                thumbColor={getSwitchThumbColor(biometricUnlock)}
-              />
-            </View>
-
-            <View style={styles.switchRow}>
-              <Text style={styles.switchLabel}>Require Passcode when opening app</Text>
-              <Switch
-                value={requirePinOnOpen}
-                onValueChange={setRequirePinOnOpen}
-                trackColor={switchTrackColor}
-                thumbColor={getSwitchThumbColor(requirePinOnOpen)}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={styles.dialogPrimaryBtn}
-              onPress={() => setSecuritySettingsVisible(false)}
-            >
-              <Text style={styles.dialogPrimaryBtnText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+        onClose={() => setSecuritySettingsVisible(false)}
+      />
 
       {/* ── Appearance Modal ───────────────────────────────────────────────── */}
       <Modal
