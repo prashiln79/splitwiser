@@ -11,9 +11,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Wallet,
   ArrowRight,
-  ShieldCheck,
-  Sparkles,
   Users,
+  Scale,
+  Zap,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAppTheme, ThemeColors, radii, shadows } from '../../theme';
@@ -21,6 +21,24 @@ import { useAppTheme, ThemeColors, radii, shadows } from '../../theme';
 interface WelcomeScreenProps {
   navigation: any;
 }
+
+const FEATURES = [
+  {
+    icon: Users,
+    title: 'Share with anyone',
+    description: 'Roommates, trips, dinners and daily bills.',
+  },
+  {
+    icon: Scale,
+    title: 'Fair expense splitting',
+    description: 'Know who owes whom.',
+  },
+  {
+    icon: Zap,
+    title: 'Start instantly',
+    description: 'No registration required with guest access.',
+  },
+];
 
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -47,44 +65,48 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: Math.max(insets.top, 24) + 24,
-            paddingBottom: Math.max(insets.bottom, 24) + 20,
+            paddingTop: Math.max(insets.top, 20) + 16,
+            paddingBottom: Math.max(insets.bottom, 20) + 12,
           },
         ]}
         showsVerticalScrollIndicator={false}
+        bounces={false}
       >
-        {/* Brand Emblem & Header */}
-        <View style={styles.heroSection}>
-          <View style={styles.logoOuterGlow}>
-            <View style={styles.logoCircle}>
-              <Wallet size={44} color="#FFFFFF" strokeWidth={2.4} />
+        {/* Top & Middle Section: Hero Emblem + Compact Feature Rows */}
+        <View style={styles.topSection}>
+          {/* Logo & Brand Identity */}
+          <View style={styles.brandHero}>
+            <View style={styles.logoHalo}>
+              <View style={styles.logoCircle}>
+                <Wallet size={28} color="#FFFFFF" strokeWidth={2.4} />
+              </View>
             </View>
+
+            <Text style={styles.brandTitle}>Splitwiser</Text>
+            <Text style={styles.brandTagline}>Split expenses, stay friends.</Text>
           </View>
 
-          <Text style={styles.brandTitle}>Splitwiser</Text>
-          <Text style={styles.brandTagline}>Split expenses, stay friends.</Text>
-
-          {/* Quick Value Points */}
-          <View style={styles.valuePointsContainer}>
-            <View style={styles.valuePill}>
-              <Users size={16} color={colors.primary} strokeWidth={2.2} />
-              <Text style={styles.valuePillText}>Roommates, trips, dinners & daily bills</Text>
-            </View>
-
-            <View style={styles.valuePill}>
-              <Sparkles size={16} color={colors.primary} strokeWidth={2.2} />
-              <Text style={styles.valuePillText}>Smart debt minimization & fair splits</Text>
-            </View>
-
-            <View style={styles.valuePill}>
-              <ShieldCheck size={16} color={colors.primary} strokeWidth={2.2} />
-              <Text style={styles.valuePillText}>Start instantly as a guest • 100% Free</Text>
-            </View>
+          {/* Compact Feature Rows (Clean icon + text, no bulky card boxes) */}
+          <View style={styles.featuresContainer}>
+            {FEATURES.map((item, index) => {
+              const IconComponent = item.icon;
+              return (
+                <View key={index} style={styles.featureRow}>
+                  <View style={styles.iconCircle}>
+                    <IconComponent size={19} color={colors.primary} strokeWidth={2.3} />
+                  </View>
+                  <View style={styles.featureTextCol}>
+                    <Text style={styles.featureTitle}>{item.title}</Text>
+                    <Text style={styles.featureDesc}>{item.description}</Text>
+                  </View>
+                </View>
+              );
+            })}
           </View>
         </View>
 
-        {/* Action Controls */}
-        <View style={styles.actionSection}>
+        {/* Bottom Section: Primary Action CTA & Footer */}
+        <View style={styles.bottomSection}>
           {/* Get Started Button */}
           <TouchableOpacity
             style={styles.primaryButton}
@@ -94,10 +116,10 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
             accessibilityLabel="Get Started"
           >
             <Text style={styles.primaryButtonText}>Get Started</Text>
-            <ArrowRight size={20} color="#FFFFFF" strokeWidth={2.4} style={{ marginLeft: 8 }} />
+            <ArrowRight size={19} color="#FFFFFF" strokeWidth={2.4} style={{ marginLeft: 8 }} />
           </TouchableOpacity>
 
-          {/* Log In Link */}
+          {/* Existing Account Log In Link */}
           <TouchableOpacity
             style={styles.loginButton}
             onPress={handleLogIn}
@@ -106,11 +128,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
             accessibilityLabel="Log in to existing account"
           >
             <Text style={styles.loginButtonText}>
-              I already have an account · <Text style={styles.loginButtonHighlight}>Log In</Text>
+              Existing account? <Text style={styles.loginButtonHighlight}>Log In</Text>
             </Text>
           </TouchableOpacity>
 
-          {/* Legal Footnote */}
+          {/* Terms & Privacy Legal Notice */}
           <Text style={styles.legalNotice}>
             By continuing, you agree to Splitwiser's Terms of Service and Privacy Policy.
           </Text>
@@ -131,93 +153,105 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
       justifyContent: 'space-between',
       paddingHorizontal: 28,
     },
-    heroSection: {
+    topSection: {
       alignItems: 'center',
-      marginTop: 20,
     },
-    logoOuterGlow: {
-      width: 108,
-      height: 108,
-      borderRadius: 54,
-      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.18)' : '#ECFDF5',
+    brandHero: {
+      alignItems: 'center',
+      marginTop: 8,
+      marginBottom: 32,
+    },
+    logoHalo: {
+      width: 76,
+      height: 76,
+      borderRadius: 38,
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.16)' : '#ECFDF5',
+      borderWidth: 1.5,
+      borderColor: isDark ? 'rgba(5, 150, 105, 0.35)' : '#A7F3D0',
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 24,
-      borderWidth: 1.5,
-      borderColor: isDark ? 'rgba(5, 150, 105, 0.4)' : '#A7F3D0',
+      marginBottom: 16,
     },
     logoCircle: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
+      width: 54,
+      height: 54,
+      borderRadius: 27,
       backgroundColor: colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
       ...shadows.md,
     },
     brandTitle: {
-      fontSize: 34,
+      fontSize: 28,
       fontWeight: '800',
       color: isDark ? '#FFFFFF' : '#111827',
-      letterSpacing: -0.8,
-      marginBottom: 8,
+      letterSpacing: -0.6,
+      marginBottom: 6,
     },
     brandTagline: {
-      fontSize: 17,
+      fontSize: 15,
       fontWeight: '500',
       color: colors.textSecondary,
       textAlign: 'center',
-      marginBottom: 32,
     },
-    valuePointsContainer: {
+    featuresContainer: {
       width: '100%',
-      gap: 12,
-      maxWidth: 360,
+      maxWidth: 340,
+      gap: 18,
     },
-    valuePill: {
+    featureRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#FFFFFF',
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: radii.lg,
-      paddingHorizontal: 16,
-      paddingVertical: 13,
-      gap: 12,
-      ...shadows.sm,
+      gap: 14,
     },
-    valuePillText: {
-      fontSize: 14,
-      fontWeight: '500',
-      color: colors.textPrimary,
+    iconCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.md,
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.14)' : '#ECFDF5',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    featureTextCol: {
       flex: 1,
     },
-    actionSection: {
+    featureTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: isDark ? '#FFFFFF' : '#1F2937',
+      marginBottom: 2,
+    },
+    featureDesc: {
+      fontSize: 13,
+      color: colors.textSecondary,
+      lineHeight: 18,
+    },
+    bottomSection: {
       width: '100%',
       alignItems: 'center',
-      marginTop: 36,
+      paddingTop: 24,
     },
     primaryButton: {
       width: '100%',
-      height: 56,
+      height: 52,
       backgroundColor: colors.primary,
       borderRadius: radii.xl,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       ...shadows.md,
-      marginBottom: 16,
+      marginBottom: 14,
     },
     primaryButtonText: {
-      fontSize: 17,
+      fontSize: 16,
       fontWeight: '700',
       color: '#FFFFFF',
       letterSpacing: 0.2,
     },
     loginButton: {
-      paddingVertical: 12,
+      paddingVertical: 10,
       paddingHorizontal: 16,
-      marginBottom: 16,
+      marginBottom: 12,
     },
     loginButtonText: {
       fontSize: 14,
@@ -234,7 +268,6 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
       color: colors.textMuted,
       textAlign: 'center',
       lineHeight: 16,
-      paddingHorizontal: 12,
+      paddingHorizontal: 16,
     },
   });
-

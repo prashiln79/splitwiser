@@ -21,7 +21,7 @@ import {
   X,
   Lock,
   User,
-  CheckCircle,
+  ShieldCheck,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../context/AuthContext';
@@ -149,7 +149,7 @@ export const AuthSelectionScreen: React.FC<AuthSelectionScreenProps> = ({
       return;
     }
 
-    // Validate email format
+    // RFC 5321 compliant email format validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const localPart = trimmedEmail.split('@')[0];
     if (
@@ -214,16 +214,17 @@ export const AuthSelectionScreen: React.FC<AuthSelectionScreenProps> = ({
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Screen Heading */}
         <View style={styles.headerBox}>
           <Text style={styles.title}>How would you like to continue?</Text>
           <Text style={styles.subtitle}>
-            Choose an option to begin. Guest access is fully featured and requires no password.
+            Choose how you want to start managing shared expenses.
           </Text>
         </View>
 
-        {/* Options List */}
+        {/* Options List (Guest primary, Google & Email clean secondary) */}
         <View style={styles.optionsList}>
-          {/* Option 1: Start as Guest (Equally prominent) */}
+          {/* Option 1: Start as Guest (Primary Highlighted Option) */}
           <TouchableOpacity
             style={[styles.authCard, styles.guestCard]}
             onPress={handleStartAsGuest}
@@ -237,21 +238,21 @@ export const AuthSelectionScreen: React.FC<AuthSelectionScreenProps> = ({
             </View>
 
             <View style={styles.cardContent}>
-              <View style={styles.guestBadgeRow}>
+              <View style={styles.titleBadgeRow}>
                 <Text style={styles.cardTitle}>Start as Guest</Text>
                 <View style={styles.instantBadge}>
                   <Text style={styles.instantBadgeText}>Instant Access</Text>
                 </View>
               </View>
               <Text style={styles.cardSubtitle}>
-                No sign up required. Link Google anytime later.
+                Use the complete app without creating an account.
               </Text>
             </View>
 
             {isGuestLoading ? (
               <ActivityIndicator color={colors.primary} size="small" />
             ) : (
-              <ChevronRight size={20} color={colors.textMuted} />
+              <ChevronRight size={20} color={colors.primary} strokeWidth={2.2} />
             )}
           </TouchableOpacity>
 
@@ -265,20 +266,20 @@ export const AuthSelectionScreen: React.FC<AuthSelectionScreenProps> = ({
             accessibilityLabel="Continue with Google"
           >
             <View style={styles.cardIconBox}>
-              <GoogleIcon size={22} />
+              <GoogleIcon size={20} />
             </View>
 
             <View style={styles.cardContent}>
               <Text style={styles.cardTitle}>Continue with Google</Text>
               <Text style={styles.cardSubtitle}>
-                Sync groups and balances across all your devices
+                Sync your account across devices.
               </Text>
             </View>
 
             {isGoogleLoading ? (
               <ActivityIndicator color={colors.primary} size="small" />
             ) : (
-              <ChevronRight size={20} color={colors.textMuted} />
+              <ChevronRight size={20} color={colors.textMuted} strokeWidth={2} />
             )}
           </TouchableOpacity>
 
@@ -297,25 +298,25 @@ export const AuthSelectionScreen: React.FC<AuthSelectionScreenProps> = ({
             accessibilityLabel="Continue with Email"
           >
             <View style={styles.cardIconBox}>
-              <Mail size={22} color={colors.textPrimary} strokeWidth={2.2} />
+              <Mail size={20} color={colors.textPrimary} strokeWidth={2.2} />
             </View>
 
             <View style={styles.cardContent}>
               <Text style={styles.cardTitle}>Continue with Email</Text>
               <Text style={styles.cardSubtitle}>
-                Sign up or log in with your email and password
+                Sign up or log in with email.
               </Text>
             </View>
 
-            <ChevronRight size={20} color={colors.textMuted} />
+            <ChevronRight size={20} color={colors.textMuted} strokeWidth={2} />
           </TouchableOpacity>
         </View>
 
-        {/* Info Callout */}
-        <View style={styles.infoBox}>
-          <CheckCircle size={16} color={colors.primary} strokeWidth={2.2} style={{ marginTop: 2 }} />
-          <Text style={styles.infoText}>
-            Guests enjoy full app functionality: create groups, split bills, and track balances. All records are preserved.
+        {/* Minimal Guest Assurance Line */}
+        <View style={styles.reassuranceRow}>
+          <ShieldCheck size={16} color={colors.primary} strokeWidth={2.2} />
+          <Text style={styles.reassuranceText}>
+            Your data stays safe when you link an account.
           </Text>
         </View>
       </ScrollView>
@@ -467,104 +468,104 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
     },
     scrollContent: {
       paddingHorizontal: 24,
-      paddingTop: 28,
+      paddingTop: 24,
     },
     headerBox: {
-      marginBottom: 28,
+      marginBottom: 24,
     },
     title: {
-      fontSize: 26,
+      fontSize: 24,
       fontWeight: '800',
       color: colors.textPrimary,
       letterSpacing: -0.5,
-      marginBottom: 8,
+      marginBottom: 6,
     },
     subtitle: {
-      fontSize: 15,
+      fontSize: 14,
       color: colors.textSecondary,
-      lineHeight: 22,
+      lineHeight: 20,
     },
     optionsList: {
-      gap: 16,
-      marginBottom: 28,
+      gap: 14,
+      marginBottom: 24,
     },
     authCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: isDark ? colors.surface : '#FFFFFF',
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#FFFFFF',
       borderWidth: 1,
       borderColor: colors.border,
       borderRadius: radii.xl,
-      padding: 18,
-      gap: 16,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      gap: 14,
       ...shadows.sm,
     },
     guestCard: {
-      borderColor: isDark ? 'rgba(5, 150, 105, 0.4)' : '#A7F3D0',
-      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.08)' : '#F0FDF4',
+      borderColor: isDark ? 'rgba(5, 150, 105, 0.5)' : '#10B981',
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.12)' : '#ECFDF5',
+      borderWidth: 1.5,
     },
     cardIconBox: {
-      width: 46,
-      height: 46,
-      borderRadius: 23,
-      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+      width: 42,
+      height: 42,
+      borderRadius: radii.md,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#F3F4F6',
       alignItems: 'center',
       justifyContent: 'center',
     },
     cardIconBoxGuest: {
-      width: 46,
-      height: 46,
-      borderRadius: 23,
-      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
+      width: 42,
+      height: 42,
+      borderRadius: radii.md,
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.22)' : '#D1FAE5',
       alignItems: 'center',
       justifyContent: 'center',
     },
     cardContent: {
       flex: 1,
     },
-    guestBadgeRow: {
+    titleBadgeRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      marginBottom: 4,
+      marginBottom: 3,
     },
     cardTitle: {
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: '700',
       color: colors.textPrimary,
     },
     instantBadge: {
       backgroundColor: colors.primary,
-      paddingHorizontal: 8,
+      paddingHorizontal: 7,
       paddingVertical: 2,
-      borderRadius: radii.full,
+      borderRadius: radii.sm,
     },
     instantBadgeText: {
       fontSize: 10,
       fontWeight: '700',
       color: '#FFFFFF',
+      letterSpacing: 0.2,
       textTransform: 'uppercase',
     },
     cardSubtitle: {
-      fontSize: 13,
+      fontSize: 12.5,
       color: colors.textSecondary,
-      lineHeight: 18,
+      lineHeight: 17,
     },
-    infoBox: {
+    reassuranceRow: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
-      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#F3F4F6',
-      borderRadius: radii.lg,
-      padding: 14,
-      gap: 10,
-      borderWidth: 1,
-      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
     },
-    infoText: {
-      fontSize: 12,
+    reassuranceText: {
+      fontSize: 13,
+      fontWeight: '500',
       color: colors.textSecondary,
-      lineHeight: 18,
-      flex: 1,
     },
     modalBackdrop: {
       flex: 1,
@@ -662,4 +663,3 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
       color: '#FFFFFF',
     },
   });
-
