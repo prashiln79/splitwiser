@@ -17,8 +17,8 @@ import { useAuth } from '../context/AuthContext';
 import { AppHeader } from '../components/common/AppHeader';
 import { useAppTheme, ThemeColors } from '../theme';
 
-const JoinGroupScreen = ({ navigation }: any) => {
-  const { user } = useAuth();
+const JoinGroupScreen = ({ navigation, route }: any) => {
+  const { user, finishOnboarding } = useAuth();
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const insets = useSafeAreaInsets();
@@ -39,6 +39,9 @@ const JoinGroupScreen = ({ navigation }: any) => {
       const group = await joinGroup(code, user.uid, user.name);
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
+      if (route?.params?.isOnboarding) {
+        await finishOnboarding();
       }
       Alert.alert('Welcome!', `You have successfully joined "${group.name}".`);
       navigation.goBack();

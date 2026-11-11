@@ -1,7 +1,10 @@
 import { auth, db } from '../config/firebase';
 import { signOutNativeGoogle, getNativeGoogleUser } from './useGoogleAuth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   signInAnonymously,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   onAuthStateChanged,
   User as FirebaseUser,
   GoogleAuthProvider,
@@ -28,6 +31,7 @@ import { AppUser } from '../types';
 import { updateLocalMemberProfile } from '../repositories/groupRepository';
 import { updateUserAcrossGroups } from './groups';
 import { syncQueue } from '../sync/syncQueue';
+import { clearLocalData } from '../db/sqlite';
 import {
   resolveProfilePicture,
   calculateGoogleSyncUpdates,
@@ -38,6 +42,182 @@ import {
 // Users are stored at /splitwiser/data/users/{uid}
 const usersPath = (uid: string) => doc(db, 'splitwiser', 'data', 'users', uid);
 const groupsCol = () => collection(db, 'splitwiser', 'data', 'groups');
+
+const ONBOARDING_COMPLETED_KEY = (uid: string) => `@splitwiser:onboarding_completed:${uid}`;
+
+export async function markOnboardingCompleted(uid: string): Promise<void> {
+  try {
+    await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY(uid), 'true');
+    await setDoc(usersPath(uid), { onboardingCompleted: true, updatedAt: serverTimestamp() }, { merge: true });
+  } catch (e) {
+    console.warn('[auth] markOnboardingCompleted notice:', e);
+  }
+}
+
+export async function isOnboardingCompleted(uid: string): Promise<boolean> {
+  try {
+    const val = await AsyncStorage.getItem(ONBOARDING_COMPLETED_KEY(uid));
+    if (val === 'true') return true;
+  } catch {}
+  return false;
+}
+
+/**
+ * Sign in as Guest using Firebase Anonymous Authentication.
+ * Preserves existing anonymous session if already active.
+ */
+export async function signInAsGuest(): Promise<AppUser> {
+  let credentialUser: FirebaseUser;
+
+  if (auth.currentUser && auth.currentUser.isAnonymous) {
+    credentialUser = auth.currentUser;
+  } else {
+    const credential = await signInAnonymously(auth);
+    credentialUser = credential.user;
+  }
+
+  const { uid } = credentialUser;
+  const existing = await loadUserProfile(uid);
+  if (existing) return existing;
+
+  const now = new Date();
+  const profile: AppUser = {
+    uid,
+    name: '',
+    createdAt: now,
+    isAnonymous: true,
+    authProvider: 'anonymous',
+    hasCompletedProfile: false,
+    onboardingCompleted: false,
+  };
+
+  await setDoc(usersPath(uid), {
+    uid,
+    name: '',
+    createdAt: serverTimestamp(),
+    isAnonymous: true,
+    authProvider: 'anonymous',
+    hasCompletedProfile: false,
+    onboardingCompleted: false,
+  });
+
+  return profile;
+}
+
+/**
+ * Register with Email and Password.
+ */
+export async function signUpWithEmail(
+  email: string,
+  pass: string,
+  name?: string
+): Promise<AppUser> {
+  const credential = await createUserWithEmailAndPassword(auth, email.trim(), pass);
+  const { uid } = credential.user;
+  const now = new Date();
+  const displayName = (name || '').trim();
+
+  const profile: AppUser = {
+    uid,
+    name: displayName,
+    email: email.trim(),
+    createdAt: now,
+    isAnonymous: false,
+    authProvider: 'password',
+    hasCompletedProfile: Boolean(displayName),
+    onboardingCompleted: false,
+  };
+
+  await setDoc(usersPath(uid), {
+    uid,
+    name: displayName,
+    email: email.trim(),
+    createdAt: serverTimestamp(),
+    isAnonymous: false,
+    authProvider: 'password',
+    hasCompletedProfile: Boolean(displayName),
+    onboardingCompleted: false,
+  });
+
+  return profile;
+}
+
+/**
+ * Sign in with Email and Password.
+ */
+export async function signInWithEmail(
+  email: string,
+  pass: string
+): Promise<AppUser> {
+  const credential = await signInWithEmailAndPassword(auth, email.trim(), pass);
+  const { uid } = credential.user;
+  let profile = await loadUserProfile(uid);
+
+  if (!profile) {
+    profile = {
+      uid,
+      name: credential.user.displayName || '',
+      email: credential.user.email || email.trim(),
+      createdAt: new Date(),
+      isAnonymous: false,
+      authProvider: 'password',
+      hasCompletedProfile: Boolean(credential.user.displayName),
+      onboardingCompleted: true,
+    };
+    await setDoc(usersPath(uid), {
+      uid,
+      name: profile.name,
+      email: profile.email,
+      createdAt: serverTimestamp(),
+      isAnonymous: false,
+      authProvider: 'password',
+      hasCompletedProfile: profile.hasCompletedProfile,
+      onboardingCompleted: true,
+    });
+  }
+
+  return profile;
+}
+
+/**
+ * Complete profile setup (display name, avatar, currency).
+ */
+export async function completeProfileSetup(
+  uid: string,
+  data: { name: string; avatarUrl?: string; currency?: string }
+): Promise<AppUser> {
+  const updates: Record<string, any> = {
+    name: data.name.trim(),
+    hasCompletedProfile: true,
+    updatedAt: serverTimestamp(),
+  };
+
+  if (data.avatarUrl) {
+    updates.imageUrl = data.avatarUrl;
+    updates.customPhotoUrl = data.avatarUrl;
+    updates.photoSource = 'custom';
+  }
+
+  if (data.currency) {
+    updates.currency = data.currency;
+  }
+
+  await setDoc(usersPath(uid), updates, { merge: true });
+
+  await updateLocalMemberProfile(uid, data.name.trim(), data.avatarUrl);
+  updateUserAcrossGroups(uid, data.name.trim(), data.avatarUrl).catch(() => {});
+
+  const updated = await loadUserProfile(uid);
+  return updated || {
+    uid,
+    name: data.name.trim(),
+    createdAt: new Date(),
+    isAnonymous: auth.currentUser?.isAnonymous ?? true,
+    imageUrl: data.avatarUrl,
+    currency: data.currency || 'INR',
+    hasCompletedProfile: true,
+  };
+}
 
 /**
  * Sign in anonymously and create a Firestore user profile.
@@ -53,6 +233,8 @@ export async function signInAndCreateProfile(name: string): Promise<AppUser> {
     createdAt: now,
     isAnonymous: true,
     authProvider: 'anonymous',
+    hasCompletedProfile: true,
+    onboardingCompleted: false,
   };
 
   await setDoc(usersPath(uid), {
@@ -61,6 +243,8 @@ export async function signInAndCreateProfile(name: string): Promise<AppUser> {
     createdAt: serverTimestamp(),
     isAnonymous: true,
     authProvider: 'anonymous',
+    hasCompletedProfile: true,
+    onboardingCompleted: false,
   });
 
   return profile;
@@ -74,6 +258,15 @@ export async function loadUserProfile(uid: string): Promise<AppUser | null> {
   if (!snap.exists()) return null;
 
   const data = snap.data();
+  const localOnboardingDone = await isOnboardingCompleted(uid);
+  const hasCompletedProfile = data.hasCompletedProfile !== undefined
+    ? Boolean(data.hasCompletedProfile)
+    : Boolean(data.name && data.name.trim() !== '' && data.name !== 'Anonymous User');
+
+  const onboardingCompleted = data.onboardingCompleted !== undefined
+    ? Boolean(data.onboardingCompleted)
+    : (localOnboardingDone || (hasCompletedProfile && Boolean(data.createdAt)));
+
   const rawUser: AppUser = {
     uid,
     name: data.name ?? 'Anonymous User',
@@ -92,6 +285,8 @@ export async function loadUserProfile(uid: string): Promise<AppUser | null> {
     currency: data.currency,
     timezone: data.timezone,
     language: data.language,
+    onboardingCompleted,
+    hasCompletedProfile,
   };
 
   const { displayUrl, source } = resolveProfilePicture(rawUser);
@@ -632,6 +827,11 @@ export async function signOutUser(): Promise<void> {
     await signOutNativeGoogle();
   } catch (err) {
     console.warn('[signOutUser] Failed to sign out from native Google:', err);
+  }
+  try {
+    await clearLocalData();
+  } catch (err) {
+    console.warn('[signOutUser] Failed to clear local SQLite data:', err);
   }
   await signOut(auth);
 }

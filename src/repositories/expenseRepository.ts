@@ -136,12 +136,18 @@ export async function createExpenseLocal(
       let actorName = 'A member';
       let actorAvatarUrl: string | undefined = undefined;
       try {
-        const memberRow = await database.getFirstAsync<{ user_name: string; image_url: string | null }>(
+        let memberRow = await database.getFirstAsync<{ user_name: string; image_url: string | null }>(
           `SELECT user_name, image_url FROM local_group_members WHERE group_id = ? AND user_id = ?`,
-          [groupId, input.paidBy || createdBy]
+          [groupId, createdBy]
         );
-        if (memberRow?.user_name) {
-          actorName = memberRow.user_name;
+        if ((!memberRow?.user_name || /^[a-zA-Z0-9_-]{20,}$/.test(memberRow.user_name.trim())) && input.paidBy) {
+          memberRow = await database.getFirstAsync<{ user_name: string; image_url: string | null }>(
+            `SELECT user_name, image_url FROM local_group_members WHERE group_id = ? AND user_id = ?`,
+            [groupId, input.paidBy]
+          );
+        }
+        if (memberRow?.user_name && !/^[a-zA-Z0-9_-]{20,}$/.test(memberRow.user_name.trim())) {
+          actorName = memberRow.user_name.trim();
           actorAvatarUrl = memberRow.image_url || undefined;
         }
       } catch {}
@@ -250,11 +256,19 @@ export async function updateExpenseLocal(
     if (targetUserIds.length > 0) {
       let actorName = 'A member';
       try {
-        const memberRow = await database.getFirstAsync<{ user_name: string }>(
+        let memberRow = await database.getFirstAsync<{ user_name: string }>(
           `SELECT user_name FROM local_group_members WHERE group_id = ? AND user_id = ?`,
-          [groupId, updatedPaidBy || existing?.created_by]
+          [groupId, existing?.created_by]
         );
-        if (memberRow?.user_name) actorName = memberRow.user_name;
+        if ((!memberRow?.user_name || /^[a-zA-Z0-9_-]{20,}$/.test(memberRow.user_name.trim())) && updatedPaidBy) {
+          memberRow = await database.getFirstAsync<{ user_name: string }>(
+            `SELECT user_name FROM local_group_members WHERE group_id = ? AND user_id = ?`,
+            [groupId, updatedPaidBy]
+          );
+        }
+        if (memberRow?.user_name && !/^[a-zA-Z0-9_-]{20,}$/.test(memberRow.user_name.trim())) {
+          actorName = memberRow.user_name.trim();
+        }
       } catch {}
 
       const numAmount = Number(updatedAmount) || 0;

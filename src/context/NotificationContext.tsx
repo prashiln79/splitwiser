@@ -25,7 +25,10 @@ import {
   dismissLocalNotification,
   dismissAllLocalNotifications,
   isAlreadyNotified,
+  updateMemberNameCache,
+  requestNotificationPermission,
 } from '../services/localNotificationService';
+import { getAllLocalMemberNames } from '../repositories/groupRepository';
 
 interface NotificationContextType {
   notifications: InAppNotification[];
@@ -106,6 +109,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!user?.uid) return;
     setIsLoading(true);
     try {
+      getAllLocalMemberNames().then(updateMemberNameCache).catch(() => {});
       const [res, prefs] = await Promise.all([
         getUserNotifications(user.uid, 20),
         getNotificationPreferences(user.uid),
@@ -212,6 +216,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
 
     refreshNotifications();
+
+    // Request OS notification permission now that the user has completed onboarding
+    // and is on the main app. This avoids asking during onboarding screens.
+    requestNotificationPermission().catch(() => {});
 
     // 1. Subscribe to atomic summary doc (unread badge count)
     const unsubSummary = subscribeToNotificationSummary(user.uid, (summary: NotificationSummary) => {

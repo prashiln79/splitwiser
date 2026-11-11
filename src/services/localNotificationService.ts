@@ -12,6 +12,13 @@ try {
 }
 
 // ─── Initialize Local Notification Configuration ──────────────────────────────
+/**
+ * Sets up notification handler and Android channel.
+ * Safe to call at app startup — does NOT request OS permission.
+ * Permission is requested separately via requestNotificationPermission()
+ * which should only be called after the user has completed onboarding and
+ * reached Groups Home, or when they first open the notification center.
+ */
 export async function initLocalNotifications(): Promise<void> {
   if (Platform.OS === 'web' || !Notifications) return;
 
@@ -25,7 +32,7 @@ export async function initLocalNotifications(): Promise<void> {
       }),
     });
 
-    // 2. Set Android Notification Channel
+    // 2. Set Android Notification Channel (required BEFORE any notification can appear)
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'Splitwiser Notifications',
@@ -38,67 +45,43 @@ export async function initLocalNotifications(): Promise<void> {
       });
     }
 
-    // 3. Request permissions on Android 13+ (POST_NOTIFICATIONS) and iOS
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
+    // NOTE: Permission is NOT requested here.
+    // Call requestNotificationPermission() after onboarding is complete.
   } catch (e: any) {
     console.warn('[initLocalNotifications] Setup notice:', e?.message);
   }
 }
 
-// ─── Format Notification Text Helper ──────────────────────────────────────────
-export function resolveNotificationDisplay(notif: InAppNotification): {
-  title: string;
-  body: string;
-} {
-  const params: Record<string, any> = { ...notif.params };
-
-  // 1. Format amount if missing or raw
-  if (!params.amountFormatted && params.amount !== undefined) {
-    const num = Number(params.amount) || 0;
-    const currency = params.currency || 'INR';
-    const symbol =
-      currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '₹';
-    params.amountFormatted = `${symbol}${num.toLocaleString('en-IN', {
-      maximumFractionDigits: 2,
-    })}`;
+/**
+ * Request OS notification permission.
+ * Call this AFTER the user has completed onboarding and landed on Groups Home,
+ * or when the user first opens the Notification Center.
+ * Never call during onboarding screens.
+ */
+export async function requestNotificationPermission(): Promise<boolean> {
+  if (Platform.OS === 'web' || !Notifications) return false;
+  try {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    if (existingStatus === 'granted') return true;
+    const { status } = await Notifications.requestPermissionsAsync();
+    return status === 'granted';
+  } catch (e: any) {
+    console.warn('[requestNotificationPermission] notice:', e?.message);
+    return false;
   }
-
-  // 2. Clean actor name if it's a raw Firebase UID (e.g. 28-char alphanumeric like NavivPwQfZOoXw2a8XWPi3ibvp42)
-  if (params.actorName && typeof params.actorName === 'string') {
-    const raw = params.actorName.trim();
-    if (raw.length >= 20 && !raw.includes(' ') && /^[a-zA-Z0-9_-]+$/.test(raw)) {
-      params.actorName =
-        notif.actorName && notif.actorName !== raw && !/^[a-zA-Z0-9_-]{20,}$/.test(notif.actorName)
-          ? notif.actorName
-          : 'A member';
-    }
-  }
-
-  const titleKey = notif.titleKey || 'notifications.newExpense';
-  const bodyKey = notif.bodyKey || 'notifications.newExpense';
-
-  let title = String(i18n.t(titleKey, params));
-  let body = String(i18n.t(bodyKey, params));
-
-  // Fallback cleanup if translation key missing or literal placeholder remains
-  if (body.includes('{{amountFormatted}}')) {
-    const fallbackAmount = params.amountFormatted || (params.amount ? `₹${params.amount}` : '');
-    body = body.replace(/\{\{amountFormatted\}\}/g, fallbackAmount);
-  }
-  if (body.includes('{{actorName}}')) {
-    body = body.replace(/\{\{actorName\}\}/g, params.actorName || notif.actorName || 'A member');
-  }
-  if (body.includes('{{expenseDescription}}')) {
-    body = body.replace(/\{\{expenseDescription\}\}/g, params.expenseDescription || 'Expense');
-  }
-
-  return { title, body };
 }
+
+import {
+  updateMemberNameCache,
+  globalMemberNameCache,
+  resolveNotificationDisplay,
+} from '../utils/notificationUtils';
+
+export {
+  updateMemberNameCache,
+  globalMemberNameCache,
+  resolveNotificationDisplay,
+};
 
 // ─── Track Notified IDs to Prevent Spam / Duplicate Alerts ────────────────────
 const NOTIFIED_IDS_KEY = '@splitwiser:notified_notification_ids';

@@ -198,3 +198,147 @@ export function getNotificationDefaultRoute(notif: InAppNotification): {
 
   return { screen: 'Home' };
 }
+
+// ─── In-memory Cache for User IDs -> Member Names ──────────────────────────────
+export const globalMemberNameCache = new Map<string, string>();
+
+export function updateMemberNameCache(
+  entries: Array<{ userId: string; userName: string }> | Map<string, string> | Record<string, string>
+) {
+  if (entries instanceof Map) {
+    entries.forEach((name, id) => {
+      if (name && !/^[a-zA-Z0-9_-]{20,}$/.test(name.trim())) {
+        globalMemberNameCache.set(id, name.trim());
+      }
+    });
+  } else if (Array.isArray(entries)) {
+    entries.forEach((e) => {
+      if (e.userId && e.userName && !/^[a-zA-Z0-9_-]{20,}$/.test(e.userName.trim())) {
+        globalMemberNameCache.set(e.userId, e.userName.trim());
+      }
+    });
+  } else if (typeof entries === 'object' && entries !== null) {
+    Object.entries(entries).forEach(([id, name]) => {
+      if (name && typeof name === 'string' && !/^[a-zA-Z0-9_-]{20,}$/.test(name.trim())) {
+        globalMemberNameCache.set(id, name.trim());
+      }
+    });
+  }
+}
+
+/**
+ * Resolves title and body display text for any notification, ensuring human member names
+ * and cleanly formatted amounts are shown.
+ */
+export function resolveNotificationDisplay(
+  notif: InAppNotification,
+  memberMap?: Map<string, string>
+): {
+  title: string;
+  body: string;
+} {
+  const params: Record<string, any> = { ...notif.params };
+
+  // 1. Resolve human actor name
+  const candidateActorId =
+    notif.actorId ||
+    (params as any)?.actorId ||
+    (params as any)?.createdBy ||
+    (params as any)?.paidBy;
+
+  let resolvedActorName = params.actorName || notif.actorName;
+
+  // Try candidate ID lookup in provided memberMap or global cache
+  if (candidateActorId) {
+    const fromMap = memberMap?.get(candidateActorId) || globalMemberNameCache.get(candidateActorId);
+    if (fromMap) {
+      resolvedActorName = fromMap;
+    }
+  }
+
+  // Check if current resolvedActorName is a raw Firebase UID (length >= 20 without spaces and only alphanumeric)
+  if (resolvedActorName && typeof resolvedActorName === 'string') {
+    const raw = resolvedActorName.trim();
+    if (raw.length >= 20 && !raw.includes(' ') && /^[a-zA-Z0-9_-]+$/.test(raw)) {
+      // The raw name is a UID string. Check if that UID itself is in member name map
+      const fromCache = memberMap?.get(raw) || globalMemberNameCache.get(raw);
+      if (fromCache) {
+        resolvedActorName = fromCache;
+      } else if (
+        notif.actorName &&
+        notif.actorName !== raw &&
+        !/^[a-zA-Z0-9_-]{20,}$/.test(notif.actorName.trim())
+      ) {
+        resolvedActorName = notif.actorName.trim();
+      } else {
+        resolvedActorName = 'A member';
+      }
+    }
+  }
+
+  if (!resolvedActorName || resolvedActorName.trim() === '') {
+    resolvedActorName = 'A member';
+  }
+  params.actorName = resolvedActorName;
+
+  // 2. Format amount if missing or raw
+  if (!params.amountFormatted) {
+    if (params.amount !== undefined && params.amount !== null && params.amount !== '') {
+      const num = Number(params.amount) || 0;
+      const currency = params.currency || 'INR';
+      const symbol =
+        currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '₹';
+      params.amountFormatted = `${symbol}${num.toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
+    }
+  }
+
+  let title = notif.titleKey || 'New Expense';
+  let body = notif.bodyKey || 'Expense added';
+
+  // Translate using i18n if available
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const i18n = require('../i18n').default;
+    if (i18n && typeof i18n.t === 'function') {
+      title = String(i18n.t(notif.titleKey || 'notifications:newExpense', params));
+      body = String(i18n.t(notif.bodyKey || 'notifications:newExpense', params));
+    }
+  } catch {
+    // If i18n unavailable in test environment, use fallback templates
+    if (notif.type === 'expense_created') {
+      title = 'New Expense';
+      body = `${resolvedActorName} added "${params.expenseDescription || 'Expense'}" ({{amountFormatted}})`;
+    } else if (notif.type === 'expense_updated') {
+      title = 'Expense Updated';
+      body = `${resolvedActorName} updated "${params.expenseDescription || 'Expense'}"`;
+    } else if (notif.type === 'settlement_created') {
+      title = 'Payment Recorded';
+      body = `${resolvedActorName} paid {{amountFormatted}}`;
+    }
+  }
+
+  // 3. Fallback cleanup: replace any remaining literal template interpolations
+  if (params.amountFormatted) {
+    body = body.replace(/\{\{amountFormatted\}\}/g, params.amountFormatted);
+  } else {
+    // If amount is not available, remove the ({{amountFormatted}}) bracket cleanly
+    body = body.replace(/\s*\(\{\{amountFormatted\}\}\)/g, '');
+    body = body.replace(/\{\{amountFormatted\}\}/g, '');
+    body = body.replace(/\s*\(\s*\)/g, '');
+  }
+
+  if (body.includes('{{actorName}}')) {
+    body = body.replace(/\{\{actorName\}\}/g, resolvedActorName);
+  }
+  if (body.includes('{{expenseDescription}}')) {
+    body = body.replace(/\{\{expenseDescription\}\}/g, params.expenseDescription || 'Expense');
+  }
+  if (body.includes('{{groupName}}')) {
+    body = body.replace(/\{\{groupName\}\}/g, params.groupName || notif.groupName || 'group');
+  }
+
+  return { title, body };
+}

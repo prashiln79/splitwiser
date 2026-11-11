@@ -5,7 +5,7 @@ import { NavigationContainer, createNavigationContainerRef } from '@react-naviga
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme } from '../theme';
-import OnboardingScreen from '../screens/OnboardingScreen';
+import OnboardingNavigator from './OnboardingNavigator';
 import MainNavigator from './MainNavigator';
 import NotificationCenterScreen from '../screens/NotificationCenterScreen';
 import { InAppNotificationBanner } from '../components/notifications/InAppNotificationBanner';
@@ -55,7 +55,7 @@ const AppNavigator = () => {
     <NavigationContainer theme={navTheme} ref={navigationRef}>
       <View style={{ flex: 1 }}>
         <InAppNotificationBanner navigationRef={navigationRef} />
-        {user ? (
+        {user && user.hasCompletedProfile && user.onboardingCompleted ? (
           // @ts-ignore react-navigation v7 id prop
           <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="Main" component={MainNavigator} />
@@ -68,7 +68,7 @@ const AppNavigator = () => {
         ) : (
           // @ts-ignore react-navigation v7 id prop
           <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+            <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
           </Stack.Navigator>
         )}
       </View>

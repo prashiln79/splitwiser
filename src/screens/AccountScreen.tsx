@@ -446,8 +446,8 @@ export const AccountScreen = ({ navigation }: any) => {
         </View>
 
 
-        {/* Log Out Button */}
-        {isGoogleLinked && (
+        {/* Log Out Button (Available for all signed-in users including guests) */}
+        {Boolean(user) && (
           <TouchableOpacity
             style={styles.logOutBtn}
             onPress={() => setConfirmSignOutVisible(true)}
@@ -456,7 +456,9 @@ export const AccountScreen = ({ navigation }: any) => {
             accessibilityLabel="Log out"
           >
             <LogOut size={18} color="#E11D48" strokeWidth={2} style={{ marginRight: 8 }} />
-            <Text style={styles.logOutBtnText}>Log Out</Text>
+            <Text style={styles.logOutBtnText}>
+              {user?.isAnonymous ? 'Log Out (Guest)' : 'Log Out'}
+            </Text>
           </TouchableOpacity>
         )}
 
@@ -970,8 +972,12 @@ export const AccountScreen = ({ navigation }: any) => {
         visible={confirmSignOutVisible}
         onDismiss={() => setConfirmSignOutVisible(false)}
         onConfirm={handleSignOut}
-        title="Log Out?"
-        message="Are you sure you want to log out of your Splitwiser account?"
+        title={user?.isAnonymous ? 'Log Out as Guest?' : 'Log Out?'}
+        message={
+          user?.isAnonymous
+            ? 'You are currently signed in as a guest. Logging out will end this guest session on this device. If you want to keep your groups and expenses, you can link an account before signing out. Are you sure you want to log out?'
+            : 'Are you sure you want to log out of your Splitwiser account?'
+        }
         confirmLabel="Log Out"
         isDestructive
         isLoading={isSigningOut}

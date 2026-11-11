@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -34,7 +34,8 @@ import { InAppNotification, InAppNotificationType } from '../types/notifications
 import { resolveNotificationRoute } from '../services/notificationRouter';
 import { AppHeader } from '../components/common/AppHeader';
 import { MemberAvatar } from '../components/common/MemberAvatar';
-import { resolveNotificationDisplay } from '../services/localNotificationService';
+import { resolveNotificationDisplay, updateMemberNameCache } from '../services/localNotificationService';
+import { getAllLocalMemberNames } from '../repositories/groupRepository';
 
 type FilterTab = 'all' | 'unread' | 'expenses' | 'settlements';
 
@@ -72,6 +73,17 @@ export const NotificationCenterScreen = ({ navigation }: any) => {
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [selectedNotifForAction, setSelectedNotifForAction] = useState<InAppNotification | null>(null);
+  const [memberMap, setMemberMap] = useState<Map<string, string>>(new Map());
+
+  // Load human member names from SQLite cache to resolve any raw UIDs in notifications
+  useEffect(() => {
+    getAllLocalMemberNames()
+      .then((map) => {
+        setMemberMap(map);
+        updateMemberNameCache(map);
+      })
+      .catch(() => {});
+  }, [notifications]);
 
   // ─── Filter Notifications ──────────────────────────────────────────────────
   const filteredNotifications = useMemo(() => {
@@ -213,7 +225,7 @@ export const NotificationCenterScreen = ({ navigation }: any) => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
-    const { title, body } = resolveNotificationDisplay(item);
+    const { title, body } = resolveNotificationDisplay(item, memberMap);
     Alert.alert(
       title,
       body,
@@ -413,7 +425,7 @@ export const NotificationCenterScreen = ({ navigation }: any) => {
           const notif = item.item!;
           const isUnread = !notif.readAt;
           const badge = getEventBadge(notif.type);
-          const { title, body } = resolveNotificationDisplay(notif);
+          const { title, body } = resolveNotificationDisplay(notif, memberMap);
 
           return (
             <TouchableOpacity

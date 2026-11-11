@@ -118,6 +118,27 @@ export async function getLocalGroupMembers(groupId: string): Promise<GroupMember
 }
 
 /**
+ * Returns a Map of userId -> userName for all members across all groups from SQLite.
+ */
+export async function getAllLocalMemberNames(): Promise<Map<string, string>> {
+  try {
+    const database = await getDatabase();
+    const rows = await database.getAllAsync<{ user_id: string; user_name: string }>(
+      `SELECT user_id, user_name FROM local_group_members WHERE user_name IS NOT NULL AND user_name != ''`
+    );
+    const map = new Map<string, string>();
+    for (const r of rows) {
+      if (r.user_name && !/^[a-zA-Z0-9_-]{20,}$/.test(r.user_name.trim())) {
+        map.set(r.user_id, r.user_name.trim());
+      }
+    }
+    return map;
+  } catch {
+    return new Map();
+  }
+}
+
+/**
  * Creates a group locally and enqueues sync.
  */
 export async function createGroupLocal(

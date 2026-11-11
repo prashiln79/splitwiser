@@ -3,6 +3,7 @@ import {
   doc,
   addDoc,
   deleteDoc,
+  getDoc,
   getDocs,
   onSnapshot,
   query,
@@ -69,19 +70,37 @@ export async function createExpense(
       .filter((uid) => uid && uid !== createdBy);
 
     if (targetUserIds.length > 0) {
+      let actorName = 'A member';
+      try {
+        const creatorDocSnap = await getDoc(doc(db, 'splitwiser', 'data', 'groups', groupId, 'members', createdBy));
+        if (creatorDocSnap.exists() && creatorDocSnap.data()?.userName) {
+          actorName = creatorDocSnap.data().userName;
+        } else if (input.paidBy) {
+          const payerDocSnap = await getDoc(doc(db, 'splitwiser', 'data', 'groups', groupId, 'members', input.paidBy));
+          if (payerDocSnap.exists() && payerDocSnap.data()?.userName) {
+            actorName = payerDocSnap.data().userName;
+          }
+        }
+      } catch {}
+
+      const numAmount = Number(input.amount) || 0;
+      const formattedAmount = '₹' + numAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+
       dispatchNotificationEvent({
         type: 'expense_created',
         actor: {
           id: createdBy,
-          name: input.paidBy || 'A member',
+          name: actorName,
         },
         groupId,
         expenseId: ref.id,
         targetUserIds,
         params: {
-          actorName: input.paidBy || 'A member',
+          actorName,
           expenseDescription: input.description,
           amount: String(input.amount),
+          amountFormatted: formattedAmount,
+          currency: 'INR',
         },
         dedupeKey: `expense_created_${ref.id}`,
       }).catch((err) => console.warn('[createExpense] Notification dispatch failed:', err?.message));

@@ -9,6 +9,8 @@ import {
   calculateUnreadChange,
   mapNotificationDoc,
   getNotificationDefaultRoute,
+  resolveNotificationDisplay,
+  updateMemberNameCache,
 } from '../src/utils/notificationUtils';
 import {
   InAppNotificationType,
@@ -416,7 +418,127 @@ async function runNotificationTests() {
     console.log('✅ [PASS] 11. Notification inbox tab filtering logic verified');
   }
 
-  console.log('\n🎉 ALL 11 IN-APP NOTIFICATION UNIT & INTEGRATION TEST SUITES PASSED PROPERLY! 🎉\n');
+  // 12. Notification Display Formatting, Raw UID Cleaning, and Amount Formatting
+  {
+    // Test A: Raw UID actorName resolved via memberMap
+    const notifA: InAppNotification = {
+      id: 'notif_a',
+      type: 'expense_created',
+      schemaVersion: 1,
+      actorId: 'NavivPwQfZOoXw2a8XWPi3ibvp42',
+      actorName: 'NavivPwQfZOoXw2a8XWPi3ibvp42',
+      actorAvatarUrl: null,
+      groupId: 'group_test_9',
+      groupName: 'Testing 9',
+      expenseId: 'exp_gjj_1',
+      titleKey: 'notifications:expenseCreatedTitle',
+      bodyKey: 'notifications:expenseCreatedBody',
+      params: {
+        actorName: 'NavivPwQfZOoXw2a8XWPi3ibvp42',
+        expenseDescription: 'Gjj',
+        amount: '100',
+      },
+      createdAt: new Date(),
+      readAt: null,
+      archivedAt: null,
+      dedupeKey: 'expense_created_exp_gjj_1_user_2',
+    };
+
+    const memberMap = new Map<string, string>([
+      ['NavivPwQfZOoXw2a8XWPi3ibvp42', 'Tab'],
+    ]);
+
+    const displayA = resolveNotificationDisplay(notifA, memberMap);
+    assert.strictEqual(displayA.title, 'New Expense');
+    assert.strictEqual(displayA.body, 'Tab added "Gjj" (₹100.00)');
+
+    // Test B: Raw UID actorName resolved via globalMemberNameCache
+    updateMemberNameCache([
+      { userId: 'user_uid_redmi_1234567890123456', userName: 'Redmi' },
+    ]);
+
+    const notifB: InAppNotification = {
+      id: 'notif_b',
+      type: 'expense_created',
+      schemaVersion: 1,
+      actorId: 'user_uid_redmi_1234567890123456',
+      actorName: 'user_uid_redmi_1234567890123456',
+      actorAvatarUrl: null,
+      groupId: 'group_test_9',
+      groupName: 'Testing 9',
+      expenseId: 'exp_tea_2',
+      titleKey: 'notifications:expenseCreatedTitle',
+      bodyKey: 'notifications:expenseCreatedBody',
+      params: {
+        actorName: 'user_uid_redmi_1234567890123456',
+        expenseDescription: 'Chai',
+        amount: '20',
+        currency: 'INR',
+      },
+      createdAt: new Date(),
+      readAt: null,
+      archivedAt: null,
+      dedupeKey: 'expense_created_exp_tea_2_user_3',
+    };
+
+    const displayB = resolveNotificationDisplay(notifB);
+    assert.strictEqual(displayB.title, 'New Expense');
+    assert.strictEqual(displayB.body, 'Redmi added "Chai" (₹20.00)');
+
+    // Test C: Missing amount cleanly strips placeholder without empty parentheses
+    const notifC: InAppNotification = {
+      id: 'notif_c',
+      type: 'expense_created',
+      schemaVersion: 1,
+      actorId: 'user_no_amt',
+      actorName: 'Tab',
+      actorAvatarUrl: null,
+      titleKey: 'notifications:expenseCreatedTitle',
+      bodyKey: 'notifications:expenseCreatedBody',
+      params: {
+        actorName: 'Tab',
+        expenseDescription: 'Group supplies',
+      },
+      createdAt: new Date(),
+      readAt: null,
+      archivedAt: null,
+      dedupeKey: 'expense_created_no_amt',
+    };
+
+    const displayC = resolveNotificationDisplay(notifC);
+    assert.ok(!displayC.body.includes('{{amountFormatted}}'));
+    assert.ok(!displayC.body.includes('()'));
+    assert.strictEqual(displayC.body, 'Tab added "Group supplies"');
+
+    // Test D: Settlement notification formats with currency symbol
+    const notifD: InAppNotification = {
+      id: 'notif_d',
+      type: 'settlement_created',
+      schemaVersion: 1,
+      actorId: 'user_tab',
+      actorName: 'Tab',
+      actorAvatarUrl: null,
+      titleKey: 'notifications:settlementCreatedTitle',
+      bodyKey: 'notifications:settlementCreatedBody',
+      params: {
+        actorName: 'Tab',
+        amount: '14.03',
+        currency: 'INR',
+      },
+      createdAt: new Date(),
+      readAt: null,
+      archivedAt: null,
+      dedupeKey: 'settlement_created_1',
+    };
+
+    const displayD = resolveNotificationDisplay(notifD);
+    assert.strictEqual(displayD.title, 'Payment Recorded');
+    assert.strictEqual(displayD.body, 'Tab paid ₹14.03');
+
+    console.log('✅ [PASS] 12. Notification Display Formatting, Raw UID Cleaning, and Amount Formatting verified');
+  }
+
+  console.log('\n🎉 ALL 12 IN-APP NOTIFICATION UNIT & INTEGRATION TEST SUITES PASSED PROPERLY! 🎉\n');
 }
 
 runNotificationTests().catch((err) => {

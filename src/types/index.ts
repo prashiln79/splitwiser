@@ -22,6 +22,8 @@ export interface AppUser {
   currency?: string;
   timezone?: string;
   language?: string;
+  onboardingCompleted?: boolean;
+  hasCompletedProfile?: boolean;
 }
 
 // ─── Group ───────────────────────────────────────────────────────────────────

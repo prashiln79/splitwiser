@@ -200,11 +200,19 @@ class SyncQueue {
             let actorName = 'A member';
             try {
               const database = await getDatabase();
-              const row = await database.getFirstAsync<{ user_name: string }>(
+              let row = await database.getFirstAsync<{ user_name: string }>(
                 `SELECT user_name FROM local_group_members WHERE group_id = ? AND user_id = ?`,
-                [groupId, paidBy || createdBy]
+                [groupId, createdBy]
               );
-              if (row?.user_name) actorName = row.user_name;
+              if ((!row?.user_name || /^[a-zA-Z0-9_-]{20,}$/.test(row.user_name.trim())) && paidBy) {
+                row = await database.getFirstAsync<{ user_name: string }>(
+                  `SELECT user_name FROM local_group_members WHERE group_id = ? AND user_id = ?`,
+                  [groupId, paidBy]
+                );
+              }
+              if (row?.user_name && !/^[a-zA-Z0-9_-]{20,}$/.test(row.user_name.trim())) {
+                actorName = row.user_name.trim();
+              }
             } catch {}
 
             const num = Number(amount) || 0;
