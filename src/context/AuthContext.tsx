@@ -94,11 +94,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         try {
           const profile = await syncGoogleProfileOnAuth(firebaseUser);
-          setUser(profile);
-          syncService.initialize(firebaseUser.uid);
+          if (profile) {
+            setUser(profile);
+            syncService.initialize(firebaseUser.uid);
+          } else {
+            // Firestore profile document might still be in the process of being written
+            // (e.g. during signInAsGuest or signUp). Do not overwrite active user with null.
+            setUser((prev) => {
+              if (prev && prev.uid === firebaseUser.uid) return prev;
+              return {
+                uid: firebaseUser.uid,
+                name: firebaseUser.displayName || '',
+                email: firebaseUser.email || undefined,
+                imageUrl: firebaseUser.photoURL || undefined,
+                photoURL: firebaseUser.photoURL || undefined,
+                createdAt: new Date(),
+                isAnonymous: firebaseUser.isAnonymous,
+                authProvider: firebaseUser.isAnonymous ? 'anonymous' : 'password',
+                hasCompletedProfile: Boolean(firebaseUser.displayName && !firebaseUser.isAnonymous),
+                onboardingCompleted: false,
+              };
+            });
+            syncService.initialize(firebaseUser.uid);
+          }
         } catch (err) {
           console.error('[AuthContext] Failed to load user profile:', err);
-          setUser(null);
         }
       } else {
         setUser(null);
@@ -110,36 +130,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInAsGuest = async (): Promise<AppUser> => {
-    setIsLoading(true);
-    try {
-      const profile = await serviceSignInAsGuest();
-      setUser(profile);
-      return profile;
-    } finally {
-      setIsLoading(false);
-    }
+    const profile = await serviceSignInAsGuest();
+    setUser(profile);
+    return profile;
   };
 
   const signUpWithEmail = async (email: string, pass: string, name?: string): Promise<AppUser> => {
-    setIsLoading(true);
-    try {
-      const profile = await serviceSignUpWithEmail(email, pass, name);
-      setUser(profile);
-      return profile;
-    } finally {
-      setIsLoading(false);
-    }
+    const profile = await serviceSignUpWithEmail(email, pass, name);
+    setUser(profile);
+    return profile;
   };
 
   const signInWithEmail = async (email: string, pass: string): Promise<AppUser> => {
-    setIsLoading(true);
-    try {
-      const profile = await serviceSignInWithEmail(email, pass);
-      setUser(profile);
-      return profile;
-    } finally {
-      setIsLoading(false);
-    }
+    const profile = await serviceSignInWithEmail(email, pass);
+    setUser(profile);
+    return profile;
   };
 
   const completeProfile = async (
@@ -148,13 +153,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     currency?: string
   ): Promise<void> => {
     if (!user) throw new Error('No authenticated user');
-    setIsLoading(true);
-    try {
-      const updated = await serviceCompleteProfileSetup(user.uid, { name, avatarUrl, currency });
-      setUser(updated);
-    } finally {
-      setIsLoading(false);
-    }
+    const updated = await serviceCompleteProfileSetup(user.uid, { name, avatarUrl, currency });
+    setUser(updated);
   };
 
   const finishOnboarding = async (): Promise<void> => {
@@ -164,13 +164,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const completeOnboarding = async (name: string): Promise<void> => {
-    setIsLoading(true);
-    try {
-      const profile = await signInAndCreateProfile(name);
-      setUser(profile);
-    } finally {
-      setIsLoading(false);
-    }
+    const profile = await signInAndCreateProfile(name);
+    setUser(profile);
   };
 
   const updateProfile = async (
@@ -206,20 +201,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     displayName?: string | null,
     email?: string | null
   ): Promise<AppUser> => {
-    setIsLoading(true);
-    try {
-      const profile = await signInWithGoogleCredential(
-        idToken,
-        accessToken,
-        photoUrl,
-        displayName,
-        email
-      );
-      setUser(profile);
-      return profile;
-    } finally {
-      setIsLoading(false);
-    }
+    const profile = await signInWithGoogleCredential(
+      idToken,
+      accessToken,
+      photoUrl,
+      displayName,
+      email
+    );
+    setUser(profile);
+    return profile;
   };
 
   const migrateAnonymousDataToGoogle = async (
@@ -230,31 +220,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email?: string | null
   ): Promise<AppUser> => {
     if (!user) throw new Error('No active user to migrate.');
-    setIsLoading(true);
-    try {
-      const profile = await migrateAnonymousDataToExistingGoogleAccount(
-        user.uid,
-        idToken,
-        accessToken,
-        photoUrl,
-        displayName,
-        email
-      );
-      setUser(profile);
-      return profile;
-    } finally {
-      setIsLoading(false);
-    }
+    const profile = await migrateAnonymousDataToExistingGoogleAccount(
+      user.uid,
+      idToken,
+      accessToken,
+      photoUrl,
+      displayName,
+      email
+    );
+    setUser(profile);
+    return profile;
   };
 
   const signOut = async (): Promise<void> => {
-    setIsLoading(true);
-    try {
-      await signOutUser();
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
+    await signOutUser();
+    setUser(null);
   };
 
   return (
