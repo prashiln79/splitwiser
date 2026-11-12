@@ -313,7 +313,11 @@ const HomeScreen = ({ navigation }: any) => {
     if (groups.length === 0) return null;
     return (
       <View>
-        <BalanceCard totalOwed={totalOwed} totalOwes={totalOwes} />
+        <BalanceCard
+          totalOwed={totalOwed}
+          totalOwes={totalOwes}
+          currency={user?.currency}
+        />
       </View>
     );
   };

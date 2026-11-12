@@ -31,21 +31,52 @@ const CURRENCY_DECIMALS: Record<string, number> = {
   JOD: 3,
 };
 
+let globalDefaultCurrency = 'INR';
+
+/**
+ * Sets the active global default currency for the application.
+ */
+export function setDefaultCurrency(currency?: string | null): void {
+  if (currency && typeof currency === 'string') {
+    globalDefaultCurrency = normalizeCurrencyCode(currency);
+  }
+}
+
+/**
+ * Gets the active global default currency code.
+ */
+export function getDefaultCurrency(): string {
+  return globalDefaultCurrency;
+}
+
+/**
+ * Normalizes any currency input (symbol or code) to an ISO code (e.g. '₹' -> 'INR', '$' -> 'USD').
+ */
+export function normalizeCurrencyCode(currency?: string | null): string {
+  if (!currency) return globalDefaultCurrency || 'INR';
+  const trimmed = currency.trim();
+  if (trimmed === '₹') return 'INR';
+  if (trimmed === '$') return 'USD';
+  if (trimmed === '€') return 'EUR';
+  if (trimmed === '£') return 'GBP';
+  return trimmed.toUpperCase();
+}
+
 /**
  * Returns the standard symbol or code prefix for a currency.
  */
-export function getCurrencySymbol(currency = 'INR'): string {
-  const upper = (currency || 'INR').toUpperCase();
-  return CURRENCY_SYMBOLS[upper] ?? currency;
+export function getCurrencySymbol(currency?: string): string {
+  const code = normalizeCurrencyCode(currency || globalDefaultCurrency);
+  return CURRENCY_SYMBOLS[code] ?? code;
 }
 
 /**
  * Returns the number of minor-unit decimal places for a currency.
  * Most currencies use 2 (cents/paise), while JPY/KRW use 0, and KWD/BHD use 3.
  */
-export function getCurrencyDecimals(currency = 'INR'): number {
-  const upper = (currency || 'INR').toUpperCase();
-  return CURRENCY_DECIMALS[upper] ?? 2;
+export function getCurrencyDecimals(currency?: string): number {
+  const code = normalizeCurrencyCode(currency || globalDefaultCurrency);
+  return CURRENCY_DECIMALS[code] ?? 2;
 }
 
 /**
@@ -100,13 +131,12 @@ export function isSafeMinorUnit(cents: number): boolean {
  * Formats a monetary amount into a clean currency string.
  * Preserves the exact currency decimal precision and handles NaN/infinite edge cases safely.
  */
-export function formatCurrency(amount: number, currency = 'INR'): string {
+export function formatCurrency(amount: number, currency?: string): string {
+  const curr = currency ? normalizeCurrencyCode(currency) : globalDefaultCurrency;
+  const symbol = getCurrencySymbol(curr);
+  const decimals = getCurrencyDecimals(curr);
   if (isNaN(amount) || !isFinite(amount)) {
-    const symbol = getCurrencySymbol(currency);
-    const decimals = getCurrencyDecimals(currency);
     return `${symbol}${(0).toFixed(decimals)}`;
   }
-  const symbol = getCurrencySymbol(currency);
-  const decimals = getCurrencyDecimals(currency);
   return `${symbol}${Math.abs(amount).toFixed(decimals)}`;
 }

@@ -47,7 +47,13 @@ import {
   ExpenseCategory,
 } from '../components/common/CategoryIcon';
 import { GroupMember, ExpenseSplit, SplitType, Group } from '../types';
-import { formatCurrency, isValidFinancialAmount } from '../utils/currency';
+import {
+  formatCurrency,
+  isValidFinancialAmount,
+  getDefaultCurrency,
+  normalizeCurrencyCode,
+  getCurrencySymbol,
+} from '../utils/currency';
 import { APP_LIMITS } from '../constants/limits';
 import { PayerSelectionModal } from '../components/expense/PayerSelectionModal';
 import {
@@ -66,10 +72,10 @@ import {
 } from '../utils/splitMath';
 
 const CURRENCIES = [
-  { symbol: '₹', label: 'INR (₹)' },
-  { symbol: '$', label: 'USD ($)' },
-  { symbol: '€', label: 'EUR (€)' },
-  { symbol: '£', label: 'GBP (£)' },
+  { code: 'INR', symbol: '₹', label: 'INR (₹)' },
+  { code: 'USD', symbol: '$', label: 'USD ($)' },
+  { code: 'EUR', symbol: '€', label: 'EUR (€)' },
+  { code: 'GBP', symbol: '£', label: 'GBP (£)' },
 ];
 
 export const AddExpenseScreen = ({ route, navigation }: any) => {
@@ -108,7 +114,10 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
 
   const [description, setDescription] = useState(expenseToEdit?.description ?? '');
   const [amount, setAmount] = useState(expenseToEdit ? String(expenseToEdit.amount) : '');
-  const [currency, setCurrency] = useState(expenseToEdit?.currency || '₹');
+  const [currency, setCurrency] = useState<string>(() => {
+    if (expenseToEdit?.currency) return normalizeCurrencyCode(expenseToEdit.currency);
+    return user?.currency ? normalizeCurrencyCode(user.currency) : getDefaultCurrency() || 'INR';
+  });
   const [manualCategory, setManualCategory] = useState<ExpenseCategory | null>(initialCategory);
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
@@ -285,7 +294,12 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
 
     if (groupId) {
       getLocalGroupById(groupId).then((g) => {
-        if (g) setGroup(g);
+        if (g) {
+          setGroup(g);
+          if (!expenseToEdit && g.currency) {
+            setCurrency(normalizeCurrencyCode(g.currency));
+          }
+        }
       });
 
       getLocalGroupMembers(groupId).then((localMembers) => {
@@ -296,7 +310,12 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
       });
 
       getGroupById(groupId).then((g) => {
-        if (g) setGroup(g);
+        if (g) {
+          setGroup(g);
+          if (!expenseToEdit && g.currency) {
+            setCurrency(normalizeCurrencyCode(g.currency));
+          }
+        }
       }).catch(() => {});
 
       getGroupMembers(groupId)
@@ -311,6 +330,8 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
   }, [groupId, user, isDirectFriendExpense, friendId, friendName]);
 
   const numericAmount = parseFloat(amount) || 0;
+  const currencySymbol = useMemo(() => getCurrencySymbol(currency), [currency]);
+  const currencyCode = useMemo(() => normalizeCurrencyCode(currency), [currency]);
 
   // Real-time calculation helpers
   const equalSplitsCount = Object.values(selectedMembers).filter(Boolean).length;
@@ -418,7 +439,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
       return;
     }
 
-    const amountValidation = isValidFinancialAmount(numericAmount, currency);
+    const amountValidation = isValidFinancialAmount(numericAmount, currencyCode);
     if (!amountValidation.isValid) {
       Alert.alert('Invalid Amount', amountValidation.errorMessage || 'Please enter a valid amount.');
       return;
@@ -436,7 +457,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
       if (totalPaidCents !== totalExpenseCents) {
         Alert.alert(
           'Payer Total Mismatch',
-          `The amounts entered for each payer sum to ${formatCents(totalPaidCents, currency)}, but total expense is ${formatCents(totalExpenseCents, currency)}.`
+          `The amounts entered for each payer sum to ${formatCents(totalPaidCents, currencySymbol)}, but total expense is ${formatCents(totalExpenseCents, currencySymbol)}.`
         );
         return;
       }
@@ -496,7 +517,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         const exactSumCents = Object.values(exactAmounts).reduce((sum, v) => sum + toCents(v), 0);
         if (Math.abs(exactSumCents - totalExpenseCents) !== 0) {
           throw new Error(
-            `Exact amounts sum to ${currency}${fromCents(exactSumCents).toFixed(2)}, but total is ${currency}${numericAmount.toFixed(2)}.`
+            `Exact amounts sum to ${currencySymbol}${fromCents(exactSumCents).toFixed(2)}, but total is ${currencySymbol}${numericAmount.toFixed(2)}.`
           );
         }
         splits = members
@@ -566,7 +587,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         }
         if (Math.abs(totalExpenseCents - itemRes.grandTotalCents) !== 0) {
           throw new Error(
-            `Itemized total (${currency}${fromCents(itemRes.grandTotalCents).toFixed(2)}) must equal expense amount (${currency}${numericAmount.toFixed(2)}).`
+            `Itemized total (${currencySymbol}${fromCents(itemRes.grandTotalCents).toFixed(2)}) must equal expense amount (${currencySymbol}${numericAmount.toFixed(2)}).`
           );
         }
         splits = members
@@ -598,6 +619,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         await updateExpenseLocal(groupId, expenseToEdit.id, {
           description: trimmedDesc,
           amount: numericAmount,
+          currency: currencyCode,
           paidBy: payerId,
           splitType: finalSplitType,
           splits,
@@ -608,6 +630,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         await createExpenseLocal(groupId, user!.uid, {
           description: trimmedDesc,
           amount: numericAmount,
+          currency: currencyCode,
           paidBy: payerId,
           splitType: finalSplitType,
           splits,
@@ -830,10 +853,10 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                 setCurrencyModalVisible(true);
               }}
               activeOpacity={0.7}
-              accessibilityLabel={`Currency: ${currency}. Tap to change.`}
+              accessibilityLabel={`Currency: ${currencyCode} (${currencySymbol}). Tap to change.`}
               accessibilityRole="button"
             >
-              <Text style={styles.currencyBoxText}>{currency}</Text>
+              <Text style={styles.currencyBoxText}>{currencySymbol}</Text>
             </TouchableOpacity>
 
             <View style={styles.amountInputWrapper}>
@@ -891,9 +914,9 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
             {/* Quick inline context summary */}
             <Text style={styles.equalSummaryText}>
               {splitMethod === 'equal' && numericAmount > 0
-                ? `(${currency}${equalSharePerPerson.toFixed(2)}/person · ${equalSplitsCount} included)`
+                ? `(${currencySymbol}${equalSharePerPerson.toFixed(2)}/person · ${equalSplitsCount} included)`
                 : splitMethod === 'unequal'
-                ? `(Exact amounts · ${currency}${exactTotal.toFixed(2)} allocated)`
+                ? `(Exact amounts · ${currencySymbol}${exactTotal.toFixed(2)} allocated)`
                 : splitMethod === 'percentage'
                 ? `(Percentages · ${percentageTotal.toFixed(0)}% allocated)`
                 : splitMethod === 'shares'
@@ -951,7 +974,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                       <View style={styles.memberCheckRight}>
                         {isChecked && numericAmount > 0 && (
                           <Text style={styles.memberShareAmount}>
-                            {currency}{equalSharePerPerson.toFixed(2)}
+                            {currencySymbol}{equalSharePerPerson.toFixed(2)}
                           </Text>
                         )}
                         <View
@@ -977,7 +1000,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
               <View>
                 <View style={styles.validationRow}>
                   <Text style={styles.validationText}>
-                    {currency}{exactTotal.toFixed(2)} of {currency}{numericAmount.toFixed(2)}
+                    {currencySymbol}{exactTotal.toFixed(2)} of {currencySymbol}{numericAmount.toFixed(2)}
                   </Text>
                   {Math.abs(exactTotal - numericAmount) < 0.05 ? (
                     <View style={[styles.validPill, styles.validPillSuccess]}>
@@ -990,7 +1013,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                     <View style={[styles.validPill, styles.validPillError]}>
                       <AlertCircle size={12} color={isDark ? '#FB7185' : '#E11D48'} strokeWidth={2.5} />
                       <Text style={[styles.validPillText, styles.validPillErrorText]}>
-                        {currency}{Math.abs(exactTotal - numericAmount).toFixed(2)} off
+                        {currencySymbol}{Math.abs(exactTotal - numericAmount).toFixed(2)} off
                       </Text>
                     </View>
                   )}
@@ -1005,7 +1028,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                       </Text>
                     </View>
                     <View style={styles.inputWrapper}>
-                      <Text style={styles.currencyPrefix}>{currency}</Text>
+                      <Text style={styles.currencyPrefix}>{currencySymbol}</Text>
                       <TextInput
                         style={styles.exactInput}
                         value={exactAmounts[m.userId] || ''}
@@ -1060,7 +1083,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                             {m.userId === user?.uid ? `${m.userName} (You)` : m.userName}
                           </Text>
                           <Text style={styles.calcShareText}>
-                            {currency}{calculatedShare.toFixed(2)}
+                            {currencySymbol}{calculatedShare.toFixed(2)}
                           </Text>
                         </View>
                       </View>
@@ -1121,7 +1144,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                             {m.userId === user?.uid ? `${m.userName} (You)` : m.userName}
                           </Text>
                           <Text style={styles.calcShareText}>
-                            {currency}{calculatedShare.toFixed(2)}
+                            {currencySymbol}{calculatedShare.toFixed(2)}
                           </Text>
                         </View>
                       </View>
@@ -1189,13 +1212,13 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                             {isMe ? `${m.userName} (You)` : m.userName}
                           </Text>
                           <Text style={styles.calcShareText}>
-                            Base: {currency}{equalSharePerPerson.toFixed(2)}{' '}
-                            {adj !== 0 ? `(${adj > 0 ? '+' : ''}${currency}${adj.toFixed(2)})` : ''}
+                            Base: {currencySymbol}{equalSharePerPerson.toFixed(2)}{' '}
+                            {adj !== 0 ? `(${adj > 0 ? '+' : ''}${currencySymbol}${adj.toFixed(2)})` : ''}
                           </Text>
                         </View>
                       </View>
                       <Text style={styles.memberShareAmount}>
-                        {currency}{share.toFixed(2)}
+                        {currencySymbol}{share.toFixed(2)}
                       </Text>
                     </View>
                   );
@@ -1366,7 +1389,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
             ) : (
               <Text style={styles.saveCtaBtnText}>
                 {isEditing ? 'Save changes' : 'Save expense'}
-                {numericAmount > 0 ? ` · ${currency}${numericAmount.toFixed(2)}` : ''}
+                {numericAmount > 0 ? ` · ${currencySymbol}${numericAmount.toFixed(2)}` : ''}
               </Text>
             )}
           </TouchableOpacity>
@@ -1452,7 +1475,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         payerId={payerId}
         payerAmounts={payerAmounts}
         totalAmount={numericAmount}
-        currency={currency}
+        currency={currencySymbol}
         onSelectSinglePayer={(uid) => {
           setPayerId(uid);
           setPayerMode('single');
@@ -1471,7 +1494,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         members={members}
         currentUserId={user?.uid || ''}
         totalAmount={numericAmount}
-        currency={currency}
+        currency={currencySymbol}
         initialSplitMethod={splitMethod}
         totalPaidAmount={payerId === '__MULTIPLE__' ? totalPaidAmount : numericAmount}
         initialData={{
@@ -1524,25 +1547,28 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
               </TouchableOpacity>
             </View>
 
-            {CURRENCIES.map((c) => (
-              <TouchableOpacity
-                key={c.symbol}
-                style={[
-                  styles.selectionOptionRow,
-                  currency === c.symbol && styles.selectionOptionRowSelected,
-                ]}
-                onPress={() => {
-                  setCurrency(c.symbol);
-                  setCurrencyModalVisible(false);
-                }}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.selectionOptionText}>{c.label}</Text>
-                {currency === c.symbol && (
-                  <Check size={20} color="#059669" strokeWidth={2.5} />
-                )}
-              </TouchableOpacity>
-            ))}
+            {CURRENCIES.map((c) => {
+              const isSelected = currencyCode === c.code;
+              return (
+                <TouchableOpacity
+                  key={c.code}
+                  style={[
+                    styles.selectionOptionRow,
+                    isSelected && styles.selectionOptionRowSelected,
+                  ]}
+                  onPress={() => {
+                    setCurrency(c.code);
+                    setCurrencyModalVisible(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.selectionOptionText}>{c.label}</Text>
+                  {isSelected && (
+                    <Check size={20} color="#059669" strokeWidth={2.5} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </TouchableOpacity>
       </Modal>

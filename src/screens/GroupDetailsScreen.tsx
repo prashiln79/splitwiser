@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import {
   Alert,
   FlatList,
@@ -134,6 +134,12 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
     const tag = selectedExpense.tags.find((t) => t.startsWith('receipt:'));
     return tag ? tag.replace(/^receipt:/, '') : null;
   }, [selectedExpense]);
+
+  const groupCurrency = group?.currency || user?.currency || 'INR';
+  const formatAmount = useCallback(
+    (amt: number, curr?: string) => formatCurrency(amt, curr || groupCurrency),
+    [groupCurrency]
+  );
 
   // Comments per expense
   const [commentText, setCommentText] = useState('');
@@ -752,7 +758,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                     </View>
 
                     <View style={styles.settlementAmountBox}>
-                      <Text style={styles.settlementAmountText}>{formatCurrency(s.amount)}</Text>
+                      <Text style={styles.settlementAmountText}>{formatAmount(s.amount)}</Text>
                       <Text style={styles.settlementSubRole}>
                         {isMePayer ? 'You owe' : isMeReceiver ? 'Owes you' : 'Between members'}
                       </Text>
@@ -829,7 +835,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                       })}
                     </Text>
                   </View>
-                  <Text style={styles.settledHistoryAmount}>{formatCurrency(rec.amount)}</Text>
+                  <Text style={styles.settledHistoryAmount}>{formatAmount(rec.amount)}</Text>
                 </View>
               ))
             )}
@@ -904,7 +910,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
             <View>
               <Text style={styles.chartsHeroLabel}>Total Group Spending</Text>
               <Text style={styles.chartsHeroAmount}>
-                {formatCurrency(filteredTotalExpensesAmount)}
+                {formatAmount(filteredTotalExpensesAmount)}
               </Text>
             </View>
             <View style={styles.sparkleIconBadge}>
@@ -922,14 +928,14 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
             <View style={styles.chartsHeroStat}>
               <Text style={styles.chartsHeroStatLabel}>Average / Person</Text>
               <Text style={styles.chartsHeroStatVal}>
-                {formatCurrency(
+                {formatAmount(
                   members.length > 0 ? filteredTotalExpensesAmount / members.length : 0
                 )}
               </Text>
             </View>
             <View style={styles.chartsHeroStat}>
               <Text style={styles.chartsHeroStatLabel}>Your Fair Share</Text>
-              <Text style={styles.chartsHeroStatVal}>{formatCurrency(filteredMyShareAmount)}</Text>
+              <Text style={styles.chartsHeroStatVal}>{formatAmount(filteredMyShareAmount)}</Text>
             </View>
           </View>
         </View>
@@ -961,7 +967,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                   <View style={styles.breakdownMiddle}>
                     <View style={styles.breakdownLabelRow}>
                       <Text style={styles.breakdownCategoryName}>{item.category}</Text>
-                      <Text style={styles.breakdownAmountText}>{formatCurrency(item.total)}</Text>
+                      <Text style={styles.breakdownAmountText}>{formatAmount(item.total)}</Text>
                     </View>
                     <View style={styles.progressBarTrack}>
                       <View
@@ -1017,7 +1023,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                     <Text style={styles.memberSpendingName}>
                       {m.userName} {m.isMe ? '(You)' : ''}
                     </Text>
-                    <Text style={styles.memberPaidAmount}>{formatCurrency(m.totalPaid)}</Text>
+                    <Text style={styles.memberPaidAmount}>{formatAmount(m.totalPaid)}</Text>
                   </View>
 
                   <View style={styles.progressBarTrack}>
@@ -1034,18 +1040,18 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
 
                   <View style={styles.memberSpendingSubRow}>
                     <Text style={styles.memberShareText}>
-                      Fair share: {formatCurrency(m.totalShare)}
+                      Fair share: {formatAmount(m.totalShare)}
                     </Text>
                     {isOverpaid ? (
                       <View style={styles.memberNetBadgeGreen}>
                         <Text style={styles.memberNetBadgeGreenText}>
-                          +{formatCurrency(m.net)} overpaid
+                          +{formatAmount(m.net)} overpaid
                         </Text>
                       </View>
                     ) : isUnderpaid ? (
                       <View style={styles.memberNetBadgeRed}>
                         <Text style={styles.memberNetBadgeRedText}>
-                          -{formatCurrency(Math.abs(m.net))} underpaid
+                          -{formatAmount(Math.abs(m.net))} underpaid
                         </Text>
                       </View>
                     ) : (
@@ -1116,9 +1122,9 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                     ]}
                   >
                     {isOwed
-                      ? `gets back ${formatCurrency(m.net)}`
+                      ? `gets back ${formatAmount(m.net)}`
                       : owes
-                      ? `owes ${formatCurrency(Math.abs(m.net))}`
+                      ? `owes ${formatAmount(Math.abs(m.net))}`
                       : 'settled up'}
                   </Text>
                 </View>
@@ -1159,7 +1165,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                           {isMeCreditor ? 'you' : s.toUserName}
                         </Text>
                       </Text>
-                      <Text style={styles.suggestedPaymentAmount}>{formatCurrency(s.amount)}</Text>
+                      <Text style={styles.suggestedPaymentAmount}>{formatAmount(s.amount)}</Text>
                     </View>
 
                     {(isMeDebtor || isMeCreditor) && (
@@ -1215,7 +1221,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
           <View style={styles.grid2x2}>
             <View style={styles.gridCard}>
               <Text style={styles.gridCardLabel}>Total Expenses</Text>
-              <Text style={styles.gridCardValue}>{formatCurrency(totalExpensesAmount)}</Text>
+              <Text style={styles.gridCardValue}>{formatAmount(totalExpensesAmount)}</Text>
             </View>
             <View style={styles.gridCard}>
               <Text style={styles.gridCardLabel}>Number of Bills</Text>
@@ -1224,13 +1230,13 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
             <View style={styles.gridCard}>
               <Text style={styles.gridCardLabel}>You Paid</Text>
               <Text style={[styles.gridCardValue, { color: '#059669' }]}>
-                {formatCurrency(myPaidAmount)}
+                {formatAmount(myPaidAmount)}
               </Text>
             </View>
             <View style={styles.gridCard}>
               <Text style={styles.gridCardLabel}>Your Fair Share</Text>
               <Text style={[styles.gridCardValue, { color: '#DC2626' }]}>
-                {formatCurrency(myShareAmount)}
+                {formatAmount(myShareAmount)}
               </Text>
             </View>
           </View>
@@ -1251,11 +1257,11 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                   <Text style={styles.breakdownCategoryName}>
                     {m.userName} {m.isMe ? '(You)' : ''}
                   </Text>
-                  <Text style={styles.breakdownAmountText}>{formatCurrency(m.totalPaid)}</Text>
+                  <Text style={styles.breakdownAmountText}>{formatAmount(m.totalPaid)}</Text>
                 </View>
                 <View style={styles.breakdownSubRow}>
                   <Text style={styles.breakdownCountText}>
-                    Fair share: {formatCurrency(m.totalShare)}
+                    Fair share: {formatAmount(m.totalShare)}
                   </Text>
                   <Text
                     style={[
@@ -1268,9 +1274,9 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                     ]}
                   >
                     {m.net > 0.01
-                      ? `+${formatCurrency(m.net)}`
+                      ? `+${formatAmount(m.net)}`
                       : m.net < -0.01
-                      ? `-${formatCurrency(Math.abs(m.net))}`
+                      ? `-${formatAmount(Math.abs(m.net))}`
                       : 'settled'}
                   </Text>
                 </View>
@@ -1469,7 +1475,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
               <View style={[styles.expDetailHeroSection, { backgroundColor: colors.surface }]}>
                 <Text style={[styles.expDetailTitleText, { color: colors.textPrimary }]}>{selectedExpense.description}</Text>
                 <Text style={[styles.expDetailAmountText, { color: colors.textPrimary }]}>
-                  {formatCurrency(selectedExpense.amount)}
+                  {formatAmount(selectedExpense.amount, selectedExpense.currency)}
                 </Text>
                 <Text style={[styles.expDetailAddedDate, { color: colors.textMuted }]}>
                   Added by{' '}
@@ -1497,7 +1503,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                     {(selectedExpense.paidBy || selectedExpense.createdBy) === user?.uid
                       ? 'You'
                       : getMemberName(selectedExpense.paidBy || selectedExpense.createdBy)}{' '}
-                    paid {formatCurrency(selectedExpense.amount)}
+                    paid {formatAmount(selectedExpense.amount, selectedExpense.currency)}
                   </Text>
                 </View>
 
@@ -1522,7 +1528,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                         </View>
                         <Text style={[styles.treeSplitText, { color: colors.textPrimary }]}>
                           {isMe ? 'You owe' : `${memberName} owes`}{' '}
-                          <Text style={{ fontWeight: '600' }}>{formatCurrency(s.amount)}</Text>
+                          <Text style={{ fontWeight: '600' }}>{formatAmount(s.amount, selectedExpense.currency)}</Text>
                         </Text>
                       </View>
                     );
@@ -1550,7 +1556,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                           ]}
                         />
                       </View>
-                      <Text style={[styles.trendMonthAmount, { color: colors.textPrimary }]}>{formatCurrency(m.total)}</Text>
+                      <Text style={[styles.trendMonthAmount, { color: colors.textPrimary }]}>{formatAmount(m.total)}</Text>
                     </View>
                   ))}
                 </View>

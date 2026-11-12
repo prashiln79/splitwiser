@@ -3,6 +3,7 @@ import { getDatabase } from '../db/sqlite';
 import { Expense, ExpenseCreateInput, ExpenseSplit, SplitType, SyncStatus } from '../types';
 import { syncQueue } from '../sync/syncQueue';
 import { dispatchNotificationEvent } from '../services/notificationService';
+import { normalizeCurrencyCode, formatCurrency } from '../utils/currency';
 
 export interface LocalExpenseRow {
   id: string;
@@ -71,6 +72,23 @@ export async function createExpenseLocal(
     ? (input.createdAt instanceof Date ? input.createdAt.getTime() : Number(input.createdAt))
     : now;
 
+  // Resolve currency: explicit input > group currency > user default currency
+  let resolvedCurrency = input.currency ? normalizeCurrencyCode(input.currency) : '';
+  if (!resolvedCurrency) {
+    try {
+      const groupRow = await database.getFirstAsync<{ currency: string }>(
+        `SELECT currency FROM local_groups WHERE id = ?`,
+        [groupId]
+      );
+      if (groupRow?.currency) {
+        resolvedCurrency = normalizeCurrencyCode(groupRow.currency);
+      }
+    } catch {}
+  }
+  if (!resolvedCurrency) {
+    resolvedCurrency = normalizeCurrencyCode(null);
+  }
+
   const expense: Expense = {
     id,
     groupId,
@@ -80,7 +98,7 @@ export async function createExpenseLocal(
     amount: input.amount,
     splits: input.splits,
     splitType: input.splitType,
-    currency: 'INR',
+    currency: resolvedCurrency,
     tags: input.tags ?? [],
     createdAt: new Date(createdAtMs),
     updatedAt: new Date(now),
@@ -101,7 +119,7 @@ export async function createExpenseLocal(
       input.amount,
       input.splitType,
       JSON.stringify(input.splits),
-      'INR',
+      resolvedCurrency,
       JSON.stringify(input.tags ?? []),
       createdAtMs,
       now,
@@ -119,7 +137,7 @@ export async function createExpenseLocal(
     amount: input.amount,
     splits: input.splits,
     splitType: input.splitType,
-    currency: 'INR',
+    currency: resolvedCurrency,
     tags: cloudTags,
     createdAt: createdAtMs,
     updatedAt: now,
@@ -153,7 +171,7 @@ export async function createExpenseLocal(
       } catch {}
 
       const numAmount = Number(input.amount) || 0;
-      const formattedAmount = '₹' + numAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+      const formattedAmount = formatCurrency(numAmount, resolvedCurrency);
 
       dispatchNotificationEvent({
         type: 'expense_created',
@@ -170,7 +188,7 @@ export async function createExpenseLocal(
           expenseDescription: input.description,
           amount: String(input.amount),
           amountFormatted: formattedAmount,
-          currency: 'INR',
+          currency: resolvedCurrency,
         },
         dedupeKey: `expense_created_${id}`,
       }).catch((err) => console.warn('[createExpenseLocal] Notification dispatch failed:', err?.message));
@@ -204,6 +222,7 @@ export async function updateExpenseLocal(
   const updatedPaidBy = updates.paidBy ?? currentExpense.paidBy;
   const updatedSplitType = updates.splitType ?? currentExpense.splitType;
   const updatedSplits = updates.splits ?? currentExpense.splits;
+  const updatedCurrency = updates.currency ? normalizeCurrencyCode(updates.currency) : currentExpense.currency;
   const updatedTags = updates.tags ?? currentExpense.tags;
   const updatedCreatedAt = updates.createdAt
     ? (updates.createdAt instanceof Date ? updates.createdAt.getTime() : Number(updates.createdAt))
@@ -216,6 +235,7 @@ export async function updateExpenseLocal(
       paid_by = ?,
       split_type = ?,
       splits_json = ?,
+      currency = ?,
       tags_json = ?,
       created_at = ?,
       updated_at = ?,
@@ -227,6 +247,7 @@ export async function updateExpenseLocal(
       updatedPaidBy,
       updatedSplitType,
       JSON.stringify(updatedSplits),
+      updatedCurrency,
       JSON.stringify(updatedTags),
       updatedCreatedAt,
       now,
@@ -243,6 +264,7 @@ export async function updateExpenseLocal(
     paidBy: updatedPaidBy,
     splitType: updatedSplitType,
     splits: updatedSplits,
+    currency: updatedCurrency,
     tags: cloudTags,
     createdAt: updatedCreatedAt,
     updatedAt: now,
@@ -272,7 +294,7 @@ export async function updateExpenseLocal(
       } catch {}
 
       const numAmount = Number(updatedAmount) || 0;
-      const formattedAmount = '₹' + numAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+      const formattedAmount = formatCurrency(numAmount, updatedCurrency);
 
       dispatchNotificationEvent({
         type: 'expense_updated',
@@ -288,7 +310,7 @@ export async function updateExpenseLocal(
           expenseDescription: updatedDescription,
           amount: String(updatedAmount),
           amountFormatted: formattedAmount,
-          currency: 'INR',
+          currency: updatedCurrency,
         },
         dedupeKey: `expense_updated_${expenseId}_${now}`,
       }).catch(() => {});

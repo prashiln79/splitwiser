@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import { AppUser } from '../types';
 import { syncService } from '../sync/syncService';
+import { setDefaultCurrency } from '../utils/currency';
 import {
   subscribeToAuthState,
   loadUserProfile,
@@ -89,12 +90,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    if (user?.currency) {
+      setDefaultCurrency(user.currency);
+    }
+  }, [user?.currency]);
+
+  useEffect(() => {
     // Subscribe to Firebase Auth state changes
     const unsubscribe = subscribeToAuthState(async (firebaseUser) => {
       if (firebaseUser) {
         try {
           const profile = await syncGoogleProfileOnAuth(firebaseUser);
           if (profile) {
+            if (profile.currency) setDefaultCurrency(profile.currency);
             setUser(profile);
             syncService.initialize(firebaseUser.uid);
           } else {
@@ -153,6 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     currency?: string
   ): Promise<void> => {
     if (!user) throw new Error('No authenticated user');
+    if (currency) setDefaultCurrency(currency);
     const updated = await serviceCompleteProfileSetup(user.uid, { name, avatarUrl, currency });
     setUser(updated);
   };
@@ -172,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updates: Partial<AppUser>
   ): Promise<void> => {
     if (!user) throw new Error('No authenticated user');
+    if (updates.currency) setDefaultCurrency(updates.currency);
     await updateUserProfile(user.uid, updates);
     setUser((prev) => (prev ? { ...prev, ...updates } : prev));
   };

@@ -14,6 +14,7 @@ import {
 import { db } from '../config/firebase';
 import { Expense, ExpenseCreateInput } from '../types';
 import { dispatchNotificationEvent } from './notificationService';
+import { normalizeCurrencyCode, formatCurrency } from '../utils/currency';
 
 // ─── Path helpers ─────────────────────────────────────────────────────────────
 // /splitwiser/data/groups/{groupId}/expenses/{expenseId}
@@ -49,6 +50,7 @@ export async function createExpense(
     ? (input.createdAt instanceof Date ? input.createdAt : new Date(Number(input.createdAt)))
     : null;
   const cleanTags = (input.tags ?? []).filter((t: string) => !t.startsWith('receipt:'));
+  const resolvedCurrency = normalizeCurrencyCode(input.currency || 'INR');
   const ref = await addDoc(expensesCol(groupId), {
     groupId,
     createdBy,
@@ -57,7 +59,7 @@ export async function createExpense(
     amount: input.amount,
     splits: input.splits,
     splitType: input.splitType,
-    currency: 'INR',
+    currency: resolvedCurrency,
     tags: cleanTags,
     createdAt: createdAtTimestamp ?? now,
     updatedAt: now,
@@ -84,7 +86,7 @@ export async function createExpense(
       } catch {}
 
       const numAmount = Number(input.amount) || 0;
-      const formattedAmount = '₹' + numAmount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+      const formattedAmount = formatCurrency(numAmount, resolvedCurrency);
 
       dispatchNotificationEvent({
         type: 'expense_created',
@@ -100,7 +102,7 @@ export async function createExpense(
           expenseDescription: input.description,
           amount: String(input.amount),
           amountFormatted: formattedAmount,
-          currency: 'INR',
+          currency: resolvedCurrency,
         },
         dedupeKey: `expense_created_${ref.id}`,
       }).catch((err) => console.warn('[createExpense] Notification dispatch failed:', err?.message));
@@ -118,7 +120,7 @@ export async function createExpense(
     amount: input.amount,
     splits: input.splits,
     splitType: input.splitType,
-    currency: 'INR',
+    currency: resolvedCurrency,
     tags: input.tags ?? [],
     createdAt: new Date(),
     updatedAt: new Date(),

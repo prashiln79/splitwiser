@@ -32,6 +32,7 @@ import { createGroupLocal, getLocalGroups } from '../../repositories/groupReposi
 import { networkMonitor } from '../../sync/networkMonitor';
 import { compressAvatarPhoto } from '../../utils/imageCompressor';
 import { GroupCoverPhoto } from '../../types';
+import { getDefaultCurrency, normalizeCurrencyCode } from '../../utils/currency';
 
 type GroupType = 'trip' | 'home' | 'couple' | 'other';
 
@@ -68,10 +69,18 @@ export const OnboardingGroupCreationScreen: React.FC<OnboardingGroupCreationScre
 
   const [name, setName] = useState(suggestedName);
   const [selectedType, setSelectedType] = useState<GroupType>(initialType);
-  const [currency, setCurrency] = useState('INR');
+  const [currency, setCurrency] = useState(
+    user?.currency ? normalizeCurrencyCode(user.currency) : getDefaultCurrency() || 'INR'
+  );
   const [pickedImage, setPickedImage] = useState<{ uri: string; base64?: string | null } | null>(null);
   const [pickedCover, setPickedCover] = useState<GroupCoverPhoto | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  React.useEffect(() => {
+    if (user?.currency) {
+      setCurrency(normalizeCurrencyCode(user.currency));
+    }
+  }, [user?.currency]);
 
   const handlePickAvatar = async () => {
     if (Platform.OS !== 'web') {

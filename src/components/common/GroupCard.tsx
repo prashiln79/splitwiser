@@ -101,16 +101,18 @@ export const GroupCard: React.FC<GroupCardProps> = ({
   const SmartIcon = smartConfig?.icon;
   const initial = (group.name || '?').trim().charAt(0).toUpperCase();
 
+  const cardCurrency = group.currency || 'INR';
+
   // Determine balance text & color
   let balanceText = 'settled up';
   let balanceColor = colors.textMuted;
 
   if (!isSettled && Math.abs(netBalance) >= 0.01) {
     if (netBalance > 0) {
-      balanceText = `you are owed ${formatCurrency(netBalance)}`;
+      balanceText = `you are owed ${formatCurrency(netBalance, cardCurrency)}`;
       balanceColor = colors.income;
     } else {
-      balanceText = `you owe ${formatCurrency(Math.abs(netBalance))}`;
+      balanceText = `you owe ${formatCurrency(Math.abs(netBalance), cardCurrency)}`;
       balanceColor = colors.expense;
     }
   }
@@ -170,7 +172,7 @@ export const GroupCard: React.FC<GroupCardProps> = ({
                     {isOwesYou ? `${sub.memberName} owes you ` : `You owe ${sub.memberName} `}
                   </Text>
                   <Text style={[isOwesYou ? styles.subAmountOwed : styles.subAmountOwe, { color: isOwesYou ? colors.income : colors.expense }]}>
-                    {formatCurrency(sub.amount)}
+                    {formatCurrency(sub.amount, cardCurrency)}
                   </Text>
                 </Text>
               );

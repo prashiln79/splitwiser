@@ -23,6 +23,7 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../context/AuthContext';
 import { useAppTheme, ThemeColors, radii, shadows } from '../../theme';
 import { compressAvatarPhoto } from '../../utils/imageCompressor';
+import { setDefaultCurrency, getDefaultCurrency } from '../../utils/currency';
 
 interface GuestProfileSetupScreenProps {
   navigation: any;
@@ -51,7 +52,7 @@ export const GuestProfileSetupScreen: React.FC<GuestProfileSetupScreenProps> = (
 
   const [name, setName] = useState(suggestedName === 'Anonymous User' ? '' : suggestedName);
   const [avatarUri, setAvatarUri] = useState<string | null>(suggestedPhoto);
-  const [currency, setCurrency] = useState('INR');
+  const [currency, setCurrency] = useState(user?.currency || getDefaultCurrency() || 'INR');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handlePickAvatar = async () => {
@@ -100,6 +101,9 @@ export const GuestProfileSetupScreen: React.FC<GuestProfileSetupScreenProps> = (
     try {
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
+      if (currency) {
+        setDefaultCurrency(currency);
       }
       await completeProfile(trimmed, avatarUri || undefined, currency);
       navigation.navigate('IntroSlides');

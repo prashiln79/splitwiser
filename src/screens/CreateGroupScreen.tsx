@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,7 @@ import { compressAvatarPhoto } from '../utils/imageCompressor';
 import { getDefaultCoverPhoto } from '../constants/presetCovers';
 import { GroupCoverPhoto } from '../types';
 import { APP_LIMITS } from '../constants/limits';
+import { getDefaultCurrency, normalizeCurrencyCode } from '../utils/currency';
 
 type GroupType = 'trip' | 'home' | 'couple' | 'other';
 
@@ -43,6 +44,13 @@ const GROUP_TYPES: { id: GroupType; label: string; icon: any }[] = [
   { id: 'other', label: 'Other', icon: Grid },
 ];
 
+const CURRENCIES = [
+  { code: 'INR', symbol: '₹', label: 'INR (₹)' },
+  { code: 'USD', symbol: '$', label: 'USD ($)' },
+  { code: 'EUR', symbol: '€', label: 'EUR (€)' },
+  { code: 'GBP', symbol: '£', label: 'GBP (£)' },
+];
+
 export const CreateGroupScreen = ({ navigation }: any) => {
   const { user } = useAuth();
   const { colors, isDark } = useAppTheme();
@@ -51,10 +59,19 @@ export const CreateGroupScreen = ({ navigation }: any) => {
 
   const [name, setName] = useState('');
   const [selectedType, setSelectedType] = useState<GroupType>('home');
+  const [currency, setCurrency] = useState(
+    user?.currency ? normalizeCurrencyCode(user.currency) : getDefaultCurrency() || 'INR'
+  );
   const [pickedImage, setPickedImage] = useState<{ uri: string; base64?: string | null } | null>(null);
   const [pickedCover, setPickedCover] = useState<GroupCoverPhoto | null>(null);
   const [coverModalVisible, setCoverModalVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (user?.currency) {
+      setCurrency(normalizeCurrencyCode(user.currency));
+    }
+  }, [user?.currency]);
 
   const pickImage = async () => {
     if (Platform.OS === 'ios') {
@@ -93,7 +110,7 @@ export const CreateGroupScreen = ({ navigation }: any) => {
           trimmed,
           user.uid,
           user.name,
-          'INR',
+          currency,
           imagePayload,
           selectedType,
           pickedCover || undefined
@@ -104,7 +121,7 @@ export const CreateGroupScreen = ({ navigation }: any) => {
           trimmed,
           user.uid,
           user.name,
-          'INR',
+          currency,
           imagePayload,
           selectedType,
           pickedCover || undefined
@@ -242,6 +259,41 @@ export const CreateGroupScreen = ({ navigation }: any) => {
                       ]}
                     >
                       {type.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Currency Selection */}
+          <View style={styles.typeSection}>
+            <Text style={styles.typeSectionTitle}>Currency</Text>
+            <View style={styles.typeGrid}>
+              {CURRENCIES.map((cur) => {
+                const isSelected = currency === cur.code;
+                return (
+                  <TouchableOpacity
+                    key={cur.code}
+                    style={[
+                      styles.typeChip,
+                      isSelected && styles.typeChipSelected,
+                    ]}
+                    onPress={() => {
+                      if (Platform.OS !== 'web') {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                      }
+                      setCurrency(cur.code);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.typeChipText,
+                        isSelected && styles.typeChipTextSelected,
+                      ]}
+                    >
+                      {cur.label}
                     </Text>
                   </TouchableOpacity>
                 );
