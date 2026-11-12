@@ -5,12 +5,6 @@
 __pycache__/
 venv/
 .venv/
-.vscode/
-.env
-.env.local
-.env.development
-.env.test
-.env.production
 .coverage
 
 # Firebase
@@ -81,9 +75,7 @@ client_*.plist
 client_secret_*.json
 
 # IDE
-.vscode/settings.json
 .idea/
-.vscode/
 
 # Logs
 *.log
@@ -100,3 +92,4 @@ migration_*.log
 
 # Root level requirements (use backend/requirements.txt)
 /requirements.txt
+config.bat

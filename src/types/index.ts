@@ -144,6 +144,7 @@ export interface ExpenseCreateInput {
   paidBy: string;
   splitType: SplitType;
   splits: ExpenseSplit[];
+  currency?: string;
   tags?: string[];
   createdAt?: Date | number;
 }

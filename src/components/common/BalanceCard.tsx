@@ -8,6 +8,7 @@ import { useAppTheme } from '../../theme';
 interface BalanceCardProps {
   totalOwed: number;
   totalOwes: number;
+  currency?: string;
   onPress?: () => void;
   onFilterPress?: () => void;
   onCreateGroup?: () => void;
@@ -17,6 +18,7 @@ interface BalanceCardProps {
 export const BalanceCard: React.FC<BalanceCardProps> = ({
   totalOwed,
   totalOwes,
+  currency,
   onPress,
   onFilterPress,
 }) => {
@@ -51,22 +53,22 @@ export const BalanceCard: React.FC<BalanceCardProps> = ({
           <View>
             <Text style={[styles.balanceLine, { color: colors.textPrimary }]}>
               Overall, you owe{' '}
-              <Text style={[styles.oweAmount, { color: colors.expense }]}>{formatCurrency(totalOwes)}</Text>
+              <Text style={[styles.oweAmount, { color: colors.expense }]}>{formatCurrency(totalOwes, currency)}</Text>
             </Text>
             <Text style={[styles.balanceLine, { marginTop: 2, color: colors.textPrimary }]}>
               and you are owed{' '}
-              <Text style={[styles.owedAmount, { color: colors.income }]}>{formatCurrency(totalOwed)}</Text>
+              <Text style={[styles.owedAmount, { color: colors.income }]}>{formatCurrency(totalOwed, currency)}</Text>
             </Text>
           </View>
         ) : hasOwes ? (
           <Text style={[styles.balanceLine, { color: colors.textPrimary }]}>
             Overall, you owe{' '}
-            <Text style={[styles.oweAmount, { color: colors.expense }]}>{formatCurrency(totalOwes)}</Text>
+            <Text style={[styles.oweAmount, { color: colors.expense }]}>{formatCurrency(totalOwes, currency)}</Text>
           </Text>
         ) : (
           <Text style={[styles.balanceLine, { color: colors.textPrimary }]}>
             Overall, you are owed{' '}
-            <Text style={[styles.owedAmount, { color: colors.income }]}>{formatCurrency(totalOwed)}</Text>
+            <Text style={[styles.owedAmount, { color: colors.income }]}>{formatCurrency(totalOwed, currency)}</Text>
           </Text>
         )}
       </TouchableOpacity>

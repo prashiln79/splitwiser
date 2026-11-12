@@ -3,6 +3,7 @@ import { getDatabase } from '../db/sqlite';
 import { Settlement, SettlementStatus, SyncStatus } from '../types';
 import { syncQueue } from '../sync/syncQueue';
 import { dispatchNotificationEvent } from '../services/notificationService';
+import { formatCurrency } from '../utils/currency';
 
 export interface LocalSettlementRow {
   id: string;
@@ -101,6 +102,18 @@ export async function recordSettlementLocal(
   // Dispatch in-app notification to payee
   try {
     if (toUserId && toUserId !== fromUserId) {
+      let groupCurrency = 'INR';
+      try {
+        const groupRow = await database.getFirstAsync<{ currency: string }>(
+          `SELECT currency FROM local_groups WHERE id = ?`,
+          [groupId]
+        );
+        if (groupRow?.currency) groupCurrency = groupRow.currency;
+      } catch {}
+
+      const numAmount = Number(amount) || 0;
+      const formattedAmount = formatCurrency(numAmount, groupCurrency);
+
       dispatchNotificationEvent({
         type: 'settlement_created',
         actor: {
@@ -113,8 +126,8 @@ export async function recordSettlementLocal(
         params: {
           actorName: fromUserName,
           amount: String(amount),
-          amountFormatted: '₹' + (Number(amount) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 }),
-          currency: 'INR',
+          amountFormatted: formattedAmount,
+          currency: groupCurrency,
         },
         dedupeKey: `settlement_created_${id}`,
       }).catch((err) => console.warn('[recordSettlementLocal] Notification failed:', err?.message));

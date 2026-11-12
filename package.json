@@ -3,7 +3,7 @@
   "version": "2.0.1",
   "main": "index.js",
   "scripts": {
-    "start": "expo start",
+    "start": "node init && expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
@@ -23,8 +23,8 @@
     "test:onboarding": "npx tsx tests/onboardingFlow.test.ts",
     "test:onboarding:qa": "npx tsx tests/onboardingQA.test.ts",
     "test:qc": "npx tsx tests/fullTaskQC.test.ts",
-    "build:apk": "mkdir -p build && npm_config_cache=$HOME/.npm-user-cache ANDROID_HOME=$HOME/Library/Android/sdk ANDROID_SDK_ROOT=$HOME/Library/Android/sdk eas build -p android --profile preview --local --output=./build/splitwiser-preview.apk",
-    "build:aab": "mkdir -p build && npm_config_cache=$HOME/.npm-user-cache ANDROID_HOME=$HOME/Library/Android/sdk ANDROID_SDK_ROOT=$HOME/Library/Android/sdk eas build -p android --profile production --local --output=./build/splitwiser-production.aab"
+    "build:apk": "node init && mkdir -p build && npm_config_cache=$HOME/.npm-user-cache ANDROID_HOME=$HOME/Library/Android/sdk ANDROID_SDK_ROOT=$HOME/Library/Android/sdk eas build -p android --profile preview --local --output=./build/splitwiser-preview.apk",
+    "build:aab": "node init && mkdir -p build && npm_config_cache=$HOME/.npm-user-cache ANDROID_HOME=$HOME/Library/Android/sdk ANDROID_SDK_ROOT=$HOME/Library/Android/sdk eas build -p android --profile production --local --output=./build/splitwiser-production.aab"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
