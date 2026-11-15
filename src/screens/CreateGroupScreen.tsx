@@ -34,6 +34,7 @@ import { getDefaultCoverPhoto } from '../constants/presetCovers';
 import { GroupCoverPhoto } from '../types';
 import { APP_LIMITS } from '../constants/limits';
 import { getDefaultCurrency, normalizeCurrencyCode } from '../utils/currency';
+import { resolveProfilePicture } from '../utils/profilePhotoHelper';
 
 type GroupType = 'trip' | 'home' | 'couple' | 'other';
 
@@ -43,6 +44,20 @@ const GROUP_TYPES: { id: GroupType; label: string; icon: any }[] = [
   { id: 'couple', label: 'Couple', icon: Heart },
   { id: 'other', label: 'Other', icon: Grid },
 ];
+
+const getGroupPlaceholder = (type: GroupType): string => {
+  switch (type) {
+    case 'home':
+      return 'e.g. Apartment, Flatmates, Household';
+    case 'trip':
+      return 'e.g. Annual Retreat, Weekend Trip';
+    case 'couple':
+      return 'e.g. Household & Shared Expenses';
+    case 'other':
+    default:
+      return 'e.g. Project Team, Club Activities';
+  }
+};
 
 const CURRENCIES = [
   { code: 'INR', symbol: '₹', label: 'INR (₹)' },
@@ -104,6 +119,9 @@ export const CreateGroupScreen = ({ navigation }: any) => {
         ? `data:image/jpeg;base64,${pickedImage.base64}`
         : pickedImage?.uri;
 
+      const creatorPhoto =
+        resolveProfilePicture(user).displayUrl || user.imageUrl || user.photoURL || user.googlePhotoUrl;
+
       let createdGroupId = '';
       if (networkMonitor.isCurrentlyOnline()) {
         const created = await createGroup(
@@ -113,7 +131,8 @@ export const CreateGroupScreen = ({ navigation }: any) => {
           currency,
           imagePayload,
           selectedType,
-          pickedCover || undefined
+          pickedCover || undefined,
+          creatorPhoto || undefined
         );
         createdGroupId = created.id;
       } else {
@@ -124,7 +143,8 @@ export const CreateGroupScreen = ({ navigation }: any) => {
           currency,
           imagePayload,
           selectedType,
-          pickedCover || undefined
+          pickedCover || undefined,
+          creatorPhoto || undefined
         );
         createdGroupId = created.id;
         await getLocalGroups(user.uid);
@@ -209,7 +229,7 @@ export const CreateGroupScreen = ({ navigation }: any) => {
               <Text style={styles.nameInputLabel}>Group name</Text>
               <TextInput
                 style={styles.nameTextInput}
-                placeholder=""
+                placeholder={getGroupPlaceholder(selectedType)}
                 placeholderTextColor="#9E9E9E"
                 value={name}
                 onChangeText={setName}

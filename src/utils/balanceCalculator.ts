@@ -627,13 +627,17 @@ export function computeFriendBalances(
           return;
         }
 
+        const groupMember = members?.find((m) => m.userId === friendId);
         if (!friendMap.has(friendId)) {
           friendMap.set(friendId, {
             userName: memberMap.get(friendId) ?? 'Unknown',
+            userPhotoUrl: groupMember?.imageUrl,
             netBalance: 0,
             directBalance: 0,
             groups: new Map(),
           });
+        } else if (groupMember?.imageUrl && !friendMap.get(friendId)!.userPhotoUrl) {
+          friendMap.get(friendId)!.userPhotoUrl = groupMember.imageUrl;
         }
 
         const friend = friendMap.get(friendId)!;
@@ -657,13 +661,17 @@ export function computeFriendBalances(
       const friendName = isFromMe ? settlement.toUserName : settlement.fromUserName;
       const delta = isFromMe ? settlement.amount : -settlement.amount;
 
+      const groupMember = members?.find((m) => m.userId === friendId);
       if (!friendMap.has(friendId)) {
         friendMap.set(friendId, {
           userName: friendName || memberMap.get(friendId) || 'Unknown',
+          userPhotoUrl: groupMember?.imageUrl,
           netBalance: 0,
           directBalance: 0,
           groups: new Map(),
         });
+      } else if (groupMember?.imageUrl && !friendMap.get(friendId)!.userPhotoUrl) {
+        friendMap.get(friendId)!.userPhotoUrl = groupMember.imageUrl;
       }
 
       const friend = friendMap.get(friendId)!;

@@ -58,6 +58,7 @@ import { syncQueue } from '../sync/syncQueue';
 import { getOptimizedSettlements } from '../utils/balanceCalculator';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme, ThemeColors } from '../theme';
+import { resolveProfilePicture } from '../utils/profilePhotoHelper';
 import { MemberAvatar } from '../components/common/MemberAvatar';
 import { ExpenseListItem } from '../components/common/ExpenseListItem';
 import { CategoryIcon, detectCategory, CATEGORIES_CONFIG } from '../components/common/CategoryIcon';
@@ -218,8 +219,19 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
       ]);
       if (localG) setGroup(localG);
       if (localM && localM.length > 0) {
-        const normalized = user?.uid && user?.name
-          ? localM.map((m) => (m.userId === user.uid ? { ...m, userName: user.name } : m))
+        const currentUserPhoto = user
+          ? resolveProfilePicture(user).displayUrl || user.imageUrl || user.photoURL || user.googlePhotoUrl
+          : null;
+        const normalized = user?.uid
+          ? localM.map((m) =>
+              m.userId === user.uid
+                ? {
+                    ...m,
+                    userName: user.name || m.userName,
+                    imageUrl: currentUserPhoto || m.imageUrl,
+                  }
+                : m
+            )
           : localM;
         setMembers(normalized);
       }
@@ -240,8 +252,19 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
       ]);
       if (g) setGroup(g);
       if (m && m.length > 0) {
-        const normalized = user?.uid && user?.name
-          ? m.map((item) => (item.userId === user.uid ? { ...item, userName: user.name } : item))
+        const currentUserPhoto = user
+          ? resolveProfilePicture(user).displayUrl || user.imageUrl || user.photoURL || user.googlePhotoUrl
+          : null;
+        const normalized = user?.uid
+          ? m.map((item) =>
+              item.userId === user.uid
+                ? {
+                    ...item,
+                    userName: user.name || item.userName,
+                    imageUrl: currentUserPhoto || item.imageUrl,
+                  }
+                : item
+            )
           : m;
         setMembers(normalized);
       }
@@ -503,6 +526,10 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
       settlementNetMap.set(s.toUserId, (settlementNetMap.get(s.toUserId) || 0) - s.amount);
     });
 
+    const currentUserPhoto = user
+      ? resolveProfilePicture(user).displayUrl || user.imageUrl || user.photoURL || user.googlePhotoUrl
+      : null;
+
     return members.map((m) => {
       const totalPaid = paidMap.get(m.userId) || 0;
       const totalShare = shareMap.get(m.userId) || 0;
@@ -511,11 +538,12 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
       const percentage = totalExpensesAmount > 0 ? (totalPaid / totalExpensesAmount) * 100 : 0;
       const isMe = m.userId === user?.uid;
       const name = isMe && user?.name ? user.name : m.userName;
+      const photo = isMe ? (currentUserPhoto || m.imageUrl) : m.imageUrl;
 
       return {
         userId: m.userId,
         userName: name,
-        imageUrl: m.imageUrl,
+        imageUrl: photo,
         totalPaid,
         totalShare,
         net,
@@ -524,6 +552,20 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
       };
     });
   }, [members, expenses, recordedSettlements, totalExpensesAmount, user]);
+
+  // Map of userId -> profile picture URL for fast lookup across the screen
+  const memberPhotoMap = useMemo(() => {
+    const map = new Map<string, string | undefined>();
+    members.forEach((m) => {
+      if (m.imageUrl) map.set(m.userId, m.imageUrl);
+    });
+    if (user?.uid) {
+      const uPhoto =
+        resolveProfilePicture(user).displayUrl || user.imageUrl || user.photoURL || user.googlePhotoUrl;
+      if (uPhoto) map.set(user.uid, uPhoto);
+    }
+    return map;
+  }, [members, user]);
 
   // Filtered member spending for Charts tab (distinguishing cash disbursed vs fair share)
   const filteredMemberSpending = useMemo(() => {
@@ -543,6 +585,10 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
       });
     });
 
+    const currentUserPhoto = user
+      ? resolveProfilePicture(user).displayUrl || user.imageUrl || user.photoURL || user.googlePhotoUrl
+      : null;
+
     return members.map((m) => {
       const totalPaid = paidMap.get(m.userId) || 0;
       const totalShare = shareMap.get(m.userId) || 0;
@@ -551,11 +597,12 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
         filteredTotalExpensesAmount > 0 ? (totalPaid / filteredTotalExpensesAmount) * 100 : 0;
       const isMe = m.userId === user?.uid;
       const name = isMe && user?.name ? user.name : m.userName;
+      const photo = isMe ? (currentUserPhoto || m.imageUrl) : m.imageUrl;
 
       return {
         userId: m.userId,
         userName: name,
-        imageUrl: m.imageUrl,
+        imageUrl: photo,
         totalPaid,
         totalShare,
         net,
@@ -750,11 +797,19 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                 <View key={`settlement-${s.fromUserId}-${s.toUserId}-${index}`} style={styles.settlementCard}>
                   <View style={styles.settlementCardHeader}>
                     <View style={styles.settlementParties}>
-                      <MemberAvatar name={s.fromUserName} size={36} />
+                      <MemberAvatar
+                        name={s.fromUserName}
+                        imageUrl={memberPhotoMap.get(s.fromUserId)}
+                        size={36}
+                      />
                       <View style={styles.transferArrowWrapper}>
                         <ArrowRight size={16} color="#059669" strokeWidth={2.5} />
                       </View>
-                      <MemberAvatar name={s.toUserName} size={36} />
+                      <MemberAvatar
+                        name={s.toUserName}
+                        imageUrl={memberPhotoMap.get(s.toUserId)}
+                        size={36}
+                      />
                     </View>
 
                     <View style={styles.settlementAmountBox}>
@@ -1359,6 +1414,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
         groupId={groupId}
         settlements={settlements}
         currentUserId={user?.uid || ''}
+        members={members}
         onSuccess={() => {
           fetchGroupData();
           loadLocalData();
@@ -1497,6 +1553,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                 <View style={styles.treePayerRow}>
                   <MemberAvatar
                     name={getMemberName(selectedExpense.paidBy || selectedExpense.createdBy)}
+                    imageUrl={memberPhotoMap.get(selectedExpense.paidBy || selectedExpense.createdBy)}
                     size={42}
                   />
                   <Text style={[styles.treePayerText, { color: colors.textPrimary }]}>

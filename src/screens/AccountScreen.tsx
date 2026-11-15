@@ -363,7 +363,7 @@ export const AccountScreen = ({ navigation }: any) => {
                     ? isBiometricsEnabled
                       ? biometricType === 'face'
                         ? 'Face ID'
-                        : 'Biometrics'
+                        : 'Fingerprint'
                       : 'Passcode'
                     : 'Off'}
                 </Text>

@@ -58,6 +58,7 @@ import { networkMonitor } from '../sync/networkMonitor';
 import { getOptimizedSettlements, calculateGroupSettlements } from '../utils/balanceCalculator';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme, ThemeColors } from '../theme';
+import { resolveProfilePicture } from '../utils/profilePhotoHelper';
 import { AppHeader } from '../components/common/AppHeader';
 import { MemberAvatar } from '../components/common/MemberAvatar';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
@@ -138,8 +139,19 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
 
       if (localG) setGroup(localG);
       if (localM && localM.length > 0) {
-        const normalized = user?.uid && user?.name
-          ? localM.map((item) => (item.userId === user.uid ? { ...item, userName: user.name } : item))
+        const currentUserPhoto = user
+          ? resolveProfilePicture(user).displayUrl || user.imageUrl || user.photoURL || user.googlePhotoUrl
+          : null;
+        const normalized = user?.uid
+          ? localM.map((item) =>
+              item.userId === user.uid
+                ? {
+                    ...item,
+                    userName: user.name || item.userName,
+                    imageUrl: currentUserPhoto || item.imageUrl,
+                  }
+                : item
+            )
           : localM;
         setMembers(normalized);
       }
@@ -174,8 +186,19 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
 
         if (g) setGroup(g);
         if (m.length > 0) {
-          const normalized = user?.uid && user?.name
-            ? m.map((item) => (item.userId === user.uid ? { ...item, userName: user.name } : item))
+          const currentUserPhoto = user
+            ? resolveProfilePicture(user).displayUrl || user.imageUrl || user.photoURL || user.googlePhotoUrl
+            : null;
+          const normalized = user?.uid
+            ? m.map((item) =>
+                item.userId === user.uid
+                  ? {
+                      ...item,
+                      userName: user.name || item.userName,
+                      imageUrl: currentUserPhoto || item.imageUrl,
+                    }
+                  : item
+              )
             : m;
           setMembers(normalized);
         }

@@ -75,8 +75,14 @@ function mapMember(id: string, data: Record<string, any>): GroupMember {
     userId: id,
     userName: data.userName ?? 'Unknown',
     role: data.role ?? 'member',
-    joinedAt: data.joinedAt?.toDate() ?? new Date(),
-    imageUrl: data.imageUrl,
+    joinedAt: data.joinedAt?.toDate ? data.joinedAt.toDate() : new Date(),
+    imageUrl:
+      data.imageUrl ||
+      data.photoUrl ||
+      data.photoURL ||
+      data.googlePhotoUrl ||
+      data.customPhotoUrl ||
+      undefined,
   };
 }
 
@@ -89,7 +95,8 @@ export async function createGroup(
   currency = 'INR',
   imageUrl?: string,
   icon?: string,
-  coverPhoto?: GroupCoverPhoto
+  coverPhoto?: GroupCoverPhoto,
+  creatorPhotoUrl?: string
 ): Promise<Group> {
   const joinCode = generateJoinCode();
 
@@ -110,6 +117,7 @@ export async function createGroup(
     userId: creatorUid,
     userName: creatorName,
     role: 'admin' as MemberRole,
+    imageUrl: creatorPhotoUrl || null,
     joinedAt: serverTimestamp(),
   });
 
@@ -183,13 +191,40 @@ export async function deleteGroup(groupId: string): Promise<void> {
 
 export async function getGroupMembers(groupId: string): Promise<GroupMember[]> {
   const snap = await getDocs(membersCol(groupId));
-  return snap.docs.map((d) => mapMember(d.id, d.data()));
+  const members = snap.docs.map((d) => mapMember(d.id, d.data()));
+
+  // Hydrate missing photos from user profile docs in Firestore if needed
+  const missingPhotoMembers = members.filter((m) => !m.imageUrl && m.userId);
+  if (missingPhotoMembers.length > 0) {
+    await Promise.all(
+      missingPhotoMembers.map(async (m) => {
+        try {
+          const userDocSnap = await getDoc(doc(db, 'splitwiser', 'data', 'users', m.userId));
+          if (userDocSnap.exists()) {
+            const uData = userDocSnap.data();
+            const photo =
+              uData.imageUrl ||
+              uData.googlePhotoUrl ||
+              uData.photoURL ||
+              uData.customPhotoUrl;
+            if (photo) {
+              m.imageUrl = photo;
+              setDoc(memberDoc(groupId, m.userId), { imageUrl: photo }, { merge: true }).catch(() => {});
+            }
+          }
+        } catch {}
+      })
+    );
+  }
+
+  return members;
 }
 
 export async function joinGroup(
   joinCode: string,
   uid: string,
-  userName: string
+  userName: string,
+  userPhotoUrl?: string
 ): Promise<Group> {
   const q = query(groupsCol(), where('joinCode', '==', joinCode.toUpperCase().trim()));
   const snap = await getDocs(q);
@@ -207,6 +242,7 @@ export async function joinGroup(
     userId: uid,
     userName,
     role: 'member' as MemberRole,
+    imageUrl: userPhotoUrl || null,
     joinedAt: serverTimestamp(),
   });
 

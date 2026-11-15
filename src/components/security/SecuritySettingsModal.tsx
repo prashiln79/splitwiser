@@ -116,7 +116,8 @@ export const SecuritySettingsModal: React.FC<SecuritySettingsModalProps> = ({
   const getBiometricTitle = () => {
     if (biometricType === 'face') return 'Unlock with Face ID';
     if (biometricType === 'fingerprint') return 'Unlock with Fingerprint';
-    return 'Unlock with Biometrics';
+    // Fallback: show fingerprint label even when type is 'none' (hardware not detected yet)
+    return 'Unlock with Fingerprint';
   };
 
   const getBiometricSubtitle = () => {
@@ -259,11 +260,11 @@ export const SecuritySettingsModal: React.FC<SecuritySettingsModalProps> = ({
                 </>
               )}
 
-              {/* Biometrics Toggle (when enrolled and passcode enabled) */}
-              {isSecurityEnabled && hasBiometricHardware && isBiometricEnrolled && (
+              {/* Biometrics Toggle (always visible when passcode is enabled) */}
+              {isSecurityEnabled && (
                 <>
                   <View style={[styles.separator, { backgroundColor: colors.border }]} />
-                  <View style={styles.settingRow}>
+                  <View style={[styles.settingRow, (!hasBiometricHardware || !isBiometricEnrolled) && { opacity: 0.5 }]}>
                     <View style={styles.settingIconCol}>
                       {biometricType === 'face' ? (
                         <ScanFace size={20} color={colors.primary} strokeWidth={2.2} />
@@ -274,7 +275,11 @@ export const SecuritySettingsModal: React.FC<SecuritySettingsModalProps> = ({
                     <View style={styles.settingMetaCol}>
                       <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>{getBiometricTitle()}</Text>
                       <Text style={[styles.settingDescription, { color: colors.textMuted }]}>
-                        {getBiometricSubtitle()}
+                        {!hasBiometricHardware
+                          ? 'Biometric hardware not available on this device'
+                          : !isBiometricEnrolled
+                            ? 'No fingerprint or face enrolled — set one up in device Settings'
+                            : getBiometricSubtitle()}
                       </Text>
                     </View>
                     <Switch
@@ -282,6 +287,7 @@ export const SecuritySettingsModal: React.FC<SecuritySettingsModalProps> = ({
                       onValueChange={handleToggleBiometrics}
                       trackColor={switchTrackColor}
                       thumbColor={getSwitchThumbColor(isBiometricsEnabled)}
+                      disabled={!hasBiometricHardware || !isBiometricEnrolled}
                     />
                   </View>
                 </>

@@ -185,7 +185,11 @@ export const BalanceRemindersModal: React.FC<BalanceRemindersModalProps> = ({
                     const alreadyReminded = remindedUserIds.has(d.fromUserId);
                     return (
                       <View key={d.fromUserId} style={styles.debtorCard}>
-                        <MemberAvatar name={d.fromUserName} size={40} />
+                        <MemberAvatar
+                          name={d.fromUserName}
+                          imageUrl={members.find((m) => m.userId === d.fromUserId)?.imageUrl}
+                          size={40}
+                        />
                         <View style={styles.debtorMeta}>
                           <Text style={styles.debtorName}>{d.fromUserName}</Text>
                           <Text style={styles.debtorAmount}>

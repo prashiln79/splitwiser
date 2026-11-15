@@ -33,6 +33,7 @@ import {
   joinGroup,
   getGroupMembers,
 } from '../services/groups';
+import { resolveProfilePicture } from '../utils/profilePhotoHelper';
 import { getLocalGroups, getLocalGroupMembers } from '../repositories/groupRepository';
 import { getGroupExpensesLocal } from '../repositories/expenseRepository';
 import { getGroupSettlementsLocal } from '../repositories/settlementRepository';
@@ -227,7 +228,9 @@ const HomeScreen = ({ navigation }: any) => {
 
     setIsJoiningGroup(true);
     try {
-      const group = await joinGroup(code, user.uid, user.name);
+      const userPhoto =
+        resolveProfilePicture(user).displayUrl || user.imageUrl || user.photoURL || user.googlePhotoUrl;
+      const group = await joinGroup(code, user.uid, user.name, userPhoto || undefined);
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       }

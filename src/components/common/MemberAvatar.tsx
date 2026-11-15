@@ -46,7 +46,7 @@ export const MemberAvatar: React.FC<MemberAvatarProps> = ({
   if (imageUrl) {
     const raw = imageUrl.trim();
     if (/^(https?:|data:image|file:|content:)/i.test(raw)) {
-      imageUri = raw;
+      imageUri = raw.startsWith('http://') ? raw.replace('http://', 'https://') : raw;
     } else if (raw.startsWith('/') || raw.startsWith('file:')) {
       imageUri = raw.startsWith('file:') ? raw : `file://${raw}`;
     } else if (raw.length > 50 && !raw.includes(' ')) {

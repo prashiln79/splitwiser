@@ -39,6 +39,7 @@ import { createExpenseLocal, updateExpenseLocal } from '../repositories/expenseR
 import { getDirectGroupId } from '../repositories/friendRepository';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme, ThemeColors } from '../theme';
+import { resolveProfilePicture } from '../utils/profilePhotoHelper';
 import { MemberAvatar } from '../components/common/MemberAvatar';
 import {
   CATEGORIES_CONFIG,
@@ -177,8 +178,19 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
     if (!user) return;
 
     const initMemberList = (memberList: GroupMember[]) => {
-      const normalizedList = user?.uid && user?.name
-        ? memberList.map((m) => (m.userId === user.uid ? { ...m, userName: user.name } : m))
+      const currentUserPhoto = user
+        ? resolveProfilePicture(user).displayUrl || user.imageUrl || user.photoURL || user.googlePhotoUrl
+        : null;
+      const normalizedList = user?.uid
+        ? memberList.map((m) =>
+            m.userId === user.uid
+              ? {
+                  ...m,
+                  userName: user.name || m.userName,
+                  imageUrl: currentUserPhoto || m.imageUrl,
+                }
+              : m
+          )
         : memberList;
       setMembers(normalizedList);
 
@@ -829,7 +841,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
               <TextInput
                 ref={descriptionInputRef}
                 style={styles.descriptionInput}
-                placeholder="Enter a description"
+                placeholder="e.g. Team Lunch, Flight, Groceries"
                 placeholderTextColor="#9CA3AF"
                 value={description}
                 onChangeText={setDescription}
@@ -965,7 +977,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                       activeOpacity={0.7}
                     >
                       <View style={styles.memberCheckLeft}>
-                        <MemberAvatar name={m.userName} size={36} />
+                        <MemberAvatar name={m.userName} imageUrl={m.imageUrl} size={36} />
                         <Text style={styles.memberName}>
                           {m.userId === user?.uid ? `${m.userName} (You)` : m.userName}
                         </Text>
@@ -1022,7 +1034,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                 {members.map((m) => (
                   <View key={m.userId} style={styles.memberCheckRow}>
                     <View style={styles.memberCheckLeft}>
-                      <MemberAvatar name={m.userName} size={36} />
+                      <MemberAvatar name={m.userName} imageUrl={m.imageUrl} size={36} />
                       <Text style={styles.memberName}>
                         {m.userId === user?.uid ? `${m.userName} (You)` : m.userName}
                       </Text>
@@ -1077,7 +1089,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                   return (
                     <View key={m.userId} style={styles.memberCheckRow}>
                       <View style={styles.memberCheckLeft}>
-                        <MemberAvatar name={m.userName} size={36} />
+                        <MemberAvatar name={m.userName} imageUrl={m.imageUrl} size={36} />
                         <View>
                           <Text style={styles.memberName}>
                             {m.userId === user?.uid ? `${m.userName} (You)` : m.userName}
@@ -1138,7 +1150,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                   return (
                     <View key={m.userId} style={styles.memberCheckRow}>
                       <View style={styles.memberCheckLeft}>
-                        <MemberAvatar name={m.userName} size={36} />
+                        <MemberAvatar name={m.userName} imageUrl={m.imageUrl} size={36} />
                         <View>
                           <Text style={styles.memberName}>
                             {m.userId === user?.uid ? `${m.userName} (You)` : m.userName}

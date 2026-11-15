@@ -33,6 +33,7 @@ import { networkMonitor } from '../../sync/networkMonitor';
 import { compressAvatarPhoto } from '../../utils/imageCompressor';
 import { GroupCoverPhoto } from '../../types';
 import { getDefaultCurrency, normalizeCurrencyCode } from '../../utils/currency';
+import { resolveProfilePicture } from '../../utils/profilePhotoHelper';
 
 type GroupType = 'trip' | 'home' | 'couple' | 'other';
 
@@ -42,6 +43,20 @@ const GROUP_TYPES: { id: GroupType; label: string; icon: any }[] = [
   { id: 'couple', label: 'Couple', icon: Heart },
   { id: 'other', label: 'Other', icon: Grid },
 ];
+
+const getGroupPlaceholder = (type: GroupType): string => {
+  switch (type) {
+    case 'home':
+      return 'e.g. Apartment, Flatmates, Household';
+    case 'trip':
+      return 'e.g. Annual Retreat, Weekend Trip';
+    case 'couple':
+      return 'e.g. Household & Shared Expenses';
+    case 'other':
+    default:
+      return 'e.g. Project Team, Club Activities';
+  }
+};
 
 const CURRENCIES = [
   { code: 'INR', symbol: '₹', label: 'INR' },
@@ -140,6 +155,9 @@ export const OnboardingGroupCreationScreen: React.FC<OnboardingGroupCreationScre
         ? `data:image/jpeg;base64,${pickedImage.base64}`
         : pickedImage?.uri;
 
+      const creatorPhoto =
+        resolveProfilePicture(user).displayUrl || user.imageUrl || user.photoURL || user.googlePhotoUrl;
+
       let createdGroupId = '';
       if (networkMonitor.isCurrentlyOnline()) {
         const created = await createGroup(
@@ -149,7 +167,8 @@ export const OnboardingGroupCreationScreen: React.FC<OnboardingGroupCreationScre
           currency,
           imagePayload,
           selectedType,
-          pickedCover || undefined
+          pickedCover || undefined,
+          creatorPhoto || undefined
         );
         createdGroupId = created.id;
       } else {
@@ -160,7 +179,8 @@ export const OnboardingGroupCreationScreen: React.FC<OnboardingGroupCreationScre
           currency,
           imagePayload,
           selectedType,
-          pickedCover || undefined
+          pickedCover || undefined,
+          creatorPhoto || undefined
         );
         createdGroupId = created.id;
         await getLocalGroups(user.uid);
@@ -242,7 +262,7 @@ export const OnboardingGroupCreationScreen: React.FC<OnboardingGroupCreationScre
             style={styles.textInput}
             value={name}
             onChangeText={setName}
-            placeholder="e.g. 221B Baker St, Goa Trip..."
+            placeholder={getGroupPlaceholder(selectedType)}
             placeholderTextColor="rgba(255, 255, 255, 0.35)"
             maxLength={40}
             autoFocus

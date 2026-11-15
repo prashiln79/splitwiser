@@ -375,7 +375,7 @@ export const AuthSelectionScreen: React.FC<AuthSelectionScreenProps> = ({
                     <User size={18} color={colors.textMuted} style={styles.inputIcon} />
                     <TextInput
                       style={styles.textInput}
-                      placeholder="e.g. Alex Sharma"
+                      placeholder="e.g. Alex Morgan"
                       placeholderTextColor={colors.textMuted}
                       value={name}
                       onChangeText={setName}
@@ -391,7 +391,7 @@ export const AuthSelectionScreen: React.FC<AuthSelectionScreenProps> = ({
                   <Mail size={18} color={colors.textMuted} style={styles.inputIcon} />
                   <TextInput
                     style={styles.textInput}
-                    placeholder="name@example.com"
+                    placeholder="e.g. alex.morgan@example.com"
                     placeholderTextColor={colors.textMuted}
                     value={email}
                     onChangeText={setEmail}

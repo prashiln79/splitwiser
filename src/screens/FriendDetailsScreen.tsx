@@ -45,7 +45,7 @@ import { formatCurrency } from '../utils/currency';
 import { Expense, Settlement } from '../types';
 
 export const FriendDetailsScreen = ({ route, navigation }: any) => {
-  const { friendId, friendName: initialFriendName, friendshipId } = route.params;
+  const { friendId, friendName: initialFriendName, friendshipId, friendPhotoUrl } = route.params || {};
   const { user } = useAuth();
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
@@ -308,7 +308,7 @@ export const FriendDetailsScreen = ({ route, navigation }: any) => {
         >
           {/* Friend Profile & Balance Header Card */}
           <View style={[styles.profileCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <MemberAvatar name={friendName} size={64} />
+            <MemberAvatar name={friendName} imageUrl={friendPhotoUrl} size={64} />
             <Text style={[styles.profileName, { color: colors.textPrimary }]}>{friendName}</Text>
 
             {/* Contextual Balance Text & Amount */}
@@ -630,7 +630,7 @@ export const FriendDetailsScreen = ({ route, navigation }: any) => {
             <Text style={[styles.modalInputLabel, { color: colors.textPrimary, marginTop: 14 }]}>Note (Optional)</Text>
             <TextInput
               style={[styles.modalNoteInput, { backgroundColor: colors.inputBackground, borderColor: colors.border, color: colors.textPrimary }]}
-              placeholder="e.g. Paid via GPay / PhonePe"
+              placeholder="e.g. Paid via Bank Transfer, UPI, or Cash"
               placeholderTextColor={colors.textMuted}
               value={settleNote}
               onChangeText={setSettleNote}

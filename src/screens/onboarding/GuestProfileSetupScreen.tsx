@@ -177,7 +177,7 @@ export const GuestProfileSetupScreen: React.FC<GuestProfileSetupScreenProps> = (
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.textInput}
-              placeholder="e.g. Alex Sharma"
+              placeholder="e.g. Alex Morgan"
               placeholderTextColor={colors.textMuted}
               value={name}
               onChangeText={setName}

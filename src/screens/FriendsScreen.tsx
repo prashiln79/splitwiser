@@ -597,13 +597,14 @@ export const FriendsScreen = ({ navigation }: any) => {
                     friendId: item.userId,
                     friendName: item.userName,
                     friendshipId: item.friendshipId,
+                    friendPhotoUrl: item.userPhotoUrl,
                   });
                 }}
                 activeOpacity={0.7}
                 accessibilityRole="button"
                 accessibilityLabel={`${item.userName}. ${isSettled ? 'Settled up' : owesMe ? `Owes you ${formatCurrency(item.netBalance)}` : `You owe ${formatCurrency(Math.abs(item.netBalance))}`}`}
               >
-                <MemberAvatar name={item.userName} size={44} />
+                <MemberAvatar name={item.userName} imageUrl={item.userPhotoUrl} size={44} />
 
                 <View style={styles.friendInfo}>
                   <Text style={[styles.friendName, { color: colors.textPrimary }]} numberOfLines={1}>

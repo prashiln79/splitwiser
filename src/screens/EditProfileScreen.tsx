@@ -258,7 +258,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
               style={styles.activeTextInput}
               value={name}
               onChangeText={setName}
-              placeholder="Your full name"
+              placeholder="e.g. Alex Morgan"
               placeholderTextColor={colors.textMuted}
               maxLength={APP_LIMITS.USER.MAX_NAME_LENGTH}
               autoFocus
@@ -285,7 +285,7 @@ export const EditProfileScreen = ({ navigation }: any) => {
               style={styles.activeTextInput}
               value={email}
               onChangeText={setEmail}
-              placeholder="Your email address"
+              placeholder="e.g. alex.morgan@example.com"
               placeholderTextColor={colors.textMuted}
               keyboardType="email-address"
               autoCapitalize="none"

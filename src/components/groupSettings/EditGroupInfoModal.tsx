@@ -141,7 +141,7 @@ export const EditGroupInfoModal: React.FC<EditGroupInfoModalProps> = ({
                   setName(val);
                   if (error) setError('');
                 }}
-                placeholder="e.g. Goa Trip 2026, Apartment 4B"
+                placeholder="e.g. Apartment Flatmates, Weekend Trip, Office Project"
                 placeholderTextColor="#9CA3AF"
                 editable={isAdmin && !saving}
                 maxLength={50}
@@ -203,7 +203,7 @@ export const EditGroupInfoModal: React.FC<EditGroupInfoModalProps> = ({
                 style={[styles.textArea, !isAdmin && styles.disabledInput]}
                 value={description}
                 onChangeText={setDescription}
-                placeholder="Add shared notes, trip dates, or apartment rules..."
+                placeholder="Add shared notes, trip dates, or group guidelines..."
                 placeholderTextColor="#9CA3AF"
                 multiline
                 numberOfLines={3}

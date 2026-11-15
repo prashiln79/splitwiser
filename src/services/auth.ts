@@ -915,6 +915,17 @@ export async function syncGoogleProfileOnAuth(
         return updated;
       }
     }
+
+    // Always ensure the active profile photo is propagated across groups and local cache
+    const activePhoto =
+      profile.photoSource === 'custom' && profile.customPhotoUrl
+        ? profile.customPhotoUrl
+        : profile.googlePhotoUrl || profile.imageUrl || profile.photoURL || googlePhoto;
+
+    if (activePhoto) {
+      updateLocalMemberProfile(profile.uid, profile.name, activePhoto).catch(() => {});
+      updateUserAcrossGroups(profile.uid, profile.name, activePhoto).catch(() => {});
+    }
   }
 
   return profile;

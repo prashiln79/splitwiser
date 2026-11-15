@@ -19,7 +19,7 @@ const Tab = createBottomTabNavigator();
 
 // ── Custom Activity/Statistics Icon matching Splitwise reference ──────────────
 const StatisticsTabIcon = ({ color, focused }: { color: string; focused: boolean }) => (
-  <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+  <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
     <Rect
       x="3"
       y="3.5"
@@ -77,7 +77,7 @@ const AccountTabIcon = ({
         focused && styles.accountAvatarBoxFocused,
       ]}
     >
-      <Svg width={22} height={22} viewBox="0 0 24 24">
+      <Svg width={24} height={24} viewBox="0 0 24 24">
         <Defs>
           <ClipPath id="accClip">
             <Circle cx="12" cy="12" r="12" />
@@ -96,8 +96,8 @@ const MainNavigator = () => {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation(['groups', 'friends', 'charts', 'settings']);
 
-  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 10 : 8);
-  const tabHeight = 56 + bottomPadding;
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 10);
+  const tabHeight = 64 + bottomPadding;
 
   return (
     // @ts-ignore react-navigation v7 id prop
@@ -120,7 +120,7 @@ const MainNavigator = () => {
           borderTopWidth: StyleSheet.hairlineWidth,
           height: tabHeight,
           paddingBottom: bottomPadding,
-          paddingTop: 6,
+          paddingTop: 8,
           elevation: 8,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -1 },
@@ -130,6 +130,9 @@ const MainNavigator = () => {
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
+          marginTop: 4,
+        },
+        tabBarIconStyle: {
           marginTop: 2,
         },
       }}
@@ -149,7 +152,7 @@ const MainNavigator = () => {
           tabBarIcon: ({ color, focused }) => (
             <Users
               color={color}
-              size={22}
+              size={24}
               strokeWidth={focused ? 2.5 : 1.9}
             />
           ),
@@ -163,7 +166,7 @@ const MainNavigator = () => {
           tabBarIcon: ({ color, focused }) => (
             <User
               color={color}
-              size={22}
+              size={24}
               strokeWidth={focused ? 2.5 : 1.9}
             />
           ),
@@ -201,9 +204,9 @@ const MainNavigator = () => {
 
 const styles = StyleSheet.create({
   accountAvatarBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',

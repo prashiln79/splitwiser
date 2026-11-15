@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { joinGroup } from '../services/groups';
 import { useAuth } from '../context/AuthContext';
+import { resolveProfilePicture } from '../utils/profilePhotoHelper';
 import { AppHeader } from '../components/common/AppHeader';
 import { useAppTheme, ThemeColors } from '../theme';
 
@@ -36,7 +37,9 @@ const JoinGroupScreen = ({ navigation, route }: any) => {
 
     setIsJoining(true);
     try {
-      const group = await joinGroup(code, user.uid, user.name);
+      const userPhoto =
+        resolveProfilePicture(user).displayUrl || user.imageUrl || user.photoURL || user.googlePhotoUrl;
+      const group = await joinGroup(code, user.uid, user.name, userPhoto || undefined);
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       }

@@ -13,7 +13,7 @@ import {
 import { Check, X, ArrowRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { MemberAvatar } from './MemberAvatar';
-import { OptimizedSettlement } from '../../types';
+import { OptimizedSettlement, GroupMember } from '../../types';
 import { recordSettlementLocal } from '../../repositories/settlementRepository';
 import { formatCurrency } from '../../utils/currency';
 import { useAppTheme, ThemeColors } from '../../theme';
@@ -24,6 +24,7 @@ interface SettleUpModalProps {
   groupId: string;
   settlements: OptimizedSettlement[];
   currentUserId: string;
+  members?: GroupMember[];
   onSuccess?: () => void;
 }
 
@@ -33,6 +34,7 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
   groupId,
   settlements,
   currentUserId,
+  members,
   onSuccess,
 }) => {
   const { colors, isDark } = useAppTheme();
@@ -159,7 +161,11 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
                 <View style={styles.paymentCard}>
                   <View style={styles.avatarTransferRow}>
                     <View style={styles.avatarCol}>
-                      <MemberAvatar name={selectedSettlement.fromUserName} size={48} />
+                      <MemberAvatar
+                        name={selectedSettlement.fromUserName}
+                        imageUrl={members?.find((m) => m.userId === selectedSettlement.fromUserId)?.imageUrl}
+                        size={48}
+                      />
                       <Text style={styles.avatarName} numberOfLines={1}>
                         {fromName}
                       </Text>
@@ -170,7 +176,11 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
                     </View>
 
                     <View style={styles.avatarCol}>
-                      <MemberAvatar name={selectedSettlement.toUserName} size={48} />
+                      <MemberAvatar
+                        name={selectedSettlement.toUserName}
+                        imageUrl={members?.find((m) => m.userId === selectedSettlement.toUserId)?.imageUrl}
+                        size={48}
+                      />
                       <Text style={styles.avatarName} numberOfLines={1}>
                         {toName}
                       </Text>
@@ -188,7 +198,7 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
                   <View style={styles.noteContainer}>
                     <TextInput
                       style={styles.noteInput}
-                      placeholder="Add a payment note (e.g. Paid via UPI / Cash)"
+                      placeholder="Add a payment note (e.g. Paid via Bank Transfer, UPI, Cash)"
                       placeholderTextColor={colors.textMuted}
                       value={note}
                       onChangeText={setNote}

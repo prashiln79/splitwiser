@@ -214,7 +214,7 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
                 <Text style={styles.inputLabel}>Friend's Name *</Text>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="e.g. Rahul Sharma"
+                  placeholder="e.g. Alex Morgan"
                   placeholderTextColor={colors.textMuted}
                   value={name}
                   onChangeText={setName}
@@ -226,7 +226,7 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
                 </Text>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="e.g. rahul@example.com"
+                  placeholder="e.g. alex.morgan@example.com"
                   placeholderTextColor={colors.textMuted}
                   value={email}
                   onChangeText={setEmail}
@@ -284,7 +284,11 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
                       const isAdded = !!addedUserIds[item.uid];
                       return (
                         <View key={item.uid} style={styles.userRow}>
-                          <MemberAvatar name={item.name} size={38} />
+                          <MemberAvatar
+                            name={item.name}
+                            imageUrl={item.imageUrl || item.photoURL || item.googlePhotoUrl || item.customPhotoUrl}
+                            size={38}
+                          />
                           <View style={styles.userInfo}>
                             <Text style={styles.userName} numberOfLines={1}>{item.name}</Text>
                             {item.email ? (

@@ -148,7 +148,8 @@ export async function createGroupLocal(
   currency = 'INR',
   imageUrl?: string,
   icon?: string,
-  coverPhoto?: GroupCoverPhoto
+  coverPhoto?: GroupCoverPhoto,
+  creatorPhotoUrl?: string
 ): Promise<Group> {
   const database = await getDatabase();
   const id = Crypto.randomUUID();
@@ -193,9 +194,9 @@ export async function createGroupLocal(
 
   await database.runAsync(
     `INSERT INTO local_group_members (
-      group_id, user_id, user_name, role, joined_at
-    ) VALUES (?, ?, ?, 'admin', ?)`,
-    [id, creatorUid, creatorName, now]
+      group_id, user_id, user_name, role, joined_at, image_url
+    ) VALUES (?, ?, ?, 'admin', ?, ?)`,
+    [id, creatorUid, creatorName, now, creatorPhotoUrl ?? null]
   );
 
   await syncQueue.enqueue('group', id, 'CREATE_GROUP', {
