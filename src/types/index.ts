@@ -41,6 +41,7 @@ export interface GroupSettings {
 export interface GroupUserPreferences {
   hideUninvolvedExpenses: boolean;
   muted: boolean;
+  lastUsedCurrency?: string;
   notifications: {
     newExpenses: boolean;
     expenseUpdates: boolean;
@@ -160,6 +161,7 @@ export interface Settlement {
   fromUserName: string;
   toUserName: string;
   amount: number;
+  currency?: string;
   status: SettlementStatus;
   createdAt: Date;
   note?: string;
@@ -174,6 +176,30 @@ export interface OptimizedSettlement {
   fromUserName: string;
   toUserName: string;
   amount: number;
+  currency?: string;
+}
+
+// Currency Conversion record (explicit manual conversions in a group)
+export interface CurrencyConversionRecord {
+  id: string;
+  groupId: string;
+  createdBy: string;
+  sourceCurrency: string;
+  targetCurrency: string;
+  sourceAmountMinor: number;
+  targetAmountMinor: number;
+  exchangeRate: number;
+  rateTimestamp: number;
+  rateSource: 'live' | 'cached' | 'offline';
+  note?: string;
+  createdAt: Date;
+  syncStatus?: SyncStatus;
+  isDeleted?: boolean;
+}
+
+export interface CurrencyBalance {
+  currency: string;
+  balance: number; // positive = owed to me, negative = I owe
 }
 
 // ─── Friends / Balance ────────────────────────────────────────────────────────
@@ -216,6 +242,7 @@ export interface FriendTransactionItem {
   type: 'expense' | 'settlement';
   description: string;
   amount: number;
+  currency?: string;
   paidBy: string;
   payerName: string;
   date: Date;

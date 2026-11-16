@@ -12,6 +12,7 @@ import {
 import { db } from '../config/firebase';
 import { Settlement } from '../types';
 import { dispatchNotificationEvent } from './notificationService';
+import { normalizeCurrencyCode } from '../utils/currency';
 
 // ─── Path helpers ─────────────────────────────────────────────────────────────
 // /splitwiser/data/groups/{groupId}/settlements/{settlementId}
@@ -27,6 +28,7 @@ function mapSettlement(id: string, data: Record<string, any>): Settlement {
     fromUserName: data.fromUserName,
     toUserName: data.toUserName,
     amount: data.amount,
+    currency: data.currency ? normalizeCurrencyCode(data.currency) : 'INR',
     status: data.status ?? 'pending',
     createdAt: data.createdAt?.toDate() ?? new Date(),
     note: data.note,
@@ -40,8 +42,10 @@ export async function recordSettlement(
   fromUserName: string,
   toUserName: string,
   amount: number,
+  currency: string = 'INR',
   note?: string
 ): Promise<Settlement> {
+  const normCurrency = normalizeCurrencyCode(currency);
   const ref = await addDoc(settlementsCol(groupId), {
     groupId,
     fromUserId,
@@ -49,6 +53,7 @@ export async function recordSettlement(
     fromUserName,
     toUserName,
     amount,
+    currency: normCurrency,
     status: 'completed',
     createdAt: serverTimestamp(),
     note: note ?? null,
@@ -85,6 +90,7 @@ export async function recordSettlement(
     fromUserName,
     toUserName,
     amount,
+    currency: normCurrency,
     status: 'completed',
     createdAt: new Date(),
     note,

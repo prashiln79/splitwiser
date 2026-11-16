@@ -33,7 +33,8 @@ import { compressAvatarPhoto } from '../utils/imageCompressor';
 import { getDefaultCoverPhoto } from '../constants/presetCovers';
 import { GroupCoverPhoto } from '../types';
 import { APP_LIMITS } from '../constants/limits';
-import { getDefaultCurrency, normalizeCurrencyCode } from '../utils/currency';
+import { getDefaultCurrency, normalizeCurrencyCode, getCurrencySymbol, getCurrencyName } from '../utils/currency';
+import { CurrencySelectorModal } from '../components/groupSettings/CurrencySelectorModal';
 import { resolveProfilePicture } from '../utils/profilePhotoHelper';
 
 type GroupType = 'trip' | 'home' | 'couple' | 'other';
@@ -59,13 +60,6 @@ const getGroupPlaceholder = (type: GroupType): string => {
   }
 };
 
-const CURRENCIES = [
-  { code: 'INR', symbol: '₹', label: 'INR (₹)' },
-  { code: 'USD', symbol: '$', label: 'USD ($)' },
-  { code: 'EUR', symbol: '€', label: 'EUR (€)' },
-  { code: 'GBP', symbol: '£', label: 'GBP (£)' },
-];
-
 export const CreateGroupScreen = ({ navigation }: any) => {
   const { user } = useAuth();
   const { colors, isDark } = useAppTheme();
@@ -77,6 +71,7 @@ export const CreateGroupScreen = ({ navigation }: any) => {
   const [currency, setCurrency] = useState(
     user?.currency ? normalizeCurrencyCode(user.currency) : getDefaultCurrency() || 'INR'
   );
+  const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
   const [pickedImage, setPickedImage] = useState<{ uri: string; base64?: string | null } | null>(null);
   const [pickedCover, setPickedCover] = useState<GroupCoverPhoto | null>(null);
   const [coverModalVisible, setCoverModalVisible] = useState(false);
@@ -288,37 +283,55 @@ export const CreateGroupScreen = ({ navigation }: any) => {
 
           {/* Currency Selection */}
           <View style={styles.typeSection}>
-            <Text style={styles.typeSectionTitle}>Currency</Text>
-            <View style={styles.typeGrid}>
-              {CURRENCIES.map((cur) => {
-                const isSelected = currency === cur.code;
-                return (
-                  <TouchableOpacity
-                    key={cur.code}
-                    style={[
-                      styles.typeChip,
-                      isSelected && styles.typeChipSelected,
-                    ]}
-                    onPress={() => {
-                      if (Platform.OS !== 'web') {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                      }
-                      setCurrency(cur.code);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text
-                      style={[
-                        styles.typeChipText,
-                        isSelected && styles.typeChipTextSelected,
-                      ]}
-                    >
-                      {cur.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <Text style={styles.typeSectionTitle}>Group Currency</Text>
+            <TouchableOpacity
+              style={[
+                styles.typeChip,
+                {
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                },
+              ]}
+              onPress={() => {
+                if (Platform.OS !== 'web') {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                }
+                setCurrencyModalVisible(true);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 12,
+                  }}
+                >
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>
+                    {getCurrencySymbol(currency)}
+                  </Text>
+                </View>
+                <View>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textPrimary }}>
+                    {currency}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: colors.textMuted }}>
+                    {getCurrencyName(currency)}
+                  </Text>
+                </View>
+              </View>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>
+                Change
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Optional Cover Photo Selection */}
@@ -368,6 +381,17 @@ export const CreateGroupScreen = ({ navigation }: any) => {
         onClose={() => setCoverModalVisible(false)}
         onSuccess={(updatedCover) => {
           setPickedCover(updatedCover);
+        }}
+      />
+
+      <CurrencySelectorModal
+        visible={currencyModalVisible}
+        currentCurrency={currency}
+        title="Group Currency"
+        requireConfirmation={false}
+        onClose={() => setCurrencyModalVisible(false)}
+        onSelect={(newCode) => {
+          setCurrency(newCode);
         }}
       />
     </View>

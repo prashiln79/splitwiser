@@ -41,6 +41,7 @@ export interface GroupCoverHeaderProps {
   memberCount: number;
   expenseCount?: number;
   netBalance: number;
+  currencyBalances?: { currency: string; balance: number }[];
   settlements?: OptimizedSettlement[];
   currentUserId?: string;
   onShareCode?: () => void;
@@ -53,6 +54,7 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
   memberCount,
   expenseCount,
   netBalance,
+  currencyBalances,
   settlements = [],
   currentUserId = '',
   onShareCode,
@@ -114,36 +116,39 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
 
     if (myOwedSettlements.length === 1 && myOwingSettlements.length === 0) {
       const s = myOwedSettlements[0];
+      const cur = s.currency || group?.currency || 'INR';
       return {
         prefix: `${s.fromUserName} owes you `,
-        amount: formatCurrency(s.amount),
+        amount: formatCurrency(s.amount, cur),
         isPositive: true,
       };
     }
 
     if (myOwingSettlements.length === 1 && myOwedSettlements.length === 0) {
       const s = myOwingSettlements[0];
+      const cur = s.currency || group?.currency || 'INR';
       return {
         prefix: `You owe ${s.toUserName} `,
-        amount: formatCurrency(s.amount),
+        amount: formatCurrency(s.amount, cur),
         isPositive: false,
       };
     }
 
+    const defaultCur = group?.currency || 'INR';
     if (safeNet > 0.01) {
       return {
         prefix: 'You are owed ',
-        amount: `${formatCurrency(safeNet)} overall`,
+        amount: `${formatCurrency(safeNet, defaultCur)} overall`,
         isPositive: true,
       };
     }
 
     return {
       prefix: 'You owe ',
-      amount: `${formatCurrency(Math.abs(safeNet))} overall`,
+      amount: `${formatCurrency(Math.abs(safeNet), defaultCur)} overall`,
       isPositive: false,
     };
-  }, [netBalance, settlements, currentUserId]);
+  }, [netBalance, settlements, currentUserId, group?.currency]);
 
   const groupDisplayName = group?.name || initialGroupName || 'Group';
   const [headerHeight, setHeaderHeight] = useState<number>(0);
@@ -271,8 +276,76 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
           ) : null}
         </View>
 
-        {/* Current Balance Summary Sentence (hidden when no expenses exist) */}
-        {balanceSummary && (
+        {/* Current Balance Summary Sentence or Multi-Currency Pills */}
+        {currencyBalances && currencyBalances.length > 1 ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              gap: 8,
+              marginTop: 4,
+              marginBottom: 10,
+              paddingHorizontal: 16,
+            }}
+          >
+            {currencyBalances.map((cb) => {
+              const isPositive = cb.balance > 0.01;
+              const isNegative = cb.balance < -0.01;
+              return (
+                <View
+                  key={cb.currency}
+                  style={{
+                    backgroundColor: hasCover
+                      ? 'rgba(0, 0, 0, 0.45)'
+                      : isDark
+                      ? colors.surfaceSecondary
+                      : '#F3F4F6',
+                    paddingHorizontal: 10,
+                    paddingVertical: 5,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    borderWidth: StyleSheet.hairlineWidth,
+                    borderColor: hasCover ? 'rgba(255, 255, 255, 0.2)' : colors.border,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '700',
+                      color: hasCover ? '#FFFFFF' : colors.textPrimary,
+                      marginRight: 4,
+                    }}
+                  >
+                    {cb.currency}:
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: '700',
+                      color: isPositive
+                        ? hasCover
+                          ? '#34D399'
+                          : colors.income
+                        : isNegative
+                        ? hasCover
+                          ? '#F87171'
+                          : colors.expense
+                        : colors.textMuted,
+                    }}
+                  >
+                    {isPositive
+                      ? `+${formatCurrency(cb.balance, cb.currency)}`
+                      : isNegative
+                      ? `-${formatCurrency(Math.abs(cb.balance), cb.currency)}`
+                      : 'settled'}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        ) : balanceSummary ? (
           <View style={styles.balanceRow}>
             {balanceSummary.text ? (
               <Text
@@ -308,7 +381,7 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
               </Text>
             )}
           </View>
-        )}
+        ) : null}
       </View>
 
       {/* Optional Children (Inline Navigation Pill Tabs) */}

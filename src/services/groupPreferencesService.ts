@@ -3,6 +3,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { GroupUserPreferences, DEFAULT_GROUP_PREFERENCES } from '../types';
 import { networkMonitor } from '../sync/networkMonitor';
+import { normalizeCurrencyCode } from '../utils/currency';
 
 const getPrefStorageKey = (groupId: string, userId: string) =>
   `@splitwiser_group_pref_${groupId}_${userId}`;
@@ -83,4 +84,39 @@ export async function updateGroupUserPreferences(
   }
 
   return updated;
+}
+
+/**
+ * Retrieves the last-used currency for a specific user within a group.
+ * Follows the user-specific preference stored locally and in Firestore.
+ */
+export async function getLastUsedCurrency(
+  groupId: string,
+  userId: string
+): Promise<string | null> {
+  if (!groupId || !userId) return null;
+  try {
+    const prefs = await getGroupUserPreferences(groupId, userId);
+    return prefs.lastUsedCurrency ? normalizeCurrencyCode(prefs.lastUsedCurrency) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Saves the last-used currency for a specific user within a group.
+ * This is user-specific and does NOT alter the group's default currency or other members' preferences.
+ */
+export async function setLastUsedCurrency(
+  groupId: string,
+  userId: string,
+  currency: string
+): Promise<void> {
+  if (!groupId || !userId || !currency) return;
+  try {
+    const norm = normalizeCurrencyCode(currency);
+    await updateGroupUserPreferences(groupId, userId, { lastUsedCurrency: norm });
+  } catch (err) {
+    console.warn('[setLastUsedCurrency] error:', err);
+  }
 }

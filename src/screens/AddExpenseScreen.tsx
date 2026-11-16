@@ -61,6 +61,8 @@ import {
   SplitConfigurationModal,
   SplitConfigurationData,
 } from '../components/expense/SplitConfigurationModal';
+import { CurrencySelectorModal } from '../components/groupSettings/CurrencySelectorModal';
+import { getLastUsedCurrency, setLastUsedCurrency } from '../services/groupPreferencesService';
 import {
   toCents,
   fromCents,
@@ -71,13 +73,6 @@ import {
   calculateAdjustmentSplits,
   calculateItemizedSplits,
 } from '../utils/splitMath';
-
-const CURRENCIES = [
-  { code: 'INR', symbol: '₹', label: 'INR (₹)' },
-  { code: 'USD', symbol: '$', label: 'USD ($)' },
-  { code: 'EUR', symbol: '€', label: 'EUR (€)' },
-  { code: 'GBP', symbol: '£', label: 'GBP (£)' },
-];
 
 export const AddExpenseScreen = ({ route, navigation }: any) => {
   const { groupId: passedGroupId, friendId, friendName, expenseToEdit } = route.params || {};
@@ -305,11 +300,32 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
     }
 
     if (groupId) {
+      if (!expenseToEdit && user?.uid) {
+        getLastUsedCurrency(groupId, user.uid).then((lastUsed) => {
+          if (lastUsed) {
+            setCurrency(normalizeCurrencyCode(lastUsed));
+          }
+        }).catch(() => {});
+      }
+
       getLocalGroupById(groupId).then((g) => {
         if (g) {
           setGroup(g);
           if (!expenseToEdit && g.currency) {
-            setCurrency(normalizeCurrencyCode(g.currency));
+            // Only fall back to group currency if user has no last-used currency preference
+            if (user?.uid) {
+              getLastUsedCurrency(groupId, user.uid).then((lastUsed) => {
+                if (lastUsed) {
+                  setCurrency(normalizeCurrencyCode(lastUsed));
+                } else {
+                  setCurrency(normalizeCurrencyCode(g.currency));
+                }
+              }).catch(() => {
+                setCurrency(normalizeCurrencyCode(g.currency));
+              });
+            } else {
+              setCurrency(normalizeCurrencyCode(g.currency));
+            }
           }
         }
       });
@@ -325,7 +341,19 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         if (g) {
           setGroup(g);
           if (!expenseToEdit && g.currency) {
-            setCurrency(normalizeCurrencyCode(g.currency));
+            if (user?.uid) {
+              getLastUsedCurrency(groupId, user.uid).then((lastUsed) => {
+                if (lastUsed) {
+                  setCurrency(normalizeCurrencyCode(lastUsed));
+                } else {
+                  setCurrency(normalizeCurrencyCode(g.currency));
+                }
+              }).catch(() => {
+                setCurrency(normalizeCurrencyCode(g.currency));
+              });
+            } else {
+              setCurrency(normalizeCurrencyCode(g.currency));
+            }
           }
         }
       }).catch(() => {});
@@ -651,6 +679,11 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         });
       }
 
+      // Remember last-used currency for this group for the current user
+      if (groupId && user?.uid) {
+        setLastUsedCurrency(groupId, user.uid, currencyCode).catch(() => {});
+      }
+
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       }
@@ -869,6 +902,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
               accessibilityRole="button"
             >
               <Text style={styles.currencyBoxText}>{currencySymbol}</Text>
+              <Text style={styles.currencyBoxCode}>{currencyCode} ▼</Text>
             </TouchableOpacity>
 
             <View style={styles.amountInputWrapper}>
@@ -1537,53 +1571,16 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
       />
 
       {/* ── Contextual Modal 4: Currency Picker ────────────────────────────── */}
-      <Modal
+      <CurrencySelectorModal
         visible={currencyModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCurrencyModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setCurrencyModalVisible(false)}
-        >
-          <View style={styles.selectionDialog}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Select currency</Text>
-              <TouchableOpacity
-                onPress={() => setCurrencyModalVisible(false)}
-                style={styles.modalCloseBtn}
-              >
-                <X size={20} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-
-            {CURRENCIES.map((c) => {
-              const isSelected = currencyCode === c.code;
-              return (
-                <TouchableOpacity
-                  key={c.code}
-                  style={[
-                    styles.selectionOptionRow,
-                    isSelected && styles.selectionOptionRowSelected,
-                  ]}
-                  onPress={() => {
-                    setCurrency(c.code);
-                    setCurrencyModalVisible(false);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.selectionOptionText}>{c.label}</Text>
-                  {isSelected && (
-                    <Check size={20} color="#059669" strokeWidth={2.5} />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </TouchableOpacity>
-      </Modal>
+        currentCurrency={currencyCode}
+        title="Expense Currency"
+        requireConfirmation={false}
+        onClose={() => setCurrencyModalVisible(false)}
+        onSelect={(newCode) => {
+          setCurrency(newCode);
+        }}
+      />
 
       {/* ── Contextual Modal 5: Date Picker ────────────────────────────────── */}
       <Modal
@@ -1908,20 +1905,27 @@ const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create
     paddingVertical: 4,
   },
   currencyBox: {
-    width: 48,
-    height: 44,
+    minWidth: 54,
+    height: 46,
+    paddingHorizontal: 6,
     borderRadius: 8,
     borderWidth: 1.5,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: isDark ? colors.surfaceSecondary : colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
   },
   currencyBoxText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: colors.primary,
+  },
+  currencyBoxCode: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textMuted,
+    marginTop: -1,
   },
   amountInputWrapper: {
     flex: 1,

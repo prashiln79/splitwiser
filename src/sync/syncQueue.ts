@@ -4,12 +4,14 @@ import { db } from '../config/firebase';
 import { getDatabase } from '../db/sqlite';
 import { networkMonitor } from './networkMonitor';
 import { dispatchNotificationEvent } from '../services/notificationService';
+import { formatCurrency } from '../utils/currency';
 
 export type QueueOperation = 
   | 'CREATE_EXPENSE'
   | 'UPDATE_EXPENSE'
   | 'DELETE_EXPENSE'
   | 'RECORD_SETTLEMENT'
+  | 'RECORD_CONVERSION'
   | 'CREATE_GROUP'
   | 'DELETE_GROUP'
   | 'LEAVE_GROUP'
@@ -69,7 +71,7 @@ class SyncQueue {
    * Enqueues an operation into the durable SQLite queue.
    */
   public async enqueue(
-    entityType: 'expense' | 'settlement' | 'group' | 'friendship' | 'user',
+    entityType: 'expense' | 'settlement' | 'group' | 'friendship' | 'user' | 'conversion',
     entityId: string,
     operation: QueueOperation,
     payload: Record<string, any>
@@ -263,7 +265,8 @@ class SyncQueue {
       }
 
       case 'RECORD_SETTLEMENT': {
-        const { id, groupId, fromUserId, toUserId, fromUserName, toUserName, amount, status, note, createdAt } = payload;
+        const { id, groupId, fromUserId, toUserId, fromUserName, toUserName, amount, currency, status, note, createdAt } = payload;
+        const settlementCurrency = currency || 'INR';
         const ref = doc(db, 'splitwiser', 'data', 'groups', groupId, 'settlements', id);
         await setDoc(ref, {
           groupId,
@@ -272,6 +275,7 @@ class SyncQueue {
           fromUserName,
           toUserName,
           amount,
+          currency: settlementCurrency,
           status: status || 'completed',
           note: note || null,
           createdAt: createdAt ? Timestamp.fromMillis(createdAt) : serverTimestamp(),
@@ -291,13 +295,45 @@ class SyncQueue {
               params: {
                 actorName: fromUserName,
                 amount: String(amount),
-                amountFormatted: '₹' + (Number(amount) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 }),
-                currency: 'INR',
+                amountFormatted: formatCurrency(Number(amount) || 0, settlementCurrency),
+                currency: settlementCurrency,
               },
               dedupeKey: `settlement_created_${id}`,
             }).catch(() => {});
           }
         } catch {}
+        break;
+      }
+
+      case 'RECORD_CONVERSION': {
+        const {
+          id,
+          groupId,
+          createdBy,
+          sourceCurrency,
+          targetCurrency,
+          sourceAmountMinor,
+          targetAmountMinor,
+          exchangeRate,
+          rateTimestamp: rTimestamp,
+          rateSource,
+          note,
+          createdAt,
+        } = payload;
+        const ref = doc(db, 'splitwiser', 'data', 'groups', groupId, 'conversions', id);
+        await setDoc(ref, {
+          groupId,
+          createdBy,
+          sourceCurrency,
+          targetCurrency,
+          sourceAmountMinor,
+          targetAmountMinor,
+          exchangeRate,
+          rateTimestamp: rTimestamp,
+          rateSource,
+          note: note || null,
+          createdAt: createdAt ? Timestamp.fromMillis(createdAt) : serverTimestamp(),
+        });
         break;
       }
 

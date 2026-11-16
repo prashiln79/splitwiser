@@ -3,7 +3,7 @@ import { getDatabase } from '../db/sqlite';
 import { Settlement, SettlementStatus, SyncStatus } from '../types';
 import { syncQueue } from '../sync/syncQueue';
 import { dispatchNotificationEvent } from '../services/notificationService';
-import { formatCurrency } from '../utils/currency';
+import { formatCurrency, normalizeCurrencyCode } from '../utils/currency';
 
 export interface LocalSettlementRow {
   id: string;
@@ -13,6 +13,7 @@ export interface LocalSettlementRow {
   from_user_name: string;
   to_user_name: string;
   amount: number;
+  currency?: string | null;
   status: SettlementStatus;
   note: string | null;
   created_at: number;
@@ -29,6 +30,7 @@ function rowToSettlement(row: LocalSettlementRow): Settlement {
     fromUserName: row.from_user_name,
     toUserName: row.to_user_name,
     amount: row.amount,
+    currency: row.currency ? normalizeCurrencyCode(row.currency) : 'INR',
     status: row.status,
     note: row.note ?? undefined,
     createdAt: new Date(row.created_at),
@@ -48,11 +50,13 @@ export async function recordSettlementLocal(
   fromUserName: string,
   toUserName: string,
   amount: number,
+  currency: string = 'INR',
   note?: string
 ): Promise<Settlement> {
   const database = await getDatabase();
   const id = Crypto.randomUUID();
   const now = Date.now();
+  const normCurrency = normalizeCurrencyCode(currency);
 
   const settlement: Settlement = {
     id,
@@ -62,6 +66,7 @@ export async function recordSettlementLocal(
     fromUserName,
     toUserName,
     amount,
+    currency: normCurrency,
     status: 'completed',
     createdAt: new Date(now),
     note,
@@ -71,8 +76,8 @@ export async function recordSettlementLocal(
 
   await database.runAsync(
     `INSERT INTO local_settlements (
-      id, group_id, from_user_id, to_user_id, from_user_name, to_user_name, amount, status, note, created_at, sync_status, is_deleted
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?, 'pending', 0)`,
+      id, group_id, from_user_id, to_user_id, from_user_name, to_user_name, amount, currency, status, note, created_at, sync_status, is_deleted
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?, 'pending', 0)`,
     [
       id,
       groupId,
@@ -81,6 +86,7 @@ export async function recordSettlementLocal(
       fromUserName,
       toUserName,
       amount,
+      normCurrency,
       note ?? null,
       now,
     ]
@@ -94,6 +100,7 @@ export async function recordSettlementLocal(
     fromUserName,
     toUserName,
     amount,
+    currency: normCurrency,
     status: 'completed',
     note: note ?? null,
     createdAt: now,
@@ -102,17 +109,8 @@ export async function recordSettlementLocal(
   // Dispatch in-app notification to payee
   try {
     if (toUserId && toUserId !== fromUserId) {
-      let groupCurrency = 'INR';
-      try {
-        const groupRow = await database.getFirstAsync<{ currency: string }>(
-          `SELECT currency FROM local_groups WHERE id = ?`,
-          [groupId]
-        );
-        if (groupRow?.currency) groupCurrency = groupRow.currency;
-      } catch {}
-
       const numAmount = Number(amount) || 0;
-      const formattedAmount = formatCurrency(numAmount, groupCurrency);
+      const formattedAmount = formatCurrency(numAmount, normCurrency);
 
       dispatchNotificationEvent({
         type: 'settlement_created',
@@ -127,7 +125,7 @@ export async function recordSettlementLocal(
           actorName: fromUserName,
           amount: String(amount),
           amountFormatted: formattedAmount,
-          currency: groupCurrency,
+          currency: normCurrency,
         },
         dedupeKey: `settlement_created_${id}`,
       }).catch((err) => console.warn('[recordSettlementLocal] Notification failed:', err?.message));
@@ -178,13 +176,15 @@ export async function upsertRemoteSettlements(
     }
 
     const createdAtMs = remote.createdAt.getTime();
+    const remoteCurrency = remote.currency ? normalizeCurrencyCode(remote.currency) : 'INR';
 
     await database.runAsync(
       `INSERT INTO local_settlements (
-        id, group_id, from_user_id, to_user_id, from_user_name, to_user_name, amount, status, note, created_at, sync_status, is_deleted
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', 0)
+        id, group_id, from_user_id, to_user_id, from_user_name, to_user_name, amount, currency, status, note, created_at, sync_status, is_deleted
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', 0)
       ON CONFLICT(id) DO UPDATE SET
         amount = excluded.amount,
+        currency = excluded.currency,
         status = excluded.status,
         note = excluded.note,
         sync_status = 'synced',
@@ -198,6 +198,7 @@ export async function upsertRemoteSettlements(
         remote.fromUserName,
         remote.toUserName,
         remote.amount,
+        remoteCurrency,
         remote.status,
         remote.note ?? null,
         createdAtMs,
@@ -205,4 +206,3 @@ export async function upsertRemoteSettlements(
     );
   }
 }
-

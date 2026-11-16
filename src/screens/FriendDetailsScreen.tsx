@@ -526,7 +526,7 @@ export const FriendDetailsScreen = ({ route, navigation }: any) => {
                           {tx.description}
                         </Text>
                         <Text style={[styles.transactionSub, { color: colors.textMuted }]}>
-                          {tx.payerName} paid {formatCurrency(tx.amount)}
+                          {tx.payerName} paid {formatCurrency(tx.amount, tx.currency)}
                           {tx.groupName ? ` · ${tx.groupName}` : ' · Direct'}
                         </Text>
                       </View>
@@ -543,7 +543,7 @@ export const FriendDetailsScreen = ({ route, navigation }: any) => {
                           ]}
                         >
                           {isPositive ? '+' : isNegative ? '-' : ''}
-                          {formatCurrency(Math.abs(tx.balanceImpact))}
+                          {formatCurrency(Math.abs(tx.balanceImpact), tx.currency)}
                         </Text>
                         <Text style={[styles.transactionImpactLabel, { color: colors.textMuted }]}>
                           {isPositive ? 'you are owed' : isNegative ? 'you owe' : 'settled'}

@@ -33,6 +33,7 @@ import {
   Vibrate,
   VibrateOff,
   Globe,
+  Coins,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -51,6 +52,8 @@ import { useAppTheme, ThemeColors } from '../theme';
 import { useNotifications } from '../context/NotificationContext';
 import { useSecurity } from '../context/SecurityContext';
 import { SecuritySettingsModal } from '../components/security/SecuritySettingsModal';
+import { CurrencySelectorModal } from '../components/groupSettings/CurrencySelectorModal';
+import { getCurrencySymbol, getCurrencyName } from '../utils/currency';
 import { submitSupportTicket } from '../services/support';
 import { hapticsService } from '../services/hapticsService';
 
@@ -79,6 +82,7 @@ export const AccountScreen = ({ navigation }: any) => {
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
 
   // Preferences Modals
+  const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
   const [emailSettingsVisible, setEmailSettingsVisible] = useState(false);
   const [notificationSettingsVisible, setNotificationSettingsVisible] = useState(false);
   const [securitySettingsVisible, setSecuritySettingsVisible] = useState(false);
@@ -102,6 +106,21 @@ export const AccountScreen = ({ navigation }: any) => {
     const unsub = hapticsService.subscribe(setHapticsEnabled);
     return unsub;
   }, []);
+
+  const handleSelectDefaultCurrency = async (newCode: string) => {
+    try {
+      await updateProfile({ currency: newCode });
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
+      Alert.alert(
+        'Default Currency Updated',
+        `Your account default currency is now set to ${newCode} (${getCurrencyName(newCode)}).\n\nChanging your default currency does not modify historical expenses, existing payments, or group balances.`
+      );
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to update currency preference.');
+    }
+  };
 
   const handleToggleHaptics = (val: boolean) => {
     setHapticsEnabled(val);
@@ -393,6 +412,24 @@ export const AccountScreen = ({ navigation }: any) => {
               </View>
             </TouchableOpacity>
 
+            {/* Default Currency */}
+            <TouchableOpacity
+              style={styles.settingItemRow}
+              onPress={() => setCurrencyModalVisible(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingItemLeft}>
+                <Coins size={19} color={colors.textPrimary} strokeWidth={2} style={styles.rowIcon} />
+                <Text style={styles.settingItemTitle}>Default Currency</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 14, color: colors.textMuted, marginRight: 6 }}>
+                  {getCurrencySymbol(user?.currency || 'INR')} {user?.currency || 'INR'}
+                </Text>
+                <ChevronRight size={18} color={colors.textMuted} />
+              </View>
+            </TouchableOpacity>
+
             {/* Language */}
             <TouchableOpacity
               style={[styles.settingItemRow, { borderBottomWidth: 0 }]}
@@ -470,6 +507,16 @@ export const AccountScreen = ({ navigation }: any) => {
       <QrCodeModal
         visible={qrModalVisible}
         onClose={() => setQrModalVisible(false)}
+      />
+
+      {/* ── Default Currency Modal ────────────────────────────────────────── */}
+      <CurrencySelectorModal
+        visible={currencyModalVisible}
+        currentCurrency={user?.currency || 'INR'}
+        title="Default Currency"
+        requireConfirmation={false}
+        onClose={() => setCurrencyModalVisible(false)}
+        onSelect={handleSelectDefaultCurrency}
       />
 
       {/* ── Language Modal ─────────────────────────────────────────────────── */}

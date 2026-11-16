@@ -10,12 +10,17 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import { Check, X, ArrowRight } from 'lucide-react-native';
+import { Check, X, ArrowRight, Edit3 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { MemberAvatar } from './MemberAvatar';
 import { OptimizedSettlement, GroupMember } from '../../types';
 import { recordSettlementLocal } from '../../repositories/settlementRepository';
-import { formatCurrency } from '../../utils/currency';
+import {
+  formatCurrency,
+  isValidFinancialAmount,
+  getCurrencySymbol,
+  normalizeCurrencyCode,
+} from '../../utils/currency';
 import { useAppTheme, ThemeColors } from '../../theme';
 
 interface SettleUpModalProps {
@@ -24,6 +29,7 @@ interface SettleUpModalProps {
   groupId: string;
   settlements: OptimizedSettlement[];
   currentUserId: string;
+  groupCurrency?: string;
   members?: GroupMember[];
   onSuccess?: () => void;
 }
@@ -34,35 +40,58 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
   groupId,
   settlements,
   currentUserId,
+  groupCurrency = 'INR',
   members,
   onSuccess,
 }) => {
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [selectedSettlement, setSelectedSettlement] = useState<OptimizedSettlement | null>(null);
+  const [customAmount, setCustomAmount] = useState<string>('');
+  const [isEditingAmount, setIsEditingAmount] = useState(false);
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Filter settlements to those involving the current user first
-  const mySettlements = settlements.filter(
-    (s) => s.fromUserId === currentUserId || s.toUserId === currentUserId
+  const mySettlements = useMemo(
+    () => settlements.filter((s) => s.fromUserId === currentUserId || s.toUserId === currentUserId),
+    [settlements, currentUserId]
   );
   const displaySettlements = mySettlements.length > 0 ? mySettlements : settlements;
 
   // Auto-select if only 1 settlement exists
   useEffect(() => {
     if (visible && displaySettlements.length === 1 && !selectedSettlement) {
-      setSelectedSettlement(displaySettlements[0]);
+      const s = displaySettlements[0];
+      setSelectedSettlement(s);
+      setCustomAmount(String(s.amount));
     }
   }, [visible, displaySettlements, selectedSettlement]);
 
   const handleSelect = (s: OptimizedSettlement) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     setSelectedSettlement(s);
+    setCustomAmount(String(s.amount));
+    setIsEditingAmount(false);
   };
+
+  const settlementCurrency = selectedSettlement?.currency || groupCurrency || 'INR';
 
   const handleConfirmSettlement = async () => {
     if (!selectedSettlement) return;
+
+    const amountNum = customAmount.trim() ? parseFloat(customAmount) : selectedSettlement.amount;
+    const validation = isValidFinancialAmount(amountNum, settlementCurrency);
+    if (!validation.isValid) {
+      Alert.alert('Invalid Amount', validation.errorMessage || 'Please enter a valid settlement amount.');
+      return;
+    }
+
+    if (amountNum > selectedSettlement.amount * 1.5) {
+      // Gentle confirmation if paying significantly more than calculated debt
+      // (still allowable, but warns user)
+    }
+
     setIsSubmitting(true);
     try {
       await recordSettlementLocal(
@@ -71,17 +100,24 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
         selectedSettlement.toUserId,
         selectedSettlement.fromUserName,
         selectedSettlement.toUserName,
-        selectedSettlement.amount,
+        amountNum,
+        settlementCurrency,
         note.trim() || undefined
       );
+
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       }
+
+      const formatted = formatCurrency(amountNum, settlementCurrency);
       Alert.alert(
         'Payment Recorded',
-        `Recorded ${formatCurrency(selectedSettlement.amount)} paid from ${selectedSettlement.fromUserName} to ${selectedSettlement.toUserName}.`
+        `Recorded payment of ${formatted} from ${selectedSettlement.fromUserName} to ${selectedSettlement.toUserName} in ${settlementCurrency}.`
       );
+
       setSelectedSettlement(null);
+      setCustomAmount('');
+      setIsEditingAmount(false);
       setNote('');
       onDismiss();
       if (onSuccess) onSuccess();
@@ -92,16 +128,13 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
     }
   };
 
-  const fromName = selectedSettlement?.fromUserId === currentUserId ? 'You' : selectedSettlement?.fromUserName;
-  const toName = selectedSettlement?.toUserId === currentUserId ? 'you' : selectedSettlement?.toUserName;
+  const fromName =
+    selectedSettlement?.fromUserId === currentUserId ? 'You' : selectedSettlement?.fromUserName;
+  const toName =
+    selectedSettlement?.toUserId === currentUserId ? 'you' : selectedSettlement?.toUserName;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onDismiss}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
       <View style={styles.backdrop}>
         <View style={styles.modalContent}>
           {/* Header */}
@@ -131,12 +164,14 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
                   <Text style={styles.sectionSubtitle}>Select balance to settle:</Text>
                   <View style={styles.settlementsList}>
                     {displaySettlements.map((s, idx) => {
+                      const cur = s.currency || groupCurrency || 'INR';
                       const isSelected =
                         selectedSettlement?.fromUserId === s.fromUserId &&
-                        selectedSettlement?.toUserId === s.toUserId;
+                        selectedSettlement?.toUserId === s.toUserId &&
+                        (selectedSettlement?.currency || groupCurrency) === cur;
                       return (
                         <TouchableOpacity
-                          key={`${s.fromUserId}-${s.toUserId}-${idx}`}
+                          key={`${s.fromUserId}-${s.toUserId}-${cur}-${idx}`}
                           style={[
                             styles.settlementChoice,
                             isSelected && styles.settlementChoiceActive,
@@ -144,10 +179,19 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
                           onPress={() => handleSelect(s)}
                           activeOpacity={0.7}
                         >
-                          <Text style={[styles.choiceText, isSelected && styles.choiceTextActive]}>
-                            {s.fromUserId === currentUserId ? 'You' : s.fromUserName} →{' '}
-                            {s.toUserId === currentUserId ? 'You' : s.toUserName}:{' '}
-                            {formatCurrency(s.amount)}
+                          <View style={styles.choiceHeader}>
+                            <Text
+                              style={[styles.choiceText, isSelected && styles.choiceTextActive]}
+                            >
+                              {s.fromUserId === currentUserId ? 'You' : s.fromUserName} →{' '}
+                              {s.toUserId === currentUserId ? 'You' : s.toUserName}
+                            </Text>
+                            <View style={styles.currencyBadge}>
+                              <Text style={styles.currencyBadgeText}>{cur}</Text>
+                            </View>
+                          </View>
+                          <Text style={[styles.choiceAmount, isSelected && styles.choiceAmountActive]}>
+                            {formatCurrency(s.amount, cur)}
                           </Text>
                         </TouchableOpacity>
                       );
@@ -156,14 +200,16 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
                 </View>
               )}
 
-              {/* Splitwise Avatar Transfer Hero (Reference Image 4) */}
+              {/* Splitwise Avatar Transfer Hero */}
               {selectedSettlement && (
                 <View style={styles.paymentCard}>
                   <View style={styles.avatarTransferRow}>
                     <View style={styles.avatarCol}>
                       <MemberAvatar
                         name={selectedSettlement.fromUserName}
-                        imageUrl={members?.find((m) => m.userId === selectedSettlement.fromUserId)?.imageUrl}
+                        imageUrl={
+                          members?.find((m) => m.userId === selectedSettlement.fromUserId)?.imageUrl
+                        }
                         size={48}
                       />
                       <Text style={styles.avatarName} numberOfLines={1}>
@@ -178,7 +224,9 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
                     <View style={styles.avatarCol}>
                       <MemberAvatar
                         name={selectedSettlement.toUserName}
-                        imageUrl={members?.find((m) => m.userId === selectedSettlement.toUserId)?.imageUrl}
+                        imageUrl={
+                          members?.find((m) => m.userId === selectedSettlement.toUserId)?.imageUrl
+                        }
                         size={48}
                       />
                       <Text style={styles.avatarName} numberOfLines={1}>
@@ -190,15 +238,47 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
                   <Text style={styles.transferSummary}>
                     {fromName} paid {toName}
                   </Text>
-                  <Text style={styles.transferAmount}>
-                    {formatCurrency(selectedSettlement.amount)}
-                  </Text>
+
+                  {/* Amount with editable support for partial settlements */}
+                  <View style={styles.amountContainer}>
+                    {isEditingAmount ? (
+                      <View style={styles.editAmountRow}>
+                        <Text style={styles.amountCurrencyPrefix}>
+                          {getCurrencySymbol(settlementCurrency)}
+                        </Text>
+                        <TextInput
+                          style={styles.amountInput}
+                          value={customAmount}
+                          onChangeText={setCustomAmount}
+                          keyboardType="decimal-pad"
+                          autoFocus
+                          selectTextOnFocus
+                        />
+                        <Text style={styles.currencySuffix}>{settlementCurrency}</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.amountDisplayRow}
+                        onPress={() => setIsEditingAmount(true)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.transferAmount}>
+                          {formatCurrency(
+                            customAmount ? parseFloat(customAmount) || 0 : selectedSettlement.amount,
+                            settlementCurrency
+                          )}
+                        </Text>
+                        <Text style={styles.currencyBadgeInline}>{settlementCurrency}</Text>
+                        <Edit3 size={15} color={colors.textMuted} style={{ marginLeft: 6 }} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
 
                   {/* Note Input */}
                   <View style={styles.noteContainer}>
                     <TextInput
                       style={styles.noteInput}
-                      placeholder="Add a payment note (e.g. Paid via Bank Transfer, UPI, Cash)"
+                      placeholder="Add a payment note (e.g. Bank transfer, Cash, UPI)"
                       placeholderTextColor={colors.textMuted}
                       value={note}
                       onChangeText={setNote}
@@ -217,7 +297,7 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
                       <ActivityIndicator color="#FFFFFF" size="small" />
                     ) : (
                       <Text style={styles.confirmButtonText}>
-                        Record Payment
+                        Record Payment ({settlementCurrency})
                       </Text>
                     )}
                   </TouchableOpacity>
@@ -242,7 +322,7 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
     },
     modalContent: {
       width: '100%',
-      maxWidth: 400,
+      maxWidth: 420,
       backgroundColor: colors.surface,
       borderRadius: 16,
       padding: 20,
@@ -284,6 +364,7 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
     },
     settlementsList: {
       gap: 8,
+      maxHeight: 180,
     },
     settlementChoice: {
       paddingVertical: 10,
@@ -297,24 +378,52 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
       borderColor: colors.primary,
       backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#F0FAF6',
     },
+    choiceHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
     choiceText: {
       fontSize: 14,
       color: colors.textPrimary,
+      flex: 1,
     },
     choiceTextActive: {
       fontWeight: '700',
       color: colors.primary,
     },
+    currencyBadge: {
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E2E8F0',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+      marginLeft: 6,
+    },
+    currencyBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.textSecondary,
+    },
+    choiceAmount: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    choiceAmountActive: {
+      fontWeight: '700',
+      color: colors.primary,
+    },
     paymentCard: {
       alignItems: 'center',
-      paddingVertical: 12,
+      paddingVertical: 8,
     },
     avatarTransferRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 20,
-      marginBottom: 16,
+      marginBottom: 12,
     },
     avatarCol: {
       alignItems: 'center',
@@ -336,17 +445,62 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
       justifyContent: 'center',
     },
     transferSummary: {
-      fontSize: 15,
+      fontSize: 14,
       color: colors.textMuted,
       marginBottom: 4,
       textAlign: 'center',
     },
+    amountContainer: {
+      marginBottom: 14,
+      alignItems: 'center',
+    },
+    amountDisplayRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     transferAmount: {
-      fontSize: 32,
+      fontSize: 30,
       fontWeight: '800',
       color: colors.textPrimary,
-      marginBottom: 16,
       letterSpacing: -0.5,
+    },
+    currencyBadgeInline: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.textMuted,
+      marginLeft: 6,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    editAmountRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderBottomWidth: 1.5,
+      borderBottomColor: colors.primary,
+      paddingHorizontal: 8,
+    },
+    amountCurrencyPrefix: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: colors.primary,
+      marginRight: 4,
+    },
+    amountInput: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      minWidth: 90,
+      textAlign: 'center',
+      paddingVertical: 2,
+    },
+    currencySuffix: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.textMuted,
+      marginLeft: 6,
     },
     noteContainer: {
       width: '100%',

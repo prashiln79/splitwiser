@@ -1,35 +1,14 @@
 import { APP_LIMITS } from '../constants/limits';
+import {
+  SUPPORTED_CURRENCIES,
+  CURRENCY_MAP,
+  getCurrencyInfo,
+  CurrencyInfo,
+} from './currencyData';
+
+export { SUPPORTED_CURRENCIES, CURRENCY_MAP, getCurrencyInfo, CurrencyInfo };
 
 const DEFAULT_CURRENCY = '₹';
-
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  INR: '₹',
-  USD: '$',
-  EUR: '€',
-  GBP: '£',
-  AUD: 'A$',
-  CAD: 'C$',
-  SGD: 'S$',
-  JPY: '¥',
-  KRW: '₩',
-  AED: 'AED ',
-  SAR: 'SAR ',
-  CHF: 'CHF ',
-  CNY: '¥',
-  BRL: 'R$',
-  MXN: 'Mex$',
-};
-
-const CURRENCY_DECIMALS: Record<string, number> = {
-  JPY: 0,
-  KRW: 0,
-  VND: 0,
-  CLP: 0,
-  KWD: 3,
-  BHD: 3,
-  OMR: 3,
-  JOD: 3,
-};
 
 let globalDefaultCurrency = 'INR';
 
@@ -67,16 +46,42 @@ export function normalizeCurrencyCode(currency?: string | null): string {
  */
 export function getCurrencySymbol(currency?: string): string {
   const code = normalizeCurrencyCode(currency || globalDefaultCurrency);
-  return CURRENCY_SYMBOLS[code] ?? code;
+  return getCurrencyInfo(code).symbol;
+}
+
+/**
+ * Returns the English name for a currency.
+ */
+export function getCurrencyName(currency?: string): string {
+  const code = normalizeCurrencyCode(currency || globalDefaultCurrency);
+  return getCurrencyInfo(code).name;
 }
 
 /**
  * Returns the number of minor-unit decimal places for a currency.
- * Most currencies use 2 (cents/paise), while JPY/KRW use 0, and KWD/BHD use 3.
+ * Most currencies use 2 (cents/paise), while JPY/KRW/VND/IDR/CLP use 0, and KWD/BHD/OMR/JOD use 3.
  */
 export function getCurrencyDecimals(currency?: string): number {
   const code = normalizeCurrencyCode(currency || globalDefaultCurrency);
-  return CURRENCY_DECIMALS[code] ?? 2;
+  return getCurrencyInfo(code).decimals;
+}
+
+/**
+ * Converts a major unit float amount to an integer minor unit (e.g. 10.50 USD -> 1050 cents, 100 JPY -> 100 yen, 1.250 KWD -> 1250 fils)
+ */
+export function toMinorUnit(amount: number, currency?: string): number {
+  const decimals = getCurrencyDecimals(currency);
+  const factor = Math.pow(10, decimals);
+  return Math.round((Number(amount) || 0) * factor);
+}
+
+/**
+ * Converts an integer minor unit to a major unit float.
+ */
+export function fromMinorUnit(minor: number, currency?: string): number {
+  const decimals = getCurrencyDecimals(currency);
+  const factor = Math.pow(10, decimals);
+  return (Number(minor) || 0) / factor;
 }
 
 /**
@@ -110,6 +115,12 @@ export function isValidFinancialAmount(
   if (str.includes('.')) {
     const decimalPart = str.split('.')[1] || '';
     if (decimalPart.length > decimals) {
+      if (decimals === 0) {
+        return {
+          isValid: false,
+          errorMessage: `${currency} does not support decimal fractions.`,
+        };
+      }
       return {
         isValid: false,
         errorMessage: `${currency} supports at most ${decimals} decimal place${decimals === 1 ? '' : 's'}.`,

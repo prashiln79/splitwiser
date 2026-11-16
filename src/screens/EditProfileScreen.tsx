@@ -29,6 +29,8 @@ import { ConnectGoogleModal } from '../components/common/ConnectGoogleModal';
 import { ProfileAvatar } from '../components/common/MemberAvatar';
 import { ProfilePhotoModal } from '../components/common/ProfilePhotoModal';
 import { LanguagePickerModal } from '../components/settings/LanguagePickerModal';
+import { CurrencySelectorModal } from '../components/groupSettings/CurrencySelectorModal';
+import { getCurrencySymbol, getCurrencyName } from '../utils/currency';
 import { useI18n } from '../context/I18nContext';
 import { LOCALE_NATIVE_NAMES } from '../i18n';
 import { useTranslation } from 'react-i18next';
@@ -44,16 +46,6 @@ const TIMEZONES = [
   '(GMT+01:00) Paris, Berlin, Rome, Madrid',
   '(GMT+08:00) Singapore, Beijing, Hong Kong',
   '(GMT+09:00) Tokyo, Seoul',
-];
-
-const CURRENCIES = [
-  { code: 'INR', label: 'INR (₹)' },
-  { code: 'USD', label: 'USD ($)' },
-  { code: 'EUR', label: 'EUR (€)' },
-  { code: 'GBP', label: 'GBP (£)' },
-  { code: 'AUD', label: 'AUD (A$)' },
-  { code: 'CAD', label: 'CAD (C$)' },
-  { code: 'SGD', label: 'SGD (S$)' },
 ];
 
 export const EditProfileScreen = ({ navigation }: any) => {
@@ -384,7 +376,9 @@ export const EditProfileScreen = ({ navigation }: any) => {
             onPress={() => setCurrencyModalVisible(true)}
             activeOpacity={0.7}
           >
-            <Text style={styles.selectBoxText}>{currency}</Text>
+            <Text style={styles.selectBoxText}>
+              {getCurrencySymbol(currency)} {currency} — {getCurrencyName(currency)}
+            </Text>
             <ChevronDown size={18} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
@@ -531,51 +525,16 @@ export const EditProfileScreen = ({ navigation }: any) => {
       </Modal>
 
       {/* ── Currency Modal ─────────────────────────────────────────────────── */}
-      <Modal
+      <CurrencySelectorModal
         visible={currencyModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCurrencyModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setCurrencyModalVisible(false)}
-        >
-          <View style={styles.selectionModal}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Default Currency</Text>
-              <TouchableOpacity onPress={() => setCurrencyModalVisible(false)}>
-                <X size={20} color={colors.textMuted} />
-              </TouchableOpacity>
-            </View>
-
-            {CURRENCIES.map((c) => (
-              <TouchableOpacity
-                key={c.code}
-                style={[
-                  styles.modalOptionRow,
-                  currency === c.code && styles.modalOptionRowSelected,
-                ]}
-                onPress={() => {
-                  setCurrency(c.code);
-                  setCurrencyModalVisible(false);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.modalOptionText,
-                    currency === c.code && styles.modalOptionTextSelected,
-                  ]}
-                >
-                  {c.label}
-                </Text>
-                {currency === c.code && <Check size={18} color="#EA580C" strokeWidth={2.5} />}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
+        currentCurrency={currency}
+        title="Default Currency"
+        requireConfirmation={false}
+        onClose={() => setCurrencyModalVisible(false)}
+        onSelect={(newCode) => {
+          setCurrency(newCode);
+        }}
+      />
 
       {/* ── Language Modal ─────────────────────────────────────────────────── */}
       <LanguagePickerModal

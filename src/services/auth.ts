@@ -36,6 +36,7 @@ import {
   resolveProfilePicture,
   calculateGoogleSyncUpdates,
 } from '../utils/profilePhotoHelper';
+import { normalizeCurrencyCode, setDefaultCurrency } from '../utils/currency';
 
 // ─── Root path ────────────────────────────────────────────────────────────────
 // All Splitwiser data is nested under /splitwiser/data/...
@@ -340,6 +341,24 @@ export async function updateUserProfile(
 }
 
 /**
+ * Updates the user's default account currency.
+ * Important: Changing the account default currency does NOT modify historical expense amounts,
+ * existing payment amounts, or existing balances.
+ */
+export async function updateUserCurrency(uid: string, currency: string): Promise<void> {
+  const normCurrency = normalizeCurrencyCode(currency);
+  await setDoc(
+    usersPath(uid),
+    {
+      currency: normCurrency,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+  setDefaultCurrency(normCurrency);
+}
+
+/**
  * Link an existing anonymous account with a Google credential.
  * CRITICAL: The existing Firebase UID remains exactly the same!
  */
@@ -625,6 +644,13 @@ export async function migrateAnonymousDataToExistingGoogleAccount(
   nativeDisplayName?: string | null,
   nativeEmail?: string | null
 ): Promise<AppUser> {
+  // 0. Cache anonymous user preferences (currency, etc.) before sign-in
+  let anonCurrency: string | undefined;
+  try {
+    const anonProfile = await loadUserProfile(anonymousUid);
+    anonCurrency = anonProfile?.currency;
+  } catch {}
+
   // 1. First, find all groups belonging to the anonymous user before switching accounts
   const q = query(groupsCol(), where('memberIds', 'array-contains', anonymousUid));
   const groupSnaps = await getDocs(q);
@@ -767,6 +793,7 @@ export async function migrateAnonymousDataToExistingGoogleAccount(
       imageUrl: googlePhoto,
       isAnonymous: false,
       authProvider: 'google',
+      currency: anonCurrency || 'INR',
       createdAt: now,
       updatedAt: now,
     };
@@ -777,6 +804,11 @@ export async function migrateAnonymousDataToExistingGoogleAccount(
       await updateUserAcrossGroups(profile.uid, profile.name, profile.imageUrl).catch(() => {});
     }
   } else {
+    // If the existing profile has no currency set, preserve the anonymous currency setting
+    if (!profile.currency && anonCurrency) {
+      await setDoc(usersPath(googleUid), { currency: anonCurrency }, { merge: true });
+      profile.currency = anonCurrency;
+    }
     // Preserve customPhotoUrl if present
     const sync = calculateGoogleSyncUpdates(
       profile,

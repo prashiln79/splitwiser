@@ -46,6 +46,7 @@ import {
   SendHorizontal,
   ImagePlus,
   Gem,
+  RefreshCw,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -55,7 +56,14 @@ import { getGroupExpensesLocal, deleteExpenseLocal } from '../repositories/expen
 import { getGroupSettlementsLocal } from '../repositories/settlementRepository';
 import { syncService } from '../sync/syncService';
 import { syncQueue } from '../sync/syncQueue';
-import { getOptimizedSettlements } from '../utils/balanceCalculator';
+import {
+  getOptimizedSettlements,
+  calculateGroupSettlementsByCurrency,
+  computeNetBalancesByCurrency,
+  getUserCurrencyBalances,
+} from '../utils/balanceCalculator';
+import { getGroupConversionsLocal } from '../repositories/conversionRepository';
+import { CurrencyConversionModal } from '../components/currency/CurrencyConversionModal';
 import { useAuth } from '../context/AuthContext';
 import { useAppTheme, ThemeColors } from '../theme';
 import { resolveProfilePicture } from '../utils/profilePhotoHelper';
@@ -76,8 +84,21 @@ import { GroupCoverPhotoModal } from '../components/common/GroupCoverPhotoModal'
 import { SettleUpModal } from '../components/common/SettleUpModal';
 import { ConfirmationDialog } from '../components/common/ConfirmationDialog';
 import { EmptyState } from '../components/common/EmptyState';
-import { Expense, Group, GroupMember, OptimizedSettlement, Settlement } from '../types';
-import { formatCurrency } from '../utils/currency';
+import {
+  Expense,
+  Group,
+  GroupMember,
+  OptimizedSettlement,
+  Settlement,
+  CurrencyConversionRecord,
+} from '../types';
+import {
+  formatCurrency,
+  normalizeCurrencyCode,
+  getCurrencySymbol,
+  getCurrencyName,
+  fromMinorUnit,
+} from '../utils/currency';
 import { useIsFocused } from '@react-navigation/native';
 
 export const GroupDetailsScreen = ({ route, navigation }: any) => {
@@ -116,6 +137,9 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [recordedSettlements, setRecordedSettlements] = useState<Settlement[]>([]);
+  const [recordedConversions, setRecordedConversions] = useState<CurrencyConversionRecord[]>([]);
+  const [conversionModalVisible, setConversionModalVisible] = useState(false);
+  const [settleCurrency, setSettleCurrency] = useState<string>('INR');
   const [settlements, setSettlements] = useState<OptimizedSettlement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -211,11 +235,12 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
   // Load from local SQLite immediately
   const loadLocalData = async () => {
     try {
-      const [localG, localM, localExp, localSet] = await Promise.all([
+      const [localG, localM, localExp, localSet, localConv] = await Promise.all([
         getLocalGroupById(groupId),
         getLocalGroupMembers(groupId),
         getGroupExpensesLocal(groupId),
         getGroupSettlementsLocal(groupId),
+        getGroupConversionsLocal(groupId),
       ]);
       if (localG) setGroup(localG);
       if (localM && localM.length > 0) {
@@ -237,6 +262,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
       }
       if (localExp) setExpenses(localExp);
       if (localSet) setRecordedSettlements(localSet);
+      if (localConv) setRecordedConversions(localConv);
       setIsLoading(false);
     } catch (e) {
       console.warn('[GroupDetails] local load failed:', e);
@@ -299,9 +325,17 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
 
   useEffect(() => {
     if (members.length > 0) {
-      setSettlements(getOptimizedSettlements(expenses, members, recordedSettlements));
+      const multiSettlementsMap = calculateGroupSettlementsByCurrency(
+        expenses,
+        members,
+        recordedSettlements,
+        group?.settings?.simplifyDebts ?? true,
+        recordedConversions
+      );
+      const flattened = Array.from(multiSettlementsMap.values()).flat();
+      setSettlements(flattened);
     }
-  }, [expenses, members, recordedSettlements]);
+  }, [expenses, members, recordedSettlements, group?.settings?.simplifyDebts, recordedConversions]);
 
   const onRefresh = async () => {
     setIsRefreshing(true);
@@ -381,21 +415,69 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
     return memberMap.get(uid) || 'Member';
   };
 
-  // Balance calculations
+  // Multi-currency net balances for current user
+  const myCurrencyBalances = useMemo(() => {
+    if (!user?.uid) return [];
+    return getUserCurrencyBalances(expenses, members, recordedSettlements, user.uid, recordedConversions);
+  }, [expenses, members, recordedSettlements, user?.uid, recordedConversions]);
+
+  // Distinct currencies active across all expenses, settlements and conversions in this group
+  const groupActiveCurrencies = useMemo(() => {
+    const set = new Set<string>();
+    if (group?.currency) set.add(group.currency);
+    expenses.forEach((e) => {
+      if (e.currency) set.add(e.currency);
+    });
+    recordedSettlements.forEach((s) => {
+      if (s.currency) set.add(s.currency);
+    });
+    recordedConversions.forEach((c) => {
+      if (c.sourceCurrency) set.add(c.sourceCurrency);
+      if (c.targetCurrency) set.add(c.targetCurrency);
+    });
+    if (set.size === 0) set.add('INR');
+    return Array.from(set);
+  }, [group?.currency, expenses, recordedSettlements, recordedConversions]);
+
+  // Totals grouped by currency to avoid cross-currency summing
+  const totalsByCurrency = useMemo(() => {
+    const map = new Map<string, { total: number; myPaid: number; myShare: number }>();
+    expenses.forEach((e) => {
+      const curr = e.currency || group?.currency || 'INR';
+      const existing = map.get(curr) || { total: 0, myPaid: 0, myShare: 0 };
+      existing.total += e.amount || 0;
+      if (user?.uid && (e.paidBy || e.createdBy) === user.uid) {
+        existing.myPaid += e.amount || 0;
+      }
+      if (user?.uid && e.splits) {
+        const mySplit = e.splits.find((s) => s.userId === user.uid);
+        if (mySplit) {
+          existing.myShare += mySplit.amount || 0;
+        }
+      }
+      map.set(curr, existing);
+    });
+    return Array.from(map.entries()).map(([currency, data]) => ({
+      currency,
+      ...data,
+    }));
+  }, [expenses, group?.currency, user?.uid]);
+
+  // Legacy single netBalance for GroupCoverHeader fallback
   const { netBalance } = useMemo(() => {
     if (!user) return { netBalance: 0 };
-    const owes = settlements
-      .filter((s) => s.fromUserId === user.uid)
-      .reduce((sum, s) => sum + s.amount, 0);
-    const owed = settlements
-      .filter((s) => s.toUserId === user.uid)
-      .reduce((sum, s) => sum + s.amount, 0);
-    return { netBalance: owed - owes };
-  }, [settlements, user]);
+    const primaryBalance = myCurrencyBalances.find(
+      (b) => b.currency === (group?.currency || 'INR')
+    );
+    return { netBalance: primaryBalance ? primaryBalance.balance : (myCurrencyBalances[0]?.balance || 0) };
+  }, [myCurrencyBalances, group?.currency, user]);
 
-  const isSettled = Math.abs(netBalance) < 0.01;
+  const isSettled = useMemo(() => {
+    if (myCurrencyBalances.length === 0) return true;
+    return myCurrencyBalances.every((b) => Math.abs(b.balance) < 0.01);
+  }, [myCurrencyBalances]);
 
-  // Total expense amounts
+  // Total expense amounts (single default currency or total sum)
   const totalExpensesAmount = useMemo(() => {
     return expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
   }, [expenses]);
@@ -612,6 +694,77 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
     });
   }, [members, chartFilteredExpenses, filteredTotalExpensesAmount, user]);
 
+  // Member balances grouped by currency
+  const memberBalancesByCurrency = useMemo(() => {
+    return groupActiveCurrencies.map((curr) => {
+      const paidMap = new Map<string, number>();
+      const shareMap = new Map<string, number>();
+      members.forEach((m) => {
+        paidMap.set(m.userId, 0);
+        shareMap.set(m.userId, 0);
+      });
+
+      expenses
+        .filter((e) => (e.currency || group?.currency || 'INR') === curr)
+        .forEach((e) => {
+          const payer = e.paidBy || e.createdBy;
+          paidMap.set(payer, (paidMap.get(payer) || 0) + e.amount);
+          e.splits?.forEach((s) => {
+            shareMap.set(s.userId, (shareMap.get(s.userId) || 0) + s.amount);
+          });
+        });
+
+      const settlementNetMap = new Map<string, number>();
+      members.forEach((m) => settlementNetMap.set(m.userId, 0));
+      recordedSettlements
+        .filter((s) => (s.currency || group?.currency || 'INR') === curr)
+        .forEach((s) => {
+          settlementNetMap.set(s.fromUserId, (settlementNetMap.get(s.fromUserId) || 0) + s.amount);
+          settlementNetMap.set(s.toUserId, (settlementNetMap.get(s.toUserId) || 0) - s.amount);
+        });
+
+      recordedConversions.forEach((conv) => {
+        const srcAmt = fromMinorUnit(conv.sourceAmountMinor, conv.sourceCurrency);
+        const tgtAmt = fromMinorUnit(conv.targetAmountMinor, conv.targetCurrency);
+        if (conv.sourceCurrency === curr) {
+          settlementNetMap.set(conv.createdBy, (settlementNetMap.get(conv.createdBy) || 0) + srcAmt);
+        } else if (conv.targetCurrency === curr) {
+          settlementNetMap.set(conv.createdBy, (settlementNetMap.get(conv.createdBy) || 0) - tgtAmt);
+        }
+      });
+
+      const currentUserPhoto = user
+        ? resolveProfilePicture(user).displayUrl || user.imageUrl || user.photoURL || user.googlePhotoUrl
+        : null;
+
+      const memberRows = members.map((m) => {
+        const totalPaid = paidMap.get(m.userId) || 0;
+        const totalShare = shareMap.get(m.userId) || 0;
+        const settlementAdj = settlementNetMap.get(m.userId) || 0;
+        const net = totalPaid - totalShare + settlementAdj;
+        const isMe = m.userId === user?.uid;
+        const name = isMe && user?.name ? user.name : m.userName;
+        const photo = isMe ? (currentUserPhoto || m.imageUrl) : m.imageUrl;
+
+        return {
+          userId: m.userId,
+          userName: name,
+          imageUrl: photo,
+          totalPaid,
+          totalShare,
+          net,
+          isMe,
+        };
+      });
+
+      return {
+        currency: curr,
+        members: memberRows,
+        hasActivity: memberRows.some((m) => Math.abs(m.net) > 0.001 || m.totalPaid > 0),
+      };
+    }).filter((grp) => grp.hasActivity);
+  }, [groupActiveCurrencies, members, expenses, group?.currency, recordedSettlements, recordedConversions, user]);
+
   const hasCover = Boolean(group?.coverPhoto?.imageUrl?.trim() || group?.bannerUrl?.trim());
 
   // Shared scrollable cover header with inline navigation pill tabs
@@ -625,6 +778,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
       settlements={settlements}
       currentUserId={user?.uid || ''}
       onShareCode={handleShareCode}
+      currencyBalances={myCurrencyBalances}
     >
       <GroupPillTabs
         activeTabIndex={activeTabIndex}
@@ -643,8 +797,9 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
     scrollY.setValue(0);
   };
 
-  const openQuickSettle = (toUserId?: string, amount?: number) => {
+  const openQuickSettle = (toUserId?: string, amount?: number, currency?: string) => {
     setSettlePrefill({ toUserId, amount });
+    setSettleCurrency(currency || group?.currency || 'INR');
     setSettleModalVisible(true);
   };
 
@@ -813,7 +968,9 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                     </View>
 
                     <View style={styles.settlementAmountBox}>
-                      <Text style={styles.settlementAmountText}>{formatAmount(s.amount)}</Text>
+                      <Text style={styles.settlementAmountText}>
+                        {formatAmount(s.amount, s.currency)}
+                      </Text>
                       <Text style={styles.settlementSubRole}>
                         {isMePayer ? 'You owe' : isMeReceiver ? 'Owes you' : 'Between members'}
                       </Text>
@@ -834,7 +991,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                     {(isMePayer || isMeReceiver) && (
                       <TouchableOpacity
                         style={styles.cardSettleBtn}
-                        onPress={() => openQuickSettle(isMePayer ? s.toUserId : undefined, s.amount)}
+                        onPress={() => openQuickSettle(isMePayer ? s.toUserId : undefined, s.amount, s.currency)}
                         activeOpacity={0.8}
                       >
                         <Handshake size={15} color="#FFFFFF" strokeWidth={2.2} />
@@ -890,7 +1047,9 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                       })}
                     </Text>
                   </View>
-                  <Text style={styles.settledHistoryAmount}>{formatAmount(rec.amount)}</Text>
+                  <Text style={styles.settledHistoryAmount}>
+                    {formatAmount(rec.amount, rec.currency)}
+                  </Text>
                 </View>
               ))
             )}
@@ -1151,93 +1310,132 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
       >
         {renderSharedHeader()}
         <View style={styles.tabBodyContent}>
-          {/* Individual Member Balances */}
-        <View style={styles.chartBlockCard}>
-          <View style={styles.chartBlockHeader}>
-            <Scale size={18} color="#059669" />
-            <Text style={styles.chartBlockTitle}>Member Balances</Text>
-          </View>
-
-          {memberBalances.map((m) => {
-            const isOwed = m.net > 0.01;
-            const owes = m.net < -0.01;
-            const settled = !isOwed && !owes;
-
-            return (
-              <View key={m.userId} style={styles.memberBalanceRow}>
-                <MemberAvatar name={m.userName} imageUrl={m.imageUrl} size={40} />
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.memberBalanceName}>
-                    {m.userName} {m.isMe ? '(You)' : ''}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.memberBalanceStatus,
-                      isOwed ? { color: '#059669' } : owes ? { color: '#DC2626' } : { color: '#6B7280' },
-                    ]}
-                  >
-                    {isOwed
-                      ? `gets back ${formatAmount(m.net)}`
-                      : owes
-                      ? `owes ${formatAmount(Math.abs(m.net))}`
-                      : 'settled up'}
-                  </Text>
-                </View>
-              </View>
-            );
-          })}
-        </View>
-
-        {/* Suggested Optimized Payments */}
-        <View style={styles.chartBlockCard}>
-          <View style={styles.chartBlockHeader}>
-            <Handshake size={18} color="#059669" />
-            <Text style={styles.chartBlockTitle}>Suggested Payments</Text>
-          </View>
-
-          {settlements.length === 0 ? (
-            <View style={styles.emptySettledBox}>
-              <CheckCircle2 size={24} color="#059669" />
-              <Text style={[styles.emptySettledText, { color: '#059669', fontWeight: '600' }]}>
-                No debts! Everyone is settled up.
+          {/* Multi-Currency Conversion Action Banner */}
+          <View style={styles.currencyConvertBanner}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={styles.currencyConvertTitle}>Multi-Currency Balances</Text>
+              <Text style={styles.currencyConvertSub}>
+                Splitwiser tracks each currency independently. Convert explicitly at live exchange rates.
               </Text>
             </View>
+            <TouchableOpacity
+              style={styles.convertCurrencyBtn}
+              onPress={() => setConversionModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <RefreshCw size={14} color="#FFFFFF" strokeWidth={2.4} />
+              <Text style={styles.convertCurrencyBtnText}>Convert</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Member Balances Grouped by Currency */}
+          {memberBalancesByCurrency.length === 0 ? (
+            <View style={styles.chartBlockCard}>
+              <View style={styles.emptySettledBox}>
+                <CheckCircle2 size={24} color="#059669" />
+                <Text style={[styles.emptySettledText, { color: '#059669', fontWeight: '600' }]}>
+                  All balances are settled up across all currencies!
+                </Text>
+              </View>
+            </View>
           ) : (
-            settlements.map((s, idx) => {
-              const isMeDebtor = s.fromUserId === user?.uid;
-              const isMeCreditor = s.toUserId === user?.uid;
-
-              return (
-                <View key={`balance-settlement-${idx}`} style={styles.suggestedPaymentCard}>
-                  <View style={styles.suggestedPaymentRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.suggestedPaymentText}>
-                        <Text style={isMeDebtor ? { color: '#DC2626', fontWeight: '700' } : { color: colors.textPrimary, fontWeight: '600' }}>
-                          {isMeDebtor ? 'You' : s.fromUserName}
-                        </Text>
-                        <Text style={{ color: colors.textMuted }}> owes </Text>
-                        <Text style={isMeCreditor ? { color: '#059669', fontWeight: '700' } : { color: colors.textPrimary, fontWeight: '600' }}>
-                          {isMeCreditor ? 'you' : s.toUserName}
-                        </Text>
-                      </Text>
-                      <Text style={styles.suggestedPaymentAmount}>{formatAmount(s.amount)}</Text>
-                    </View>
-
-                    {(isMeDebtor || isMeCreditor) && (
-                      <TouchableOpacity
-                        style={styles.cardSettleBtnSmall}
-                        onPress={() => openQuickSettle(isMeDebtor ? s.toUserId : undefined, s.amount)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.cardSettleBtnSmallText}>Settle up</Text>
-                      </TouchableOpacity>
-                    )}
+            memberBalancesByCurrency.map((currGroup) => (
+              <View key={`currency-group-${currGroup.currency}`} style={styles.chartBlockCard}>
+                <View style={styles.currencyGroupHeaderRow}>
+                  <View style={styles.currencyGroupHeaderLeft}>
+                    <Scale size={18} color="#059669" />
+                    <Text style={styles.chartBlockTitle}>
+                      {currGroup.currency} · {getCurrencyName(currGroup.currency)} ({getCurrencySymbol(currGroup.currency)})
+                    </Text>
+                  </View>
+                  <View style={styles.currencyBadgeBox}>
+                    <Text style={styles.currencyBadgeBoxText}>{currGroup.currency}</Text>
                   </View>
                 </View>
-              );
-            })
+
+                {currGroup.members.map((m) => {
+                  const isOwed = m.net > 0.01;
+                  const owes = m.net < -0.01;
+
+                  return (
+                    <View key={`mbal-${currGroup.currency}-${m.userId}`} style={styles.memberBalanceRow}>
+                      <MemberAvatar name={m.userName} imageUrl={m.imageUrl} size={40} />
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={styles.memberBalanceName}>
+                          {m.userName} {m.isMe ? '(You)' : ''}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.memberBalanceStatus,
+                            isOwed ? { color: '#059669' } : owes ? { color: '#DC2626' } : { color: '#6B7280' },
+                          ]}
+                        >
+                          {isOwed
+                            ? `gets back ${formatAmount(m.net, currGroup.currency)}`
+                            : owes
+                            ? `owes ${formatAmount(Math.abs(m.net), currGroup.currency)}`
+                            : 'settled up'}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            ))
           )}
-        </View>
+
+          {/* Suggested Optimized Payments */}
+          <View style={styles.chartBlockCard}>
+            <View style={styles.chartBlockHeader}>
+              <Handshake size={18} color="#059669" />
+              <Text style={styles.chartBlockTitle}>Suggested Payments</Text>
+            </View>
+
+            {settlements.length === 0 ? (
+              <View style={styles.emptySettledBox}>
+                <CheckCircle2 size={24} color="#059669" />
+                <Text style={[styles.emptySettledText, { color: '#059669', fontWeight: '600' }]}>
+                  No debts! Everyone is settled up.
+                </Text>
+              </View>
+            ) : (
+              settlements.map((s, idx) => {
+                const isMeDebtor = s.fromUserId === user?.uid;
+                const isMeCreditor = s.toUserId === user?.uid;
+
+                return (
+                  <View key={`balance-settlement-${idx}`} style={styles.suggestedPaymentCard}>
+                    <View style={styles.suggestedPaymentRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.suggestedPaymentText}>
+                          <Text style={isMeDebtor ? { color: '#DC2626', fontWeight: '700' } : { color: colors.textPrimary, fontWeight: '600' }}>
+                            {isMeDebtor ? 'You' : s.fromUserName}
+                          </Text>
+                          <Text style={{ color: colors.textMuted }}> owes </Text>
+                          <Text style={isMeCreditor ? { color: '#059669', fontWeight: '700' } : { color: colors.textPrimary, fontWeight: '600' }}>
+                            {isMeCreditor ? 'you' : s.toUserName}
+                          </Text>
+                        </Text>
+                        <Text style={styles.suggestedPaymentAmount}>
+                          {formatAmount(s.amount, s.currency)}
+                        </Text>
+                      </View>
+
+                      {(isMeDebtor || isMeCreditor) && (
+                        <TouchableOpacity
+                          style={styles.cardSettleBtnSmall}
+                          onPress={() => openQuickSettle(isMeDebtor ? s.toUserId : undefined, s.amount, s.currency)}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.cardSettleBtnSmallText}>Settle up</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                );
+              })
+            )}
+          </View>
         </View>
       </ScrollView>
     );
@@ -1271,74 +1469,107 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
       >
         {renderSharedHeader()}
         <View style={styles.tabBodyContent}>
-          <View style={styles.totalHeaderContainer}>
-          {/* 4-Card Summary Grid */}
-          <View style={styles.grid2x2}>
-            <View style={styles.gridCard}>
-              <Text style={styles.gridCardLabel}>Total Expenses</Text>
-              <Text style={styles.gridCardValue}>{formatAmount(totalExpensesAmount)}</Text>
-            </View>
-            <View style={styles.gridCard}>
-              <Text style={styles.gridCardLabel}>Number of Bills</Text>
-              <Text style={styles.gridCardValue}>{expenses.length}</Text>
-            </View>
-            <View style={styles.gridCard}>
-              <Text style={styles.gridCardLabel}>You Paid</Text>
-              <Text style={[styles.gridCardValue, { color: '#059669' }]}>
-                {formatAmount(myPaidAmount)}
-              </Text>
-            </View>
-            <View style={styles.gridCard}>
-              <Text style={styles.gridCardLabel}>Your Fair Share</Text>
-              <Text style={[styles.gridCardValue, { color: '#DC2626' }]}>
-                {formatAmount(myShareAmount)}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Member Spending Summary */}
-        <View style={styles.chartBlockCard}>
-          <View style={styles.chartBlockHeader}>
-            <Users size={18} color="#059669" />
-            <Text style={styles.chartBlockTitle}>Member Spending Summary</Text>
-          </View>
-
-          {memberBalances.map((m) => (
-            <View key={`total-member-${m.userId}`} style={styles.breakdownRow}>
-              <MemberAvatar name={m.userName} imageUrl={m.imageUrl} size={36} />
-              <View style={styles.breakdownMiddle}>
-                <View style={styles.breakdownLabelRow}>
-                  <Text style={styles.breakdownCategoryName}>
-                    {m.userName} {m.isMe ? '(You)' : ''}
-                  </Text>
-                  <Text style={styles.breakdownAmountText}>{formatAmount(m.totalPaid)}</Text>
+          {/* Multi-Currency Totals Breakdown Card */}
+          {totalsByCurrency.length > 1 ? (
+            <View style={styles.chartBlockCard}>
+              <View style={styles.chartBlockHeader}>
+                <Scale size={18} color="#059669" />
+                <Text style={styles.chartBlockTitle}>Group Spending by Currency</Text>
+              </View>
+              {totalsByCurrency.map((tb) => (
+                <View key={`tb-${tb.currency}`} style={styles.breakdownRow}>
+                  <View style={styles.currencyBadgeBox}>
+                    <Text style={styles.currencyBadgeBoxText}>{tb.currency}</Text>
+                  </View>
+                  <View style={styles.breakdownMiddle}>
+                    <View style={styles.breakdownLabelRow}>
+                      <Text style={styles.breakdownCategoryName}>{getCurrencyName(tb.currency)}</Text>
+                      <Text style={styles.breakdownAmountText}>{formatAmount(tb.total, tb.currency)}</Text>
+                    </View>
+                    <View style={styles.breakdownSubRow}>
+                      <Text style={styles.breakdownCountText}>
+                        You paid: {formatAmount(tb.myPaid, tb.currency)}
+                      </Text>
+                      <Text style={[styles.breakdownPercentText, { color: colors.textMuted }]}>
+                        Fair share: {formatAmount(tb.myShare, tb.currency)}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
-                <View style={styles.breakdownSubRow}>
-                  <Text style={styles.breakdownCountText}>
-                    Fair share: {formatAmount(m.totalShare)}
+              ))}
+            </View>
+          ) : (
+            <View style={styles.totalHeaderContainer}>
+              {/* 4-Card Summary Grid */}
+              <View style={styles.grid2x2}>
+                <View style={styles.gridCard}>
+                  <Text style={styles.gridCardLabel}>Total Expenses</Text>
+                  <Text style={styles.gridCardValue}>
+                    {formatAmount(totalsByCurrency[0]?.total || totalExpensesAmount, group?.currency)}
                   </Text>
-                  <Text
-                    style={[
-                      styles.breakdownPercentText,
-                      m.net > 0.01
-                        ? { color: '#059669' }
-                        : m.net < -0.01
-                        ? { color: '#DC2626' }
-                        : { color: '#6B7280' },
-                    ]}
-                  >
-                    {m.net > 0.01
-                      ? `+${formatAmount(m.net)}`
-                      : m.net < -0.01
-                      ? `-${formatAmount(Math.abs(m.net))}`
-                      : 'settled'}
+                </View>
+                <View style={styles.gridCard}>
+                  <Text style={styles.gridCardLabel}>Number of Bills</Text>
+                  <Text style={styles.gridCardValue}>{expenses.length}</Text>
+                </View>
+                <View style={styles.gridCard}>
+                  <Text style={styles.gridCardLabel}>You Paid</Text>
+                  <Text style={[styles.gridCardValue, { color: '#059669' }]}>
+                    {formatAmount(totalsByCurrency[0]?.myPaid || myPaidAmount, group?.currency)}
+                  </Text>
+                </View>
+                <View style={styles.gridCard}>
+                  <Text style={styles.gridCardLabel}>Your Fair Share</Text>
+                  <Text style={[styles.gridCardValue, { color: '#DC2626' }]}>
+                    {formatAmount(totalsByCurrency[0]?.myShare || myShareAmount, group?.currency)}
                   </Text>
                 </View>
               </View>
             </View>
-          ))}
-        </View>
+          )}
+
+          {/* Member Spending Summary */}
+          <View style={styles.chartBlockCard}>
+            <View style={styles.chartBlockHeader}>
+              <Users size={18} color="#059669" />
+              <Text style={styles.chartBlockTitle}>Member Spending Summary</Text>
+            </View>
+
+            {memberBalances.map((m) => (
+              <View key={`total-member-${m.userId}`} style={styles.breakdownRow}>
+                <MemberAvatar name={m.userName} imageUrl={m.imageUrl} size={36} />
+                <View style={styles.breakdownMiddle}>
+                  <View style={styles.breakdownLabelRow}>
+                    <Text style={styles.breakdownCategoryName}>
+                      {m.userName} {m.isMe ? '(You)' : ''}
+                    </Text>
+                    <Text style={styles.breakdownAmountText}>{formatAmount(m.totalPaid)}</Text>
+                  </View>
+                  <View style={styles.breakdownSubRow}>
+                    <Text style={styles.breakdownCountText}>
+                      Fair share: {formatAmount(m.totalShare)}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.breakdownPercentText,
+                        m.net > 0.01
+                          ? { color: '#059669' }
+                          : m.net < -0.01
+                          ? { color: '#DC2626' }
+                          : { color: '#6B7280' },
+                      ]}
+                    >
+                      {m.net > 0.01
+                        ? `+${formatAmount(m.net)}`
+                        : m.net < -0.01
+                        ? `-${formatAmount(Math.abs(m.net))}`
+                        : 'settled'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
         </View>
       </ScrollView>
     );
@@ -1414,8 +1645,24 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
         groupId={groupId}
         settlements={settlements}
         currentUserId={user?.uid || ''}
+        groupCurrency={settleCurrency || group?.currency || 'INR'}
         members={members}
         onSuccess={() => {
+          fetchGroupData();
+          loadLocalData();
+        }}
+      />
+
+      {/* Multi-Currency Conversion Modal */}
+      <CurrencyConversionModal
+        visible={conversionModalVisible}
+        onDismiss={() => setConversionModalVisible(false)}
+        groupId={groupId}
+        currentUserId={user?.uid || ''}
+        members={members}
+        availableSourceCurrencies={groupActiveCurrencies}
+        defaultTargetCurrency={user?.currency || group?.currency || 'INR'}
+        onConversionSuccess={() => {
           fetchGroupData();
           loadLocalData();
         }}
@@ -2335,6 +2582,70 @@ const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create
   },
 
   // Section 3: Balances
+  currencyConvertBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#ECFDF5',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: isDark ? colors.border : '#A7F3D0',
+  },
+  currencyConvertTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: isDark ? colors.textPrimary : '#065F46',
+    marginBottom: 2,
+  },
+  currencyConvertSub: {
+    fontSize: 12,
+    color: isDark ? colors.textMuted : '#047857',
+    lineHeight: 16,
+  },
+  convertCurrencyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#059669',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    gap: 6,
+  },
+  convertCurrencyBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  currencyGroupHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  currencyGroupHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  currencyBadgeBox: {
+    backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(5, 150, 105, 0.4)' : '#A7F3D0',
+  },
+  currencyBadgeBoxText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#059669',
+  },
   memberBalanceRow: {
     flexDirection: 'row',
     alignItems: 'center',

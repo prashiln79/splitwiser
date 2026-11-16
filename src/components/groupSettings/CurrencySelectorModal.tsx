@@ -12,41 +12,22 @@ import {
 import { X, Search, Check, AlertCircle } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAppTheme, ThemeColors } from '../../theme';
+import {
+  SUPPORTED_CURRENCIES,
+  CurrencyInfo,
+} from '../../utils/currencyData';
 
-interface CurrencyItem {
-  code: string;
-  name: string;
-  symbol: string;
-}
+export { SUPPORTED_CURRENCIES };
+export type CurrencyItem = CurrencyInfo;
 
-export const SUPPORTED_CURRENCIES: CurrencyItem[] = [
-  { code: 'INR', name: 'Indian Rupee', symbol: '₹' },
-  { code: 'USD', name: 'US Dollar', symbol: '$' },
-  { code: 'EUR', name: 'Euro', symbol: '€' },
-  { code: 'GBP', name: 'British Pound', symbol: '£' },
-  { code: 'AUD', name: 'Australian Dollar', symbol: 'A$' },
-  { code: 'CAD', name: 'Canadian Dollar', symbol: 'C$' },
-  { code: 'SGD', name: 'Singapore Dollar', symbol: 'S$' },
-  { code: 'AED', name: 'UAE Dirham', symbol: 'AED' },
-  { code: 'JPY', name: 'Japanese Yen', symbol: '¥' },
-  { code: 'CHF', name: 'Swiss Franc', symbol: 'CHF' },
-  { code: 'NZD', name: 'New Zealand Dollar', symbol: 'NZ$' },
-  { code: 'THB', name: 'Thai Baht', symbol: '฿' },
-  { code: 'MYR', name: 'Malaysian Ringgit', symbol: 'RM' },
-  { code: 'IDR', name: 'Indonesian Rupiah', symbol: 'Rp' },
-  { code: 'VND', name: 'Vietnamese Dong', symbol: '₫' },
-  { code: 'PHP', name: 'Philippine Peso', symbol: '₱' },
-  { code: 'KRW', name: 'South Korean Won', symbol: '₩' },
-  { code: 'CNY', name: 'Chinese Yuan', symbol: '¥' },
-  { code: 'BRL', name: 'Brazilian Real', symbol: 'R$' },
-  { code: 'MXN', name: 'Mexican Peso', symbol: '$' },
-  { code: 'ZAR', name: 'South African Rand', symbol: 'R' },
-];
-
-interface CurrencySelectorModalProps {
+export interface CurrencySelectorModalProps {
   visible: boolean;
   currentCurrency: string;
-  isAdmin: boolean;
+  isAdmin?: boolean;
+  title?: string;
+  requireConfirmation?: boolean;
+  confirmTitle?: string;
+  confirmMessage?: string;
   onClose: () => void;
   onSelect: (currencyCode: string) => void;
 }
@@ -54,23 +35,39 @@ interface CurrencySelectorModalProps {
 export const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
   visible,
   currentCurrency,
-  isAdmin,
+  isAdmin = true,
+  title = 'Select Currency',
+  requireConfirmation,
+  confirmTitle,
+  confirmMessage,
   onClose,
   onSelect,
 }) => {
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<CurrencyItem | null>(null);
+  const [selected, setSelected] = useState<CurrencyInfo | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  const filtered = SUPPORTED_CURRENCIES.filter(
-    (c) =>
-      c.code.toLowerCase().includes(search.toLowerCase()) ||
-      c.name.toLowerCase().includes(search.toLowerCase())
-  );
+  // If requireConfirmation is explicitly set, use that.
+  // Otherwise, if title is 'Group Currency', require confirmation by default.
+  const shouldConfirm =
+    requireConfirmation !== undefined
+      ? requireConfirmation
+      : title === 'Group Currency';
 
-  const handleSelect = (item: CurrencyItem) => {
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return SUPPORTED_CURRENCIES;
+    return SUPPORTED_CURRENCIES.filter(
+      (c) =>
+        c.code.toLowerCase().includes(q) ||
+        c.name.toLowerCase().includes(q) ||
+        c.symbol.toLowerCase().includes(q)
+    );
+  }, [search]);
+
+  const handleSelect = (item: CurrencyInfo) => {
     if (!isAdmin) return;
     if (item.code === currentCurrency) {
       onClose();
@@ -79,8 +76,14 @@ export const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
-    setSelected(item);
-    setShowConfirm(true);
+
+    if (shouldConfirm) {
+      setSelected(item);
+      setShowConfirm(true);
+    } else {
+      onSelect(item.code);
+      onClose();
+    }
   };
 
   const handleConfirm = () => {
@@ -100,7 +103,7 @@ export const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
         <View style={styles.sheetContainer}>
           {/* Header */}
           <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>Group Currency</Text>
+            <Text style={styles.sheetTitle}>{title}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
               <X size={20} color="#6B7280" />
             </TouchableOpacity>
@@ -113,16 +116,27 @@ export const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
               style={styles.searchInput}
               value={search}
               onChangeText={setSearch}
-              placeholder="Search currency code or country..."
+              placeholder="Search currency code, country or symbol..."
               placeholderTextColor="#9CA3AF"
               autoCapitalize="none"
+              autoCorrect={false}
             />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch('')}>
+                <X size={16} color="#9CA3AF" />
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* List */}
-          <ScrollView style={styles.currencyList} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.currencyList}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
             {filtered.map((item) => {
-              const isCurrent = item.code === currentCurrency;
+              const isCurrent =
+                item.code.toUpperCase() === (currentCurrency || '').toUpperCase();
               return (
                 <TouchableOpacity
                   key={item.code}
@@ -138,6 +152,11 @@ export const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
                     <Text style={styles.currencyCode}>{item.code}</Text>
                     <Text style={styles.currencyName}>{item.name}</Text>
                   </View>
+                  {item.decimals !== 2 && (
+                    <Text style={styles.decimalsTag}>
+                      {item.decimals === 0 ? '0 decimals' : `${item.decimals} dec`}
+                    </Text>
+                  )}
                   {isCurrent && (
                     <View style={styles.activePill}>
                       <Check size={14} color="#059669" style={{ marginRight: 4 }} />
@@ -147,6 +166,11 @@ export const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
                 </TouchableOpacity>
               );
             })}
+            {filtered.length === 0 && (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No matching currencies found</Text>
+              </View>
+            )}
           </ScrollView>
 
           {/* Confirmation Sub-Dialog */}
@@ -155,18 +179,25 @@ export const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
               <View style={styles.confirmBox}>
                 <View style={styles.confirmHeader}>
                   <AlertCircle size={22} color="#D97706" style={{ marginRight: 8 }} />
-                  <Text style={styles.confirmTitle}>Change Group Currency?</Text>
+                  <Text style={styles.confirmTitle}>
+                    {confirmTitle || 'Change Currency?'}
+                  </Text>
                 </View>
                 <Text style={styles.confirmBody}>
-                  Changing default currency to{' '}
-                  <Text style={{ fontWeight: '700', color: '#111827' }}>
-                    {selected.code} ({selected.name})
-                  </Text>
-                  .
-                  {'\n\n'}
-                  <Text style={{ fontStyle: 'italic', color: '#6B7280' }}>
-                    Note: Existing expenses will maintain their recorded currency values and history.
-                  </Text>
+                  {confirmMessage ? (
+                    confirmMessage
+                  ) : (
+                    <>
+                      Changing currency to{' '}
+                      <Text style={{ fontWeight: '700', color: colors.textPrimary }}>
+                        {selected.code} ({selected.name})
+                      </Text>
+                      .{'\n\n'}
+                      <Text style={{ fontStyle: 'italic', color: colors.textMuted }}>
+                        Note: Existing expenses and payments will maintain their recorded currency values and history.
+                      </Text>
+                    </>
+                  )}
                 </Text>
 
                 <View style={styles.confirmActions}>
@@ -286,6 +317,15 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
       color: colors.textMuted,
       marginTop: 1,
     },
+    decimalsTag: {
+      fontSize: 11,
+      color: colors.textMuted,
+      marginRight: 8,
+      backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
     activePill: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -299,8 +339,20 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
       fontWeight: '600',
       color: colors.primary,
     },
+    emptyContainer: {
+      paddingVertical: 32,
+      alignItems: 'center',
+    },
+    emptyText: {
+      fontSize: 14,
+      color: colors.textMuted,
+    },
     confirmOverlay: {
-      ...StyleSheet.absoluteFill,
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
       backgroundColor: 'rgba(0, 0, 0, 0.55)',
       alignItems: 'center',
       justifyContent: 'center',

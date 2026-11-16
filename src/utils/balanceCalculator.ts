@@ -1,4 +1,5 @@
-import { Expense, GroupMember, OptimizedSettlement, FriendBalance, Settlement } from '../types';
+import { Expense, GroupMember, OptimizedSettlement, FriendBalance, Settlement, CurrencyConversionRecord } from '../types';
+import { normalizeCurrencyCode, fromMinorUnit } from './currency';
 
 // ─── Debt Minimization (preserved from balanceCalculator.js) ──────────────────
 
@@ -69,13 +70,14 @@ export function computeNetBalances(
 export function computeNetBalancesByCurrency(
   expenses: Expense[],
   members: GroupMember[],
-  settlements: Settlement[] = []
+  settlements: Settlement[] = [],
+  conversions: CurrencyConversionRecord[] = []
 ): Map<string, Map<string, number>> {
   const currencyMap = new Map<string, { expenses: Expense[]; settlements: Settlement[] }>();
 
   expenses.forEach((expense) => {
     if (expense.isDeleted) return;
-    const curr = expense.currency || 'INR';
+    const curr = normalizeCurrencyCode(expense.currency || 'INR');
     if (!currencyMap.has(curr)) {
       currencyMap.set(curr, { expenses: [], settlements: [] });
     }
@@ -84,7 +86,7 @@ export function computeNetBalancesByCurrency(
 
   settlements.forEach((settlement) => {
     if (settlement.isDeleted) return;
-    const curr = (settlement as any).currency || 'INR';
+    const curr = normalizeCurrencyCode(settlement.currency || 'INR');
     if (!currencyMap.has(curr)) {
       currencyMap.set(curr, { expenses: [], settlements: [] });
     }
@@ -96,6 +98,33 @@ export function computeNetBalancesByCurrency(
     results.set(curr, computeNetBalances(currExpenses, members, currSettlements));
   });
 
+  // Apply explicit manual currency conversions
+  conversions.forEach((conv) => {
+    if (conv.isDeleted) return;
+    const src = normalizeCurrencyCode(conv.sourceCurrency);
+    const tgt = normalizeCurrencyCode(conv.targetCurrency);
+    const srcAmt = fromMinorUnit(conv.sourceAmountMinor, src);
+    const tgtAmt = fromMinorUnit(conv.targetAmountMinor, tgt);
+
+    if (!results.has(src)) {
+      const emptyMap = new Map<string, number>();
+      members.forEach((m) => emptyMap.set(m.userId, 0));
+      results.set(src, emptyMap);
+    }
+    if (!results.has(tgt)) {
+      const emptyMap = new Map<string, number>();
+      members.forEach((m) => emptyMap.set(m.userId, 0));
+      results.set(tgt, emptyMap);
+    }
+
+    const srcMap = results.get(src)!;
+    const tgtMap = results.get(tgt)!;
+
+    // Moving debt/credit from source to target
+    srcMap.set(conv.createdBy, (srcMap.get(conv.createdBy) || 0) + srcAmt);
+    tgtMap.set(conv.createdBy, (tgtMap.get(conv.createdBy) || 0) - tgtAmt);
+  });
+
   return results;
 }
 
@@ -105,9 +134,11 @@ export function computeNetBalancesByCurrency(
  */
 export function optimizeSettlements(
   balances: Map<string, number>,
-  members: GroupMember[]
+  members: GroupMember[],
+  currency = 'INR'
 ): OptimizedSettlement[] {
   const memberMap = new Map(members.map((m) => [m.userId, m.userName]));
+  const normCurrency = normalizeCurrencyCode(currency);
 
   // Separate creditors (positive balance) from debtors (negative balance)
   const creditors: { userId: string; amount: number }[] = [];
@@ -135,6 +166,7 @@ export function optimizeSettlements(
       fromUserName: memberMap.get(debtor.userId) ?? 'Unknown',
       toUserName: memberMap.get(creditor.userId) ?? 'Unknown',
       amount: Math.round(amount * 100) / 100,
+      currency: normCurrency,
     });
 
     debtor.amount = Math.round((debtor.amount - amount) * 100) / 100;
@@ -153,10 +185,11 @@ export function optimizeSettlements(
 export function getOptimizedSettlements(
   expenses: Expense[],
   members: GroupMember[],
-  settlements: Settlement[] = []
+  settlements: Settlement[] = [],
+  currency = 'INR'
 ): OptimizedSettlement[] {
   const balances = computeNetBalances(expenses, members, settlements);
-  return optimizeSettlements(balances, members);
+  return optimizeSettlements(balances, members, currency);
 }
 
 /**
@@ -165,7 +198,8 @@ export function getOptimizedSettlements(
 export function getDirectPairwiseSettlements(
   expenses: Expense[],
   members: GroupMember[],
-  settlements: Settlement[] = []
+  settlements: Settlement[] = [],
+  currency = 'INR'
 ): OptimizedSettlement[] {
   const memberMap = new Map(members.map((m) => [m.userId, m.userName]));
   const pairDebts = new Map<string, number>();
@@ -219,6 +253,7 @@ export function getDirectPairwiseSettlements(
 
   // 3. Convert to settlements list
   const results: OptimizedSettlement[] = [];
+  const normCurrency = normalizeCurrencyCode(currency);
   pairDebts.forEach((val, key) => {
     const [u1, u2] = key.split('::');
     const rounded = Math.round(val * 100) / 100;
@@ -229,6 +264,7 @@ export function getDirectPairwiseSettlements(
         toUserId: u2,
         toUserName: memberMap.get(u2) || 'Unknown',
         amount: rounded,
+        currency: normCurrency,
       });
     } else if (rounded <= -0.01) {
       results.push({
@@ -237,6 +273,7 @@ export function getDirectPairwiseSettlements(
         toUserId: u1,
         toUserName: memberMap.get(u1) || 'Unknown',
         amount: Math.abs(rounded),
+        currency: normCurrency,
       });
     }
   });
@@ -251,12 +288,74 @@ export function calculateGroupSettlements(
   expenses: Expense[],
   members: GroupMember[],
   settlements: Settlement[] = [],
-  simplifyDebts: boolean = true
+  simplifyDebts: boolean = true,
+  currency = 'INR'
 ): OptimizedSettlement[] {
+  const normCurrency = normalizeCurrencyCode(currency);
   if (simplifyDebts) {
-    return getOptimizedSettlements(expenses, members, settlements);
+    return getOptimizedSettlements(expenses, members, settlements, normCurrency);
   }
-  return getDirectPairwiseSettlements(expenses, members, settlements);
+  return getDirectPairwiseSettlements(expenses, members, settlements, normCurrency);
+}
+
+/**
+ * Computes group settlements grouped by currency.
+ * Balances in different currencies are never combined or netted against each other.
+ * Returns Map: currencyCode → OptimizedSettlement[]
+ */
+export function calculateGroupSettlementsByCurrency(
+  expenses: Expense[],
+  members: GroupMember[],
+  settlements: Settlement[] = [],
+  simplifyDebts: boolean = true,
+  conversions: CurrencyConversionRecord[] = []
+): Map<string, OptimizedSettlement[]> {
+  const byCurrency = computeNetBalancesByCurrency(expenses, members, settlements, conversions);
+  const results = new Map<string, OptimizedSettlement[]>();
+
+  byCurrency.forEach((balanceMap, curr) => {
+    if (simplifyDebts) {
+      const list = optimizeSettlements(balanceMap, members, curr);
+      if (list.length > 0) {
+        results.set(curr, list);
+      }
+    } else {
+      const currExpenses = expenses.filter(
+        (e) => normalizeCurrencyCode(e.currency || 'INR') === curr
+      );
+      const currSettlements = settlements.filter(
+        (s) => normalizeCurrencyCode(s.currency || 'INR') === curr
+      );
+      const list = getDirectPairwiseSettlements(currExpenses, members, currSettlements, curr);
+      if (list.length > 0) {
+        results.set(curr, list);
+      }
+    }
+  });
+
+  return results;
+}
+
+/**
+ * Extracts a user's net balance list across all currencies.
+ * Returns array of { currency, balance } where balance is positive (owed to user) or negative (user owes).
+ */
+export function getUserCurrencyBalances(
+  expenses: Expense[],
+  members: GroupMember[],
+  settlements: Settlement[] = [],
+  userId: string,
+  conversions: CurrencyConversionRecord[] = []
+): { currency: string; balance: number }[] {
+  const byCurrency = computeNetBalancesByCurrency(expenses, members, settlements, conversions);
+  const list: { currency: string; balance: number }[] = [];
+  byCurrency.forEach((balMap, currency) => {
+    const bal = balMap.get(userId) || 0;
+    if (Math.abs(bal) >= 0.005) {
+      list.push({ currency, balance: Math.round(bal * 100) / 100 });
+    }
+  });
+  return list;
 }
 
 // ─── Friends Balance (cross-group & direct) ───────────────────────────────────
@@ -381,6 +480,7 @@ export function computeDetailedFriendBalance(
       type: 'expense',
       description: exp.description,
       amount: exp.amount,
+      currency: exp.currency,
       paidBy: payerId,
       payerName: payerIsMe ? 'You' : friendName,
       date: exp.createdAt instanceof Date ? exp.createdAt : new Date(exp.createdAt),
@@ -409,6 +509,7 @@ export function computeDetailedFriendBalance(
       type: 'settlement',
       description: isFromMe ? `You paid ${friendName}` : `${friendName} paid you`,
       amount: s.amount,
+      currency: s.currency,
       paidBy: s.fromUserId,
       payerName: isFromMe ? 'You' : friendName,
       date: s.createdAt instanceof Date ? s.createdAt : new Date(s.createdAt),
@@ -500,6 +601,7 @@ export function computeDetailedFriendBalance(
         type: 'expense',
         description: exp.description,
         amount: exp.amount,
+        currency: exp.currency,
         paidBy: payerId,
         payerName: payerIsMe ? 'You' : friendName,
         date: exp.createdAt instanceof Date ? exp.createdAt : new Date(exp.createdAt),
@@ -526,6 +628,7 @@ export function computeDetailedFriendBalance(
         type: 'settlement',
         description: isFromMe ? `You paid ${friendName}` : `${friendName} paid you`,
         amount: s.amount,
+        currency: s.currency,
         paidBy: s.fromUserId,
         payerName: isFromMe ? 'You' : friendName,
         date: s.createdAt instanceof Date ? s.createdAt : new Date(s.createdAt),

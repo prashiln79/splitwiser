@@ -82,7 +82,26 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
           from_user_name TEXT NOT NULL,
           to_user_name TEXT NOT NULL,
           amount REAL NOT NULL,
+          currency TEXT NOT NULL DEFAULT 'INR',
           status TEXT NOT NULL DEFAULT 'completed',
+          note TEXT,
+          created_at INTEGER NOT NULL,
+          sync_status TEXT NOT NULL DEFAULT 'synced',
+          is_deleted INTEGER NOT NULL DEFAULT 0
+        );
+
+        -- Currency Conversions Table
+        CREATE TABLE IF NOT EXISTS local_currency_conversions (
+          id TEXT PRIMARY KEY,
+          group_id TEXT NOT NULL,
+          created_by TEXT NOT NULL,
+          source_currency TEXT NOT NULL,
+          target_currency TEXT NOT NULL,
+          source_amount_minor INTEGER NOT NULL,
+          target_amount_minor INTEGER NOT NULL,
+          exchange_rate REAL NOT NULL,
+          rate_timestamp INTEGER NOT NULL,
+          rate_source TEXT NOT NULL,
           note TEXT,
           created_at INTEGER NOT NULL,
           sync_status TEXT NOT NULL DEFAULT 'synced',
@@ -144,7 +163,18 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
 
         CREATE INDEX IF NOT EXISTS idx_queue_status_created 
           ON sync_queue (status, created_at ASC);
+
+        CREATE INDEX IF NOT EXISTS idx_conversions_group 
+          ON local_currency_conversions (group_id, is_deleted, created_at DESC);
       `);
+
+      // Safe schema migrations for existing SQLite installations
+      try {
+        await db.execAsync(`ALTER TABLE local_settlements ADD COLUMN currency TEXT NOT NULL DEFAULT 'INR';`);
+      } catch (_) {
+        // Column already exists
+      }
+
       dbInstance = db;
       return db;
     })();
@@ -163,6 +193,7 @@ export async function clearLocalData(): Promise<void> {
     DELETE FROM local_group_members;
     DELETE FROM local_expenses;
     DELETE FROM local_settlements;
+    DELETE FROM local_currency_conversions;
     DELETE FROM sync_queue;
     DELETE FROM sync_metadata;
   `);

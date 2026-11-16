@@ -32,7 +32,8 @@ import { createGroupLocal, getLocalGroups } from '../../repositories/groupReposi
 import { networkMonitor } from '../../sync/networkMonitor';
 import { compressAvatarPhoto } from '../../utils/imageCompressor';
 import { GroupCoverPhoto } from '../../types';
-import { getDefaultCurrency, normalizeCurrencyCode } from '../../utils/currency';
+import { getDefaultCurrency, normalizeCurrencyCode, getCurrencySymbol, getCurrencyName } from '../../utils/currency';
+import { CurrencySelectorModal } from '../../components/groupSettings/CurrencySelectorModal';
 import { resolveProfilePicture } from '../../utils/profilePhotoHelper';
 
 type GroupType = 'trip' | 'home' | 'couple' | 'other';
@@ -58,13 +59,6 @@ const getGroupPlaceholder = (type: GroupType): string => {
   }
 };
 
-const CURRENCIES = [
-  { code: 'INR', symbol: '₹', label: 'INR' },
-  { code: 'USD', symbol: '$', label: 'USD' },
-  { code: 'EUR', symbol: '€', label: 'EUR' },
-  { code: 'GBP', symbol: '£', label: 'GBP' },
-];
-
 interface OnboardingGroupCreationScreenProps {
   navigation: any;
   route: any;
@@ -87,6 +81,7 @@ export const OnboardingGroupCreationScreen: React.FC<OnboardingGroupCreationScre
   const [currency, setCurrency] = useState(
     user?.currency ? normalizeCurrencyCode(user.currency) : getDefaultCurrency() || 'INR'
   );
+  const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
   const [pickedImage, setPickedImage] = useState<{ uri: string; base64?: string | null } | null>(null);
   const [pickedCover, setPickedCover] = useState<GroupCoverPhoto | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -313,36 +308,54 @@ export const OnboardingGroupCreationScreen: React.FC<OnboardingGroupCreationScre
         {/* Currency Selector */}
         <View style={styles.section}>
           <Text style={styles.inputLabel}>DEFAULT CURRENCY</Text>
-          <View style={styles.currencyRow}>
-            {CURRENCIES.map((cur) => {
-              const isSelected = currency === cur.code;
-              return (
-                <TouchableOpacity
-                  key={cur.code}
-                  style={[
-                    styles.currencyPill,
-                    isSelected && styles.currencyPillSelected,
-                  ]}
-                  onPress={() => {
-                    if (Platform.OS !== 'web') {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                    }
-                    setCurrency(cur.code);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text
-                    style={[
-                      styles.currencyText,
-                      isSelected && styles.currencyTextSelected,
-                    ]}
-                  >
-                    {cur.symbol} {cur.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          <TouchableOpacity
+            style={[
+              styles.currencyPill,
+              {
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingHorizontal: 16,
+                paddingVertical: 14,
+              },
+            ]}
+            onPress={() => {
+              if (Platform.OS !== 'web') {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+              }
+              setCurrencyModalVisible(true);
+            }}
+            activeOpacity={0.8}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: 'rgba(5, 150, 105, 0.25)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 12,
+                }}
+              >
+                <Text style={{ fontSize: 16, fontWeight: '700', color: '#34D399' }}>
+                  {getCurrencySymbol(currency)}
+                </Text>
+              </View>
+              <View>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>
+                  {currency}
+                </Text>
+                <Text style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.6)' }}>
+                  {getCurrencyName(currency)}
+                </Text>
+              </View>
+            </View>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: '#34D399' }}>
+              Change
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Info callout */}
@@ -373,6 +386,17 @@ export const OnboardingGroupCreationScreen: React.FC<OnboardingGroupCreationScre
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      <CurrencySelectorModal
+        visible={currencyModalVisible}
+        currentCurrency={currency}
+        title="Group Currency"
+        requireConfirmation={false}
+        onClose={() => setCurrencyModalVisible(false)}
+        onSelect={(newCode) => {
+          setCurrency(newCode);
+        }}
+      />
     </KeyboardAvoidingView>
   );
 };
