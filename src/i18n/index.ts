@@ -10,11 +10,11 @@ import { getDeviceLocale, resolveInitialLocale } from './language-detector';
 if (typeof Intl === 'undefined' || !Intl.PluralRules) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('@formatjs/intl-pluralrules/polyfill');
+    require('@formatjs/intl-pluralrules/polyfill.js');
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('@formatjs/intl-pluralrules/locale-data/ar');
+    require('@formatjs/intl-pluralrules/locale-data/ar.js');
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('@formatjs/intl-pluralrules/locale-data/ru');
+    require('@formatjs/intl-pluralrules/locale-data/ru.js');
   } catch {
     // Hermes built-in Intl is present in newer RN
   }

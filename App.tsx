@@ -21,10 +21,20 @@ function MainApp() {
   const { paperTheme, isDark, colors } = useAppTheme();
 
   useEffect(() => {
-    // Warm up SQLite tables & indexes on app launch
-    getDatabase().catch((e) => {
-      console.warn('[App] SQLite init warning:', e);
-    });
+    // Warm up SQLite tables & indexes on app launch.
+    // On web, expo-sqlite uses OPFS (Origin Private File System) via
+    // AccessHandlePoolVFS. The browser only allows ONE sync access handle per
+    // file at a time, so opening a second tab throws:
+    //   "Failed to execute 'createSyncAccessHandle' on 'FileSystemFileHandle':
+    //    Access Handles cannot be created if there is another open Access Handle
+    //    or Writable stream associated with the same file."
+    // On web, all persistent data comes from Firestore directly — SQLite is
+    // used only for native (iOS/Android) offline caching. Guard accordingly.
+    if (Platform.OS !== 'web') {
+      getDatabase().catch((e) => {
+        console.warn('[App] SQLite init warning:', e);
+      });
+    }
 
     // Initialize local Android/iOS notifications & channels
     initLocalNotifications().catch((e) => {

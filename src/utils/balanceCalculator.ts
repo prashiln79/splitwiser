@@ -63,6 +63,43 @@ export function computeNetBalances(
 }
 
 /**
+ * Compute net balances grouped by currency for groups or activities with multi-currency expenses.
+ * Returns Map: currencyCode → Map<userId, netBalance>
+ */
+export function computeNetBalancesByCurrency(
+  expenses: Expense[],
+  members: GroupMember[],
+  settlements: Settlement[] = []
+): Map<string, Map<string, number>> {
+  const currencyMap = new Map<string, { expenses: Expense[]; settlements: Settlement[] }>();
+
+  expenses.forEach((expense) => {
+    if (expense.isDeleted) return;
+    const curr = expense.currency || 'INR';
+    if (!currencyMap.has(curr)) {
+      currencyMap.set(curr, { expenses: [], settlements: [] });
+    }
+    currencyMap.get(curr)!.expenses.push(expense);
+  });
+
+  settlements.forEach((settlement) => {
+    if (settlement.isDeleted) return;
+    const curr = (settlement as any).currency || 'INR';
+    if (!currencyMap.has(curr)) {
+      currencyMap.set(curr, { expenses: [], settlements: [] });
+    }
+    currencyMap.get(curr)!.settlements.push(settlement);
+  });
+
+  const results = new Map<string, Map<string, number>>();
+  currencyMap.forEach(({ expenses: currExpenses, settlements: currSettlements }, curr) => {
+    results.set(curr, computeNetBalances(currExpenses, members, currSettlements));
+  });
+
+  return results;
+}
+
+/**
  * Debt minimization algorithm: reduces transactions to minimum needed.
  * This is the same logic that was previously in the FastAPI backend.
  */
@@ -78,8 +115,8 @@ export function optimizeSettlements(
 
   balances.forEach((balance, userId) => {
     const rounded = Math.round(balance * 100) / 100;
-    if (rounded > 0.01) creditors.push({ userId, amount: rounded });
-    else if (rounded < -0.01) debtors.push({ userId, amount: Math.abs(rounded) });
+    if (rounded >= 0.01) creditors.push({ userId, amount: rounded });
+    else if (rounded <= -0.01) debtors.push({ userId, amount: Math.abs(rounded) });
   });
 
   const settlements: OptimizedSettlement[] = [];
@@ -100,11 +137,11 @@ export function optimizeSettlements(
       amount: Math.round(amount * 100) / 100,
     });
 
-    debtor.amount -= amount;
-    creditor.amount -= amount;
+    debtor.amount = Math.round((debtor.amount - amount) * 100) / 100;
+    creditor.amount = Math.round((creditor.amount - amount) * 100) / 100;
 
-    if (debtor.amount < 0.01) i++;
-    if (creditor.amount < 0.01) j++;
+    if (debtor.amount < 0.005) i++;
+    if (creditor.amount < 0.005) j++;
   }
 
   return settlements;
@@ -139,6 +176,29 @@ export function getDirectPairwiseSettlements(
   // 1. Process expenses
   expenses.forEach((e) => {
     if (e.isDeleted) return;
+
+    // Support multiple payers encoded in tags (payer:userId:amount)
+    const payerTags = e.tags?.filter((t) => t.startsWith('payer:')) || [];
+    if (payerTags.length > 0) {
+      payerTags.forEach((pt) => {
+        const parts = pt.split(':');
+        const pUid = parts[1];
+        const pAmt = parseFloat(parts[2]) || 0;
+        if (pAmt <= 0 || !e.amount) return;
+        const payerFraction = pAmt / e.amount;
+
+        e.splits.forEach((s) => {
+          if (s.userId === pUid) return;
+          const shareOwedToPayer = s.amount * payerFraction;
+          const key = getPairKey(s.userId, pUid);
+          const isSmallerUser = s.userId < pUid;
+          const current = pairDebts.get(key) || 0;
+          pairDebts.set(key, current + (isSmallerUser ? shareOwedToPayer : -shareOwedToPayer));
+        });
+      });
+      return;
+    }
+
     const payer = e.paidBy;
     e.splits.forEach((s) => {
       if (s.userId === payer) return;
@@ -162,7 +222,7 @@ export function getDirectPairwiseSettlements(
   pairDebts.forEach((val, key) => {
     const [u1, u2] = key.split('::');
     const rounded = Math.round(val * 100) / 100;
-    if (rounded > 0.01) {
+    if (rounded >= 0.01) {
       results.push({
         fromUserId: u1,
         fromUserName: memberMap.get(u1) || 'Unknown',
@@ -170,7 +230,7 @@ export function getDirectPairwiseSettlements(
         toUserName: memberMap.get(u2) || 'Unknown',
         amount: rounded,
       });
-    } else if (rounded < -0.01) {
+    } else if (rounded <= -0.01) {
       results.push({
         fromUserId: u2,
         fromUserName: memberMap.get(u2) || 'Unknown',

@@ -252,3 +252,42 @@ export const calculateItemizedSplits = (
   };
 };
 
+/**
+ * Validates that percentage shares sum to 100% within allowed tolerance.
+ */
+export const validatePercentages = (
+  participants: { id: string; pct: number }[]
+): { isValid: boolean; totalPct: number; errorMessage?: string } => {
+  const totalPct = participants.reduce((acc, p) => acc + (p.pct || 0), 0);
+  const diffPct = Math.abs(100 - totalPct);
+  if (diffPct > APP_LIMITS.SPLIT.PERCENTAGE_TOLERANCE) {
+    return {
+      isValid: false,
+      totalPct,
+      errorMessage: `Percentages must total 100% (currently ${totalPct.toFixed(1)}%).`,
+    };
+  }
+  return { isValid: true, totalPct };
+};
+
+/**
+ * Validates that custom exact amounts sum exactly to the total expense amount.
+ */
+export const validateExactSplits = (
+  totalCents: number,
+  exactCentsList: { id: string; cents: number }[]
+): { isValid: boolean; allocatedCents: number; diffCents: number; errorMessage?: string } => {
+  const allocatedCents = exactCentsList.reduce((acc, p) => acc + (p.cents || 0), 0);
+  const diffCents = totalCents - allocatedCents;
+  if (diffCents !== 0) {
+    return {
+      isValid: false,
+      allocatedCents,
+      diffCents,
+      errorMessage: `Exact total differs by ${formatCents(Math.abs(diffCents))}.`,
+    };
+  }
+  return { isValid: true, allocatedCents, diffCents: 0 };
+};
+
+
