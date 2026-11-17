@@ -30,6 +30,29 @@ import {
   ChevronRight,
   Scale,
   Search,
+  Lightbulb,
+  HeartHandshake,
+  Utensils,
+  Film,
+  Home,
+  Landmark,
+  Gift,
+  ShoppingCart,
+  Luggage,
+  Heart,
+  Sprout,
+  ShoppingBag,
+  ArrowLeftRight,
+  Car,
+  Coffee,
+  Beer,
+  Fuel,
+  Gamepad2,
+  PawPrint,
+  Sparkles,
+  GraduationCap,
+  Laptop,
+  PartyPopper,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -74,6 +97,39 @@ import {
   calculateAdjustmentSplits,
   calculateItemizedSplits,
 } from '../utils/splitMath';
+
+interface CategoryPickerItem {
+  key: ExpenseCategory;
+  label: string;
+  color: string;
+  icon: React.ComponentType<{ size: number; color: string; strokeWidth?: number }>;
+}
+
+const CATEGORY_PICKER_ITEMS: CategoryPickerItem[] = [
+  { key: 'Utilities', label: 'Bills', color: '#4BA3E3', icon: Lightbulb },
+  { key: 'Services', label: 'Charity', color: '#8FA17B', icon: HeartHandshake },
+  { key: 'Food', label: 'Eating out', color: '#B4D44A', icon: Utensils },
+  { key: 'Entertainment', label: 'Entertain...', color: '#86D2B6', icon: Film },
+  { key: 'General', label: 'Expenses', color: '#7A8B99', icon: Receipt },
+  { key: 'Rent', label: 'Family', color: '#67C2D4', icon: Home },
+  { key: 'Subscriptions', label: 'Finances', color: '#6EDBA4', icon: Landmark },
+  { key: 'Tech', label: 'General', color: '#A0AEC0', icon: Laptop },
+  { key: 'Gift', label: 'Gifts', color: '#78866B', icon: Gift },
+  { key: 'Groceries', label: 'Groceries', color: '#FBBF24', icon: ShoppingCart },
+  { key: 'Travel', label: 'Holidays', color: '#F97316', icon: Luggage },
+  { key: 'Fuel', label: 'Fuel', color: '#4ADE80', icon: Fuel },
+  { key: 'Health', label: 'Personal...', color: '#EF4444', icon: Heart },
+  { key: 'Fitness', label: 'Savings', color: '#4D908E', icon: Sprout },
+  { key: 'Shopping', label: 'Shopping', color: '#F472B6', icon: ShoppingBag },
+  { key: 'Transport', label: 'Transfers', color: '#5C92A8', icon: ArrowLeftRight },
+  { key: 'Coffee', label: 'Coffee', color: '#D97706', icon: Coffee },
+  { key: 'Drinks', label: 'Drinks', color: '#F59E0B', icon: Beer },
+  { key: 'PersonalCare', label: 'Beauty', color: '#EC4899', icon: Sparkles },
+  { key: 'Gaming', label: 'Gaming', color: '#A78BFA', icon: Gamepad2 },
+  { key: 'Party', label: 'Party', color: '#FB7185', icon: PartyPopper },
+  { key: 'Pets', label: 'Pets', color: '#B45309', icon: PawPrint },
+  { key: 'Education', label: 'Education', color: '#3B82F6', icon: GraduationCap },
+];
 
 export const AddExpenseScreen = ({ route, navigation }: any) => {
   const { groupId: passedGroupId, friendId, friendName, expenseToEdit } = route.params || {};
@@ -151,6 +207,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
 
   // Contextual modal states
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+  const [tempCategory, setTempCategory] = useState<ExpenseCategory | null>(null);
   const [payerModalVisible, setPayerModalVisible] = useState(false);
   const [splitModalVisible, setSplitModalVisible] = useState(false);
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
@@ -895,6 +952,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                 if (Platform.OS !== 'web') {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                 }
+                setTempCategory(activeCategory);
                 setCategoryModalVisible(true);
               }}
               activeOpacity={0.7}
@@ -1475,74 +1533,94 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* ── Contextual Modal 1: Category Selector ───────────────────────────── */}
+      {/* ── Contextual Modal 1: Category Selector Bottom Sheet ───────────────── */}
       <Modal
         visible={categoryModalVisible}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setCategoryModalVisible(false)}
       >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setCategoryModalVisible(false)}
-        >
-          <View style={styles.categoryDialog}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Choose a category</Text>
-              <TouchableOpacity
-                onPress={() => setCategoryModalVisible(false)}
-                style={styles.modalCloseBtn}
-              >
-                <X size={20} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
+        <View style={styles.categoryModalOverlay}>
+          <TouchableOpacity
+            style={styles.categoryModalBackdrop}
+            activeOpacity={1}
+            onPress={() => setCategoryModalVisible(false)}
+          />
+          <View
+            style={[
+              styles.categorySheetContainer,
+              { paddingBottom: Math.max(insets.bottom + 12, 24) },
+            ]}
+          >
+            <View style={styles.categoryDragHandle} />
+            <Text style={styles.categorySheetTitle}>Choose a category</Text>
 
-            <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
-              <View style={styles.categoryGrid}>
-                {Object.keys(CATEGORIES_CONFIG).map((catKey) => {
-                  const cfg = CATEGORIES_CONFIG[catKey];
-                  const isSelected = activeCategory === catKey;
+            <ScrollView
+              style={styles.categorySheetScroll}
+              contentContainerStyle={styles.categoryGridContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.categoryGrid4Col}>
+                {CATEGORY_PICKER_ITEMS.map((item) => {
+                  const isSelected = (tempCategory || activeCategory) === item.key;
+                  const IconComp = item.icon;
                   return (
                     <TouchableOpacity
-                      key={catKey}
-                      style={[
-                        styles.categoryItem,
-                        isSelected && styles.categoryItemSelected,
-                      ]}
+                      key={item.key + item.label}
+                      style={styles.categoryGridCell}
+                      activeOpacity={0.7}
                       onPress={() => {
                         if (Platform.OS !== 'web') {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                         }
-                        setManualCategory(catKey as ExpenseCategory);
-                        setCategoryModalVisible(false);
+                        setTempCategory(item.key);
                       }}
-                      activeOpacity={0.7}
                     >
                       <View
                         style={[
-                          styles.categoryItemIconWrap,
-                          { backgroundColor: cfg.bgColor },
+                          styles.categoryCircleBadge,
+                          { backgroundColor: item.color },
                         ]}
                       >
-                        <CategoryIcon category={catKey as ExpenseCategory} size={28} />
+                        <IconComp size={26} color="#FFFFFF" strokeWidth={2.2} />
+                        {isSelected && (
+                          <View style={styles.categoryCheckBadge}>
+                            <Check size={11} color="#FFFFFF" strokeWidth={3.5} />
+                          </View>
+                        )}
                       </View>
                       <Text
                         style={[
-                          styles.categoryItemLabel,
-                          isSelected && styles.categoryItemLabelSelected,
+                          styles.categoryCellLabel,
+                          isSelected && styles.categoryCellLabelSelected,
                         ]}
                         numberOfLines={1}
+                        ellipsizeMode="tail"
                       >
-                        {cfg.label}
+                        {item.label}
                       </Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
             </ScrollView>
+
+            <TouchableOpacity
+              style={styles.categoryDoneBtn}
+              onPress={() => {
+                if (tempCategory) {
+                  setManualCategory(tempCategory);
+                }
+                setCategoryModalVisible(false);
+              }}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Done choosing category"
+            >
+              <Text style={styles.categoryDoneBtnText}>Done</Text>
+            </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
 
       {/* ── Contextual Modal 2: Payer Selector (Single & Multiple) ────────── */}
@@ -2302,17 +2380,17 @@ const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create
     justifyContent: 'center',
     paddingVertical: 15,
     borderRadius: 10,
-    backgroundColor: '#059669',
+    backgroundColor: colors.primary,
     marginHorizontal: 20,
     marginTop: 24,
-    shadowColor: '#059669',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
   },
   saveCtaBtnText: {
-    color: '#FFFFFF',
+    color: colors.primaryText || '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
   },
@@ -2324,12 +2402,123 @@ const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create
     alignItems: 'center',
     padding: 20,
   },
-  categoryDialog: {
+  categoryModalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  categoryModalBackdrop: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+  },
+  categorySheetContainer: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 20,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 12,
+    maxHeight: '85%',
     width: '100%',
-    maxWidth: 380,
+    alignSelf: 'center',
+    maxWidth: 520,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 24,
+  },
+  categoryDragHandle: {
+    width: 40,
+    height: 4.5,
+    borderRadius: 3,
+    backgroundColor: isDark ? colors.border : '#E2E8F0',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  categorySheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: 18,
+  },
+  categorySheetScroll: {
+    maxHeight: 420,
+  },
+  categoryGridContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  categoryGrid4Col: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+  },
+  categoryGridCell: {
+    width: '25%',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 4,
+  },
+  categoryCircleBadge: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  categoryCheckBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#0F172A',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  categoryCellLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 6,
+    width: '100%',
+  },
+  categoryCellLabelSelected: {
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  categoryDoneBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 24,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 20,
+    marginTop: 10,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  categoryDoneBtnText: {
+    color: colors.primaryText || '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
   selectionDialog: {
     backgroundColor: colors.surface,
@@ -2351,43 +2540,6 @@ const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create
   },
   modalCloseBtn: {
     padding: 4,
-  },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
-  categoryItem: {
-    width: '30%',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  categoryItemSelected: {
-    borderColor: colors.primary,
-    backgroundColor: isDark ? colors.surfaceSecondary : '#ECFDF5',
-  },
-  categoryItemIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
-  },
-  categoryItemLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-  categoryItemLabelSelected: {
-    color: colors.primary,
-    fontWeight: '700',
   },
   selectionOptionRow: {
     flexDirection: 'row',
