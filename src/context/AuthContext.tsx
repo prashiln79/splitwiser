@@ -26,6 +26,7 @@ import {
   getCachedUserProfile,
   saveCachedUserProfile,
   clearCachedUserProfile,
+  isOnboardingCompleted,
 } from '../services/auth';
 
 // ─── Context shape ────────────────────────────────────────────────────────────
@@ -133,10 +134,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Subscribe to Firebase Auth state changes
     const unsubscribe = subscribeToAuthState(async (firebaseUser) => {
       if (firebaseUser) {
-        // Optimistic setup so UI can render immediately if no cache was available
-        setUser((prev) => {
-          if (prev && prev.uid === firebaseUser.uid) return prev;
-          return {
+        // Read local profile cache and local onboarding flag synchronously
+        const [cached, localOnboardingDone] = await Promise.all([
+          getCachedUserProfile(),
+          isOnboardingCompleted(firebaseUser.uid),
+        ]);
+
+        if (cached && cached.uid === firebaseUser.uid) {
+          if (cached.currency) setDefaultCurrency(cached.currency);
+          setUser(cached);
+          setIsLoading(false);
+          syncService.initialize(firebaseUser.uid);
+        } else {
+          const hasCompletedProfile = Boolean(firebaseUser.displayName && !firebaseUser.isAnonymous);
+          const onboardingCompleted = localOnboardingDone || hasCompletedProfile;
+
+          const initialProfile: AppUser = {
             uid: firebaseUser.uid,
             name: firebaseUser.displayName || '',
             email: firebaseUser.email || undefined,
@@ -145,14 +158,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             createdAt: new Date(),
             isAnonymous: firebaseUser.isAnonymous,
             authProvider: firebaseUser.isAnonymous ? 'anonymous' : 'password',
-            hasCompletedProfile: Boolean(firebaseUser.displayName && !firebaseUser.isAnonymous),
-            onboardingCompleted: false,
+            hasCompletedProfile,
+            onboardingCompleted,
           };
-        });
-
-        // Unblock splash screen immediately!
-        setIsLoading(false);
-        syncService.initialize(firebaseUser.uid);
+          setUser(initialProfile);
+          setIsLoading(false);
+          syncService.initialize(firebaseUser.uid);
+        }
 
         // Background sync: verify and refresh profile from cloud without holding splash screen hostage
         try {

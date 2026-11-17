@@ -532,51 +532,45 @@ const HomeScreen = ({ navigation }: any) => {
       )}
 
       {/* Main Content */}
-      {isLoading ? (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#059669" />
-        </View>
-      ) : (
-        <FlatList
-          data={visibleGroups}
-          keyExtractor={(item) => item.id}
-          ListHeaderComponent={renderHeader}
-          ListFooterComponent={visibleGroups.length > 0 ? renderFooter : null}
-          contentContainerStyle={[
-            styles.listContent,
-            { paddingBottom: 90 },
-          ]}
-          renderItem={({ item }) => {
-            const status = groupSettlements[item.id];
-            return (
-              <GroupCard
-                group={item}
-                netBalance={status?.netBalance ?? 0}
-                isSettled={status?.isSettled ?? true}
-                subBalances={status?.subBalances ?? []}
-                onPress={() =>
-                  navigation.navigate('GroupDetails', {
-                    groupId: item.id,
-                    groupName: item.name,
-                  })
-                }
-              />
-            );
-          }}
-          ListEmptyComponent={renderEmptyState}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={onRefresh}
-              colors={['#059669']}
-              tintColor="#059669"
+      <FlatList
+        data={visibleGroups}
+        keyExtractor={(item) => item.id}
+        ListHeaderComponent={renderHeader}
+        ListFooterComponent={visibleGroups.length > 0 ? renderFooter : null}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: 90 },
+        ]}
+        renderItem={({ item }) => {
+          const status = groupSettlements[item.id];
+          return (
+            <GroupCard
+              group={item}
+              netBalance={status?.netBalance ?? 0}
+              isSettled={status?.isSettled ?? true}
+              subBalances={status?.subBalances ?? []}
+              onPress={() =>
+                navigation.navigate('GroupDetails', {
+                  groupId: item.id,
+                  groupName: item.name,
+                })
+              }
             />
-          }
-        />
-      )}
+          );
+        }}
+        ListEmptyComponent={isLoading ? null : renderEmptyState}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            colors={['#059669']}
+            tintColor="#059669"
+          />
+        }
+      />
 
       {/* Floating Add Expense Pill (Splitwise Style) */}
-      {!isLoading && groups.length > 0 && (
+      {groups.length > 0 && (
         <TouchableOpacity
           style={styles.addExpensePill}
           onPress={handleAddExpenseClick}

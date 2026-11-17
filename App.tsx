@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StatusBar as RNStatusBar, Platform } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { PaperProvider } from 'react-native-paper';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
 import { I18nProvider } from './src/context/I18nContext';
 import { NotificationProvider } from './src/context/NotificationContext';
@@ -59,7 +59,7 @@ function MainApp() {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <ThemeProvider>
         <AuthProvider>
           <I18nProvider>

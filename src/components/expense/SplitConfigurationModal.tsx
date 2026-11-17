@@ -456,10 +456,7 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={[
-            styles.keyboardWrap,
-            Platform.OS === 'android' && isKeyboardVisible ? { paddingBottom: keyboardHeight } : null,
-          ]}
+          style={styles.keyboardWrap}
         >
           <TouchableOpacity
             activeOpacity={1}

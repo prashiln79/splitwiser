@@ -17,14 +17,23 @@ const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
   const { user, isLoading } = useAuth();
-  const { navTheme } = useAppTheme();
+  const { navTheme, colors } = useAppTheme();
+  const hasDismissedSplashRef = React.useRef(false);
+
+  const dismissSplash = React.useCallback(() => {
+    if (!hasDismissedSplashRef.current) {
+      hasDismissedSplashRef.current = true;
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     if (!isLoading) {
-      // Dismiss the native splash screen smoothly once auth state and initial resources are ready
-      SplashScreen.hideAsync().catch(() => {});
+      // Fallback timer ensures splash always dismisses even if onReady is delayed
+      const timer = setTimeout(dismissSplash, 150);
+      return () => clearTimeout(timer);
     }
-  }, [isLoading]);
+  }, [isLoading, dismissSplash]);
 
   // Handle user tapping on native OS notifications
   useEffect(() => {
@@ -52,8 +61,12 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer theme={navTheme} ref={navigationRef}>
-      <View style={{ flex: 1 }}>
+    <NavigationContainer
+      theme={navTheme}
+      ref={navigationRef}
+      onReady={dismissSplash}
+    >
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
         <InAppNotificationBanner navigationRef={navigationRef} />
         {user && user.hasCompletedProfile && user.onboardingCompleted ? (
           // @ts-ignore react-navigation v7 id prop
