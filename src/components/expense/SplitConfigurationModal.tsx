@@ -9,6 +9,7 @@ import {
   TextInput,
   Platform,
   KeyboardAvoidingView,
+  Keyboard,
   Alert,
 } from 'react-native';
 import {
@@ -108,6 +109,25 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
   >([]);
   const [itemizedTax, setItemizedTax] = useState<string>('');
   const [itemizedTip, setItemizedTip] = useState<string>('');
+  const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
+  const isKeyboardVisible = keyboardHeight > 0;
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (visible) {
@@ -423,12 +443,29 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.modalBackdrop}>
+      <TouchableOpacity
+        style={styles.modalBackdrop}
+        activeOpacity={1}
+        onPress={() => {
+          if (isKeyboardVisible) {
+            Keyboard.dismiss();
+          } else {
+            onClose();
+          }
+        }}
+      >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.keyboardWrap}
+          style={[
+            styles.keyboardWrap,
+            Platform.OS === 'android' && isKeyboardVisible ? { paddingBottom: keyboardHeight } : null,
+          ]}
         >
-          <View style={styles.sheetContainer}>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={styles.sheetContainer}
+          >
             {/* Header */}
             <View style={styles.modalHeader}>
               <View>
@@ -484,7 +521,15 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
             </View>
 
             {/* Tab Body */}
-            <View style={styles.bodyContainer}>
+            <View
+              style={[
+                styles.bodyContainer,
+                isKeyboardVisible && {
+                  minHeight: 140,
+                  maxHeight: Platform.OS === 'ios' ? 220 : 200,
+                },
+              ]}
+            >
               {/* 1. EQUAL SPLIT */}
               {activeTab === 'equal' && (
                 <View style={styles.tabContent}>
@@ -512,7 +557,16 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
                     </TouchableOpacity>
                   </View>
 
-                  <ScrollView style={styles.membersListScroll} showsVerticalScrollIndicator={false}>
+                  <ScrollView
+                    style={styles.membersListScroll}
+                    contentContainerStyle={[
+                      styles.membersListScrollContent,
+                      isKeyboardVisible && { paddingBottom: 100 },
+                    ]}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
+                  >
                     {members.map((m) => {
                       const isChecked = !!selectedMembers[m.userId];
                       const isMe = m.userId === currentUserId;
@@ -588,8 +642,13 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
 
                   <ScrollView
                     style={styles.membersListScroll}
+                    contentContainerStyle={[
+                      styles.membersListScrollContent,
+                      isKeyboardVisible && { paddingBottom: 100 },
+                    ]}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
                   >
                     {members.map((m) => {
                       const isMe = m.userId === currentUserId;
@@ -653,8 +712,13 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
 
                   <ScrollView
                     style={styles.membersListScroll}
+                    contentContainerStyle={[
+                      styles.membersListScrollContent,
+                      isKeyboardVisible && { paddingBottom: 100 },
+                    ]}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
                   >
                     {members.map((m) => {
                       const isMe = m.userId === currentUserId;
@@ -717,7 +781,16 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
                     )}
                   </View>
 
-                  <ScrollView style={styles.membersListScroll} showsVerticalScrollIndicator={false}>
+                  <ScrollView
+                    style={styles.membersListScroll}
+                    contentContainerStyle={[
+                      styles.membersListScrollContent,
+                      isKeyboardVisible && { paddingBottom: 100 },
+                    ]}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
+                  >
                     {members.map((m) => {
                       const isMe = m.userId === currentUserId;
                       const count = parseInt(shares[m.userId] || '0', 10);
@@ -799,8 +872,13 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
 
                   <ScrollView
                     style={styles.membersListScroll}
+                    contentContainerStyle={[
+                      styles.membersListScrollContent,
+                      isKeyboardVisible && { paddingBottom: 100 },
+                    ]}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
                   >
                     {members.map((m) => {
                       const isMe = m.userId === currentUserId;
@@ -847,8 +925,13 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
                 <View style={styles.tabContent}>
                   <ScrollView
                     style={styles.itemizedScrollView}
+                    contentContainerStyle={[
+                      styles.membersListScrollContent,
+                      isKeyboardVisible && { paddingBottom: 100 },
+                    ]}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
                   >
                     {/* Item list */}
                     {itemizedItems.map((item, index) => (
@@ -1000,18 +1083,23 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
             </View>
 
             {/* Bottom Summary Preview Bar */}
-            <View style={styles.summaryPreviewBar}>
-              <View style={styles.summaryTopRow}>
+            <View
+              style={[
+                styles.summaryPreviewBar,
+                isKeyboardVisible && styles.summaryPreviewBarCompact,
+              ]}
+            >
+              <View style={[styles.summaryTopRow, isKeyboardVisible && styles.summaryTopRowCompact]}>
                 <View style={styles.summaryMetric}>
                   <Text style={styles.summaryMetricLabel}>Expense</Text>
-                  <Text style={styles.summaryMetricValue}>
+                  <Text style={[styles.summaryMetricValue, isKeyboardVisible && { fontSize: 13 }]}>
                     {formatCents(totalExpenseCents, currency)}
                   </Text>
                 </View>
 
                 <View style={styles.summaryMetric}>
                   <Text style={styles.summaryMetricLabel}>Allocated</Text>
-                  <Text style={styles.summaryMetricValue}>
+                  <Text style={[styles.summaryMetricValue, isKeyboardVisible && { fontSize: 13 }]}>
                     {formatCents(activeTabMeta.allocatedCents, currency)}
                   </Text>
                 </View>
@@ -1037,6 +1125,7 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
               <TouchableOpacity
                 style={[
                   styles.confirmBtn,
+                  isKeyboardVisible && styles.confirmBtnCompact,
                   !activeTabMeta.isValid && styles.confirmBtnDisabled,
                 ]}
                 onPress={handleConfirm}
@@ -1045,9 +1134,9 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
                 <Text style={styles.confirmBtnText}>Confirm Split</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </TouchableOpacity>
         </KeyboardAvoidingView>
-      </View>
+      </TouchableOpacity>
     </Modal>
   );
 };
@@ -1178,6 +1267,9 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
     },
     membersListScroll: {
       flex: 1,
+    },
+    membersListScrollContent: {
+      paddingBottom: 20,
     },
     memberRow: {
       flexDirection: 'row',
@@ -1495,6 +1587,9 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    confirmBtnCompact: {
+      paddingVertical: 10,
+    },
     confirmBtnDisabled: {
       backgroundColor: isDark ? colors.surfaceSecondary : '#9CA3AF',
       opacity: 0.7,
@@ -1503,6 +1598,13 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
       fontSize: 15,
       fontWeight: '700',
       color: '#FFFFFF',
+    },
+    summaryPreviewBarCompact: {
+      paddingTop: 8,
+      paddingBottom: 8,
+    },
+    summaryTopRowCompact: {
+      marginBottom: 8,
     },
   });
 
