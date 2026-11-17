@@ -23,6 +23,9 @@ import {
   signInWithGoogleCredential,
   migrateAnonymousDataToExistingGoogleAccount,
   signOutUser,
+  getCachedUserProfile,
+  saveCachedUserProfile,
+  clearCachedUserProfile,
 } from '../services/auth';
 
 // ─── Context shape ────────────────────────────────────────────────────────────
@@ -85,7 +88,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = async () => {
     if (user?.uid) {
       const profile = await loadUserProfile(user.uid);
-      if (profile) setUser(profile);
+      if (profile) {
+        setUser(profile);
+        saveCachedUserProfile(profile).catch(() => {});
+      }
     }
   };
 
@@ -95,43 +101,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user?.currency]);
 
+  // Fast path: load cached user profile immediately from AsyncStorage (<50ms startup)
+  useEffect(() => {
+    let isMounted = true;
+    getCachedUserProfile()
+      .then((cached) => {
+        if (!isMounted) return;
+        if (cached && cached.uid) {
+          if (cached.currency) setDefaultCurrency(cached.currency);
+          setUser(cached);
+          setIsLoading(false);
+          syncService.initialize(cached.uid);
+        }
+      })
+      .catch(() => {});
+
+    // Safety fallback: ensure splash screen NEVER hangs beyond 2.5s under any network condition
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) {
+        setIsLoading(false);
+      }
+    }, 2500);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(safetyTimer);
+    };
+  }, []);
+
   useEffect(() => {
     // Subscribe to Firebase Auth state changes
     const unsubscribe = subscribeToAuthState(async (firebaseUser) => {
       if (firebaseUser) {
+        // Optimistic setup so UI can render immediately if no cache was available
+        setUser((prev) => {
+          if (prev && prev.uid === firebaseUser.uid) return prev;
+          return {
+            uid: firebaseUser.uid,
+            name: firebaseUser.displayName || '',
+            email: firebaseUser.email || undefined,
+            imageUrl: firebaseUser.photoURL || undefined,
+            photoURL: firebaseUser.photoURL || undefined,
+            createdAt: new Date(),
+            isAnonymous: firebaseUser.isAnonymous,
+            authProvider: firebaseUser.isAnonymous ? 'anonymous' : 'password',
+            hasCompletedProfile: Boolean(firebaseUser.displayName && !firebaseUser.isAnonymous),
+            onboardingCompleted: false,
+          };
+        });
+
+        // Unblock splash screen immediately!
+        setIsLoading(false);
+        syncService.initialize(firebaseUser.uid);
+
+        // Background sync: verify and refresh profile from cloud without holding splash screen hostage
         try {
           const profile = await syncGoogleProfileOnAuth(firebaseUser);
           if (profile) {
             if (profile.currency) setDefaultCurrency(profile.currency);
             setUser(profile);
-            syncService.initialize(firebaseUser.uid);
-          } else {
-            // Firestore profile document might still be in the process of being written
-            // (e.g. during signInAsGuest or signUp). Do not overwrite active user with null.
-            setUser((prev) => {
-              if (prev && prev.uid === firebaseUser.uid) return prev;
-              return {
-                uid: firebaseUser.uid,
-                name: firebaseUser.displayName || '',
-                email: firebaseUser.email || undefined,
-                imageUrl: firebaseUser.photoURL || undefined,
-                photoURL: firebaseUser.photoURL || undefined,
-                createdAt: new Date(),
-                isAnonymous: firebaseUser.isAnonymous,
-                authProvider: firebaseUser.isAnonymous ? 'anonymous' : 'password',
-                hasCompletedProfile: Boolean(firebaseUser.displayName && !firebaseUser.isAnonymous),
-                onboardingCompleted: false,
-              };
-            });
-            syncService.initialize(firebaseUser.uid);
+            saveCachedUserProfile(profile).catch(() => {});
           }
         } catch (err) {
-          console.error('[AuthContext] Failed to load user profile:', err);
+          console.warn('[AuthContext] Background profile sync notice:', err);
         }
       } else {
         setUser(null);
+        clearCachedUserProfile().catch(() => {});
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
 
     return unsubscribe;

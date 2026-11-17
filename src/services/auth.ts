@@ -45,10 +45,48 @@ const usersPath = (uid: string) => doc(db, 'splitwiser', 'data', 'users', uid);
 const groupsCol = () => collection(db, 'splitwiser', 'data', 'groups');
 
 const ONBOARDING_COMPLETED_KEY = (uid: string) => `@splitwiser:onboarding_completed:${uid}`;
+const USER_PROFILE_CACHE_KEY = '@splitwiser:cached_user_profile';
+
+export async function getCachedUserProfile(): Promise<AppUser | null> {
+  try {
+    const raw = await AsyncStorage.getItem(USER_PROFILE_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.uid) {
+      if (parsed.createdAt) parsed.createdAt = new Date(parsed.createdAt);
+      if (parsed.updatedAt) parsed.updatedAt = new Date(parsed.updatedAt);
+      if (parsed.accountLinkedAt) parsed.accountLinkedAt = new Date(parsed.accountLinkedAt);
+      return parsed as AppUser;
+    }
+  } catch (e) {
+    console.warn('[auth] getCachedUserProfile notice:', e);
+  }
+  return null;
+}
+
+export async function saveCachedUserProfile(user: AppUser): Promise<void> {
+  try {
+    await AsyncStorage.setItem(USER_PROFILE_CACHE_KEY, JSON.stringify(user));
+  } catch (e) {
+    console.warn('[auth] saveCachedUserProfile notice:', e);
+  }
+}
+
+export async function clearCachedUserProfile(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(USER_PROFILE_CACHE_KEY);
+  } catch (e) {
+    console.warn('[auth] clearCachedUserProfile notice:', e);
+  }
+}
 
 export async function markOnboardingCompleted(uid: string): Promise<void> {
   try {
     await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY(uid), 'true');
+    const cached = await getCachedUserProfile();
+    if (cached && cached.uid === uid) {
+      await saveCachedUserProfile({ ...cached, onboardingCompleted: true });
+    }
     await setDoc(usersPath(uid), { onboardingCompleted: true, updatedAt: serverTimestamp() }, { merge: true });
   } catch (e) {
     console.warn('[auth] markOnboardingCompleted notice:', e);
@@ -253,50 +291,65 @@ export async function signInAndCreateProfile(name: string): Promise<AppUser> {
 
 /**
  * Load the Firestore user profile for a given Firebase UID.
+ * Fast & offline-resilient: caches result locally and falls back to cache on network delay/error.
  */
 export async function loadUserProfile(uid: string): Promise<AppUser | null> {
-  const snap = await getDoc(usersPath(uid));
-  if (!snap.exists()) return null;
+  try {
+    const snap = await getDoc(usersPath(uid));
+    if (!snap.exists()) {
+      const cached = await getCachedUserProfile();
+      if (cached && cached.uid === uid) return cached;
+      return null;
+    }
 
-  const data = snap.data();
-  const localOnboardingDone = await isOnboardingCompleted(uid);
-  const hasCompletedProfile = data.hasCompletedProfile !== undefined
-    ? Boolean(data.hasCompletedProfile)
-    : Boolean(data.name && data.name.trim() !== '' && data.name !== 'Anonymous User');
+    const data = snap.data();
+    const localOnboardingDone = await isOnboardingCompleted(uid);
+    const hasCompletedProfile = data.hasCompletedProfile !== undefined
+      ? Boolean(data.hasCompletedProfile)
+      : Boolean(data.name && data.name.trim() !== '' && data.name !== 'Anonymous User');
 
-  const onboardingCompleted = data.onboardingCompleted !== undefined
-    ? Boolean(data.onboardingCompleted)
-    : (localOnboardingDone || (hasCompletedProfile && Boolean(data.createdAt)));
+    const onboardingCompleted = data.onboardingCompleted !== undefined
+      ? Boolean(data.onboardingCompleted)
+      : (localOnboardingDone || (hasCompletedProfile && Boolean(data.createdAt)));
 
-  const rawUser: AppUser = {
-    uid,
-    name: data.name ?? 'Anonymous User',
-    createdAt: data.createdAt?.toDate?.() ?? new Date(),
-    isAnonymous: data.isAnonymous ?? true,
-    customPhotoUrl: data.customPhotoUrl || undefined,
-    googlePhotoUrl: data.googlePhotoUrl || undefined,
-    photoSource: data.photoSource || undefined,
-    imageUrl: data.imageUrl || data.photoURL || undefined,
-    email: data.email,
-    photoURL: data.photoURL,
-    authProvider: data.authProvider,
-    updatedAt: data.updatedAt?.toDate?.(),
-    accountLinkedAt: data.accountLinkedAt?.toDate?.(),
-    phone: data.phone,
-    currency: data.currency,
-    timezone: data.timezone,
-    language: data.language,
-    onboardingCompleted,
-    hasCompletedProfile,
-  };
+    const rawUser: AppUser = {
+      uid,
+      name: data.name ?? 'Anonymous User',
+      createdAt: data.createdAt?.toDate?.() ?? new Date(),
+      isAnonymous: data.isAnonymous ?? true,
+      customPhotoUrl: data.customPhotoUrl || undefined,
+      googlePhotoUrl: data.googlePhotoUrl || undefined,
+      photoSource: data.photoSource || undefined,
+      imageUrl: data.imageUrl || data.photoURL || undefined,
+      email: data.email,
+      photoURL: data.photoURL,
+      authProvider: data.authProvider,
+      updatedAt: data.updatedAt?.toDate?.(),
+      accountLinkedAt: data.accountLinkedAt?.toDate?.(),
+      phone: data.phone,
+      currency: data.currency,
+      timezone: data.timezone,
+      language: data.language,
+      onboardingCompleted,
+      hasCompletedProfile,
+    };
 
-  const { displayUrl, source } = resolveProfilePicture(rawUser);
+    const { displayUrl, source } = resolveProfilePicture(rawUser);
 
-  return {
-    ...rawUser,
-    imageUrl: displayUrl || undefined,
-    photoSource: rawUser.photoSource || source,
-  };
+    const user: AppUser = {
+      ...rawUser,
+      imageUrl: displayUrl || undefined,
+      photoSource: rawUser.photoSource || source,
+    };
+
+    saveCachedUserProfile(user).catch(() => {});
+    return user;
+  } catch (err) {
+    console.warn('[auth] loadUserProfile network notice, falling back to cache:', err);
+    const cached = await getCachedUserProfile();
+    if (cached && cached.uid === uid) return cached;
+    return null;
+  }
 }
 
 /**
@@ -306,6 +359,13 @@ export async function updateUserProfile(
   uid: string,
   updates: Partial<AppUser>
 ): Promise<void> {
+  // Update local cache optimistically
+  getCachedUserProfile().then((cached) => {
+    if (cached && cached.uid === uid) {
+      saveCachedUserProfile({ ...cached, ...updates }).catch(() => {});
+    }
+  }).catch(() => {});
+
   // 1. Update user document in Firestore
   try {
     await setDoc(
@@ -864,6 +924,11 @@ export async function signOutUser(): Promise<void> {
     await clearLocalData();
   } catch (err) {
     console.warn('[signOutUser] Failed to clear local SQLite data:', err);
+  }
+  try {
+    await clearCachedUserProfile();
+  } catch (err) {
+    console.warn('[signOutUser] Failed to clear cached user profile:', err);
   }
   await signOut(auth);
 }

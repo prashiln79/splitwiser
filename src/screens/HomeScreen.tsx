@@ -167,34 +167,23 @@ const HomeScreen = ({ navigation }: any) => {
     }
   }, [user, refreshSettlements]);
 
-  // Focus effect: reload groups whenever returning to HomeScreen (e.g. after updating cover or deleting a group)
+  // Focus effect: reload groups on mount and whenever returning to HomeScreen
   useEffect(() => {
     if (isFocused && user) {
       loadGroups();
     }
   }, [isFocused, user, loadGroups]);
 
-  useEffect(() => {
-    const unsubscribe = navigation?.addListener?.('focus', () => {
-      if (user) {
-        loadGroups();
-      }
-    });
-    return unsubscribe;
-  }, [navigation, user, loadGroups]);
-
+  // Real-time remote sync & queue subscriptions
   useEffect(() => {
     if (!user) return;
 
-    // 1. Initial read
-    loadGroups();
-
-    // 2. Real-time remote subscription via SyncService
+    // Real-time remote subscription via SyncService
     const unsubscribeGroups = syncService.subscribeToUserGroups(user.uid, () => {
       loadGroups();
     });
 
-    // 3. Queue subscription (triggers when pending items sync or are queued)
+    // Queue subscription (triggers when pending items sync or are queued)
     const unsubscribeQueue = syncQueue.subscribe(() => {
       loadGroups();
     });
