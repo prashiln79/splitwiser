@@ -29,6 +29,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Scale,
+  Search,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -61,7 +62,7 @@ import {
   SplitConfigurationModal,
   SplitConfigurationData,
 } from '../components/expense/SplitConfigurationModal';
-import { CurrencySelectorModal } from '../components/groupSettings/CurrencySelectorModal';
+import { SUPPORTED_CURRENCIES, CurrencyInfo } from '../utils/currencyData';
 import { getLastUsedCurrency, setLastUsedCurrency } from '../services/groupPreferencesService';
 import {
   toCents,
@@ -153,6 +154,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
   const [payerModalVisible, setPayerModalVisible] = useState(false);
   const [splitModalVisible, setSplitModalVisible] = useState(false);
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
+  const [currencySearch, setCurrencySearch] = useState('');
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [notesModalVisible, setNotesModalVisible] = useState(false);
   const [tempNotes, setTempNotes] = useState('');
@@ -372,6 +374,38 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
   const numericAmount = parseFloat(amount) || 0;
   const currencySymbol = useMemo(() => getCurrencySymbol(currency), [currency]);
   const currencyCode = useMemo(() => normalizeCurrencyCode(currency), [currency]);
+
+  // Currencies list matching previous layout: popular first, followed by active and all supported currencies
+  const displayCurrencies = useMemo(() => {
+    const q = currencySearch.trim().toLowerCase();
+    if (q) {
+      return SUPPORTED_CURRENCIES.filter(
+        (c) =>
+          c.code.toLowerCase().includes(q) ||
+          c.name.toLowerCase().includes(q) ||
+          c.symbol.toLowerCase().includes(q)
+      );
+    }
+    const popularCodes = ['INR', 'USD', 'EUR', 'GBP'];
+    const popular = popularCodes
+      .map((code) => SUPPORTED_CURRENCIES.find((c) => c.code === code))
+      .filter(Boolean) as CurrencyInfo[];
+
+    const activeCurrencyInfo =
+      !popularCodes.includes(currencyCode)
+        ? SUPPORTED_CURRENCIES.find((c) => c.code === currencyCode)
+        : null;
+
+    const remaining = SUPPORTED_CURRENCIES.filter(
+      (c) => !popularCodes.includes(c.code) && c.code !== currencyCode
+    );
+
+    return [
+      ...popular,
+      ...(activeCurrencyInfo ? [activeCurrencyInfo] : []),
+      ...remaining,
+    ];
+  }, [currencySearch, currencyCode]);
 
   // Real-time calculation helpers
   const equalSplitsCount = Object.values(selectedMembers).filter(Boolean).length;
@@ -898,11 +932,10 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
                 setCurrencyModalVisible(true);
               }}
               activeOpacity={0.7}
-              accessibilityLabel={`Currency: ${currencyCode} (${currencySymbol}). Tap to change.`}
+              accessibilityLabel="Select currency"
               accessibilityRole="button"
             >
               <Text style={styles.currencyBoxText}>{currencySymbol}</Text>
-              <Text style={styles.currencyBoxCode}>{currencyCode} ▼</Text>
             </TouchableOpacity>
 
             <View style={styles.amountInputWrapper}>
@@ -1571,16 +1604,99 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
       />
 
       {/* ── Contextual Modal 4: Currency Picker ────────────────────────────── */}
-      <CurrencySelectorModal
+      <Modal
         visible={currencyModalVisible}
-        currentCurrency={currencyCode}
-        title="Expense Currency"
-        requireConfirmation={false}
-        onClose={() => setCurrencyModalVisible(false)}
-        onSelect={(newCode) => {
-          setCurrency(newCode);
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setCurrencySearch('');
+          setCurrencyModalVisible(false);
         }}
-      />
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalBackdrop}
+        >
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => {
+              setCurrencySearch('');
+              setCurrencyModalVisible(false);
+            }}
+          />
+          <View style={[styles.selectionDialog, { maxHeight: '80%' }]}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Select currency</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setCurrencySearch('');
+                  setCurrencyModalVisible(false);
+                }}
+                style={styles.modalCloseBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Close currency modal"
+              >
+                <X size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.currencySearchBox}>
+              <Search size={16} color={colors.textMuted} />
+              <TextInput
+                style={styles.currencySearchInput}
+                placeholder="Search currency..."
+                placeholderTextColor={colors.textMuted}
+                value={currencySearch}
+                onChangeText={setCurrencySearch}
+                autoCorrect={false}
+              />
+              {currencySearch.length > 0 && (
+                <TouchableOpacity onPress={() => setCurrencySearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <X size={15} color={colors.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <ScrollView
+              style={{ maxHeight: 300 }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {displayCurrencies.map((c) => {
+                const isSelected = currencyCode === c.code;
+                return (
+                  <TouchableOpacity
+                    key={c.code}
+                    style={[
+                      styles.selectionOptionRow,
+                      isSelected && styles.selectionOptionRowSelected,
+                    ]}
+                    onPress={() => {
+                      setCurrency(c.code);
+                      setCurrencySearch('');
+                      setCurrencyModalVisible(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 8 }}>
+                      <Text style={[styles.selectionOptionText, isSelected && styles.selectionOptionTextSelected]}>
+                        {c.code} ({c.symbol.trim()})
+                      </Text>
+                      <Text style={{ fontSize: 13, color: colors.textMuted }}>
+                        {c.name}
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <Check size={20} color="#059669" strokeWidth={2.5} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* ── Contextual Modal 5: Date Picker ────────────────────────────────── */}
       <Modal
@@ -1905,27 +2021,36 @@ const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create
     paddingVertical: 4,
   },
   currencyBox: {
-    minWidth: 54,
-    height: 46,
-    paddingHorizontal: 6,
+    width: 48,
+    height: 44,
     borderRadius: 8,
     borderWidth: 1.5,
     borderColor: colors.border,
-    backgroundColor: isDark ? colors.surfaceSecondary : colors.surface,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
   },
   currencyBoxText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
-    color: colors.primary,
+    color: colors.textPrimary,
   },
-  currencyBoxCode: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.textMuted,
-    marginTop: -1,
+  currencySearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 10,
+    gap: 8,
+  },
+  currencySearchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.textPrimary,
+    padding: 0,
   },
   amountInputWrapper: {
     flex: 1,

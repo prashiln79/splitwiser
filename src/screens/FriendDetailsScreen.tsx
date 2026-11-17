@@ -66,6 +66,7 @@ export const FriendDetailsScreen = ({ route, navigation }: any) => {
       type: 'expense' | 'settlement';
       description: string;
       amount: number;
+      currency?: string;
       paidBy: string;
       payerName: string;
       date: Date;

@@ -386,6 +386,7 @@ export function computeDetailedFriendBalance(
     type: 'expense' | 'settlement';
     description: string;
     amount: number;
+    currency?: string;
     paidBy: string;
     payerName: string;
     date: Date;
@@ -402,6 +403,7 @@ export function computeDetailedFriendBalance(
     type: 'expense' | 'settlement';
     description: string;
     amount: number;
+    currency?: string;
     paidBy: string;
     payerName: string;
     date: Date;
