@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Modal,
   View,
@@ -62,6 +62,7 @@ export const PayerSelectionModal: React.FC<PayerSelectionModalProps> = ({
   const [localAmounts, setLocalAmounts] = useState<Record<string, string>>({});
   const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
   const isKeyboardVisible = keyboardHeight > 0;
+  const multipleScrollRef = useRef<any>(null);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -152,6 +153,7 @@ export const PayerSelectionModal: React.FC<PayerSelectionModalProps> = ({
 
   // Proper generous bottom sheet height matching Split Options popup
   const sheetMinHeight = Math.min(Math.max(windowHeight * 0.68, 490), 600);
+  const sheetMaxHeight = Math.max(windowHeight - keyboardHeight - Math.max(insets.top, 24) - 10, 280);
 
   return (
     <Modal
@@ -173,7 +175,10 @@ export const PayerSelectionModal: React.FC<PayerSelectionModalProps> = ({
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.keyboardWrap}
+          style={[
+            styles.keyboardWrap,
+            Platform.OS === 'android' && isKeyboardVisible ? { paddingBottom: keyboardHeight } : null,
+          ]}
         >
           <TouchableOpacity
             activeOpacity={1}
@@ -181,7 +186,9 @@ export const PayerSelectionModal: React.FC<PayerSelectionModalProps> = ({
               styles.sheetContainer,
               {
                 minHeight: isKeyboardVisible ? undefined : sheetMinHeight,
-                paddingBottom: Math.max(insets.bottom + 8, 16),
+                maxHeight: isKeyboardVisible ? sheetMaxHeight : '92%',
+                paddingTop: isKeyboardVisible ? 10 : 14,
+                paddingBottom: isKeyboardVisible ? 10 : Math.max(insets.bottom + 8, 16),
               },
             ]}
             onPress={(e) => e.stopPropagation()}
@@ -266,7 +273,10 @@ export const PayerSelectionModal: React.FC<PayerSelectionModalProps> = ({
             <View
               style={[
                 styles.bodyContainer,
-                isKeyboardVisible && styles.bodyContainerKeyboard,
+                isKeyboardVisible && {
+                  minHeight: 120,
+                  maxHeight: Math.max(sheetMaxHeight - 170, 140),
+                },
               ]}
             >
               {mode === 'single' ? (
@@ -381,12 +391,17 @@ export const PayerSelectionModal: React.FC<PayerSelectionModalProps> = ({
                   </View>
 
                   <ScrollView
+                    ref={multipleScrollRef}
                     style={styles.multipleScrollView}
-                    contentContainerStyle={styles.multipleScrollContent}
+                    contentContainerStyle={[
+                      styles.multipleScrollContent,
+                      isKeyboardVisible && { paddingBottom: 60 },
+                    ]}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
                   >
-                    {members.map((m) => {
+                    {members.map((m, idx) => {
                       const isMe = m.userId === currentUserId;
                       const hasValue =
                         (localAmounts[m.userId] || '').trim().length > 0 &&
@@ -417,6 +432,14 @@ export const PayerSelectionModal: React.FC<PayerSelectionModalProps> = ({
                             <TextInput
                               style={styles.multiAmountInput}
                               value={localAmounts[m.userId] || ''}
+                              onFocus={() => {
+                                setTimeout(() => {
+                                  multipleScrollRef.current?.scrollTo({
+                                    y: Math.max(0, idx * 56 - 10),
+                                    animated: true,
+                                  });
+                                }, 100);
+                              }}
                               onChangeText={(val) => {
                                 const cleaned = val.replace(/[^0-9.]/g, '');
                                 const parts = cleaned.split('.');

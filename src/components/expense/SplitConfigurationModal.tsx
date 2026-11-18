@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Modal,
   View,
@@ -11,7 +11,9 @@ import {
   KeyboardAvoidingView,
   Keyboard,
   Alert,
+  useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   X,
   Check,
@@ -94,9 +96,17 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
   totalPaidAmount,
   onConfirmSplit,
 }) => {
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [activeTab, setActiveTab] = useState<SplitType>(initialSplitMethod);
+
+  // ScrollView refs for auto-scrolling to active inputs
+  const unequalScrollRef = useRef<any>(null);
+  const percentageScrollRef = useRef<any>(null);
+  const adjustmentScrollRef = useRef<any>(null);
+  const itemizedScrollRef = useRef<any>(null);
 
   // Local draft states
   const [selectedMembers, setSelectedMembers] = useState<Record<string, boolean>>({});
@@ -441,6 +451,8 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
     onClose();
   };
 
+  const sheetMaxHeight = Math.max(windowHeight - keyboardHeight - Math.max(insets.top, 24) - 10, 280);
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity
@@ -456,12 +468,21 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.keyboardWrap}
+          style={[
+            styles.keyboardWrap,
+            Platform.OS === 'android' && isKeyboardVisible ? { paddingBottom: keyboardHeight } : null,
+          ]}
         >
           <TouchableOpacity
             activeOpacity={1}
             onPress={(e) => e.stopPropagation()}
-            style={styles.sheetContainer}
+            style={[
+              styles.sheetContainer,
+              isKeyboardVisible && {
+                maxHeight: sheetMaxHeight,
+                paddingTop: 10,
+              },
+            ]}
           >
             {/* Header */}
             <View style={styles.modalHeader}>
@@ -522,8 +543,8 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
               style={[
                 styles.bodyContainer,
                 isKeyboardVisible && {
-                  minHeight: 140,
-                  maxHeight: Platform.OS === 'ios' ? 220 : 200,
+                  minHeight: 120,
+                  maxHeight: Math.max(sheetMaxHeight - 200, 140),
                 },
               ]}
             >
@@ -638,6 +659,7 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
                   </View>
 
                   <ScrollView
+                    ref={unequalScrollRef}
                     style={styles.membersListScroll}
                     contentContainerStyle={[
                       styles.membersListScrollContent,
@@ -647,7 +669,7 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
                     keyboardShouldPersistTaps="handled"
                     keyboardDismissMode="on-drag"
                   >
-                    {members.map((m) => {
+                    {members.map((m, idx) => {
                       const isMe = m.userId === currentUserId;
                       return (
                         <View key={m.userId} style={styles.memberRow}>
@@ -663,6 +685,14 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
                             <TextInput
                               style={styles.numericInput}
                               value={exactAmounts[m.userId] || ''}
+                              onFocus={() => {
+                                setTimeout(() => {
+                                  unequalScrollRef.current?.scrollTo({
+                                    y: Math.max(0, idx * 54 - 10),
+                                    animated: true,
+                                  });
+                                }, 100);
+                              }}
                               onChangeText={(val) => {
                                 const cleaned = val.replace(/[^0-9.]/g, '');
                                 const parts = cleaned.split('.');
@@ -708,6 +738,7 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
                   </View>
 
                   <ScrollView
+                    ref={percentageScrollRef}
                     style={styles.membersListScroll}
                     contentContainerStyle={[
                       styles.membersListScrollContent,
@@ -717,7 +748,7 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
                     keyboardShouldPersistTaps="handled"
                     keyboardDismissMode="on-drag"
                   >
-                    {members.map((m) => {
+                    {members.map((m, idx) => {
                       const isMe = m.userId === currentUserId;
                       const shareCents = percentageShares[m.userId] || 0;
                       return (
@@ -738,6 +769,14 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
                             <TextInput
                               style={styles.numericInput}
                               value={percentages[m.userId] || ''}
+                              onFocus={() => {
+                                setTimeout(() => {
+                                  percentageScrollRef.current?.scrollTo({
+                                    y: Math.max(0, idx * 54 - 10),
+                                    animated: true,
+                                  });
+                                }, 100);
+                              }}
                               onChangeText={(val) => {
                                 const cleaned = val.replace(/[^0-9.]/g, '');
                                 setPercentages((prev) => ({ ...prev, [m.userId]: cleaned }));
@@ -868,6 +907,7 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
                   </View>
 
                   <ScrollView
+                    ref={adjustmentScrollRef}
                     style={styles.membersListScroll}
                     contentContainerStyle={[
                       styles.membersListScrollContent,
@@ -877,7 +917,7 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
                     keyboardShouldPersistTaps="handled"
                     keyboardDismissMode="on-drag"
                   >
-                    {members.map((m) => {
+                    {members.map((m, idx) => {
                       const isMe = m.userId === currentUserId;
                       const splitItem = adjustmentCalc.splits.find((s) => s.id === m.userId);
                       const finalCents = splitItem ? splitItem.cents : 0;
@@ -899,6 +939,14 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
                             <TextInput
                               style={styles.numericInput}
                               value={adjustments[m.userId] || ''}
+                              onFocus={() => {
+                                setTimeout(() => {
+                                  adjustmentScrollRef.current?.scrollTo({
+                                    y: Math.max(0, idx * 54 - 10),
+                                    animated: true,
+                                  });
+                                }, 100);
+                              }}
                               onChangeText={(val) => {
                                 // Allow negative and positive numbers
                                 const cleaned = val.replace(/[^0-9.-]/g, '');
@@ -921,6 +969,7 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
               {activeTab === 'itemized' && (
                 <View style={styles.tabContent}>
                   <ScrollView
+                    ref={itemizedScrollRef}
                     style={styles.itemizedScrollView}
                     contentContainerStyle={[
                       styles.membersListScrollContent,
@@ -937,6 +986,14 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
                           <TextInput
                             style={styles.itemTitleInput}
                             value={item.title}
+                            onFocus={() => {
+                              setTimeout(() => {
+                                itemizedScrollRef.current?.scrollTo({
+                                  y: Math.max(0, index * 115 - 10),
+                                  animated: true,
+                                });
+                              }, 100);
+                            }}
                             onChangeText={(val) => {
                               setItemizedItems((prev) =>
                                 prev.map((it) => (it.id === item.id ? { ...it, title: val } : it))
@@ -950,6 +1007,14 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
                             <TextInput
                               style={styles.itemAmountInput}
                               value={item.amount}
+                              onFocus={() => {
+                                setTimeout(() => {
+                                  itemizedScrollRef.current?.scrollTo({
+                                    y: Math.max(0, index * 115 - 10),
+                                    animated: true,
+                                  });
+                                }, 100);
+                              }}
                               onChangeText={(val) => {
                                 const cleaned = val.replace(/[^0-9.]/g, '');
                                 setItemizedItems((prev) =>
@@ -1019,6 +1084,11 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
                         <TextInput
                           style={styles.taxTipInput}
                           value={itemizedTax}
+                          onFocus={() => {
+                            setTimeout(() => {
+                              itemizedScrollRef.current?.scrollToEnd({ animated: true });
+                            }, 100);
+                          }}
                           onChangeText={(val) => setItemizedTax(val.replace(/[^0-9.]/g, ''))}
                           placeholder="0.00"
                           placeholderTextColor="#9CA3AF"
@@ -1030,6 +1100,11 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
                         <TextInput
                           style={styles.taxTipInput}
                           value={itemizedTip}
+                          onFocus={() => {
+                            setTimeout(() => {
+                              itemizedScrollRef.current?.scrollToEnd({ animated: true });
+                            }, 100);
+                          }}
                           onChangeText={(val) => setItemizedTip(val.replace(/[^0-9.]/g, ''))}
                           placeholder="0.00"
                           placeholderTextColor="#9CA3AF"
