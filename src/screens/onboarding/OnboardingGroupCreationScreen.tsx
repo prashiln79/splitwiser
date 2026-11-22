@@ -21,6 +21,7 @@ import {
   ArrowRight,
   Sparkles,
   ChevronLeft,
+  ChevronRight,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -312,6 +313,7 @@ export const OnboardingGroupCreationScreen: React.FC<OnboardingGroupCreationScre
             style={[
               styles.currencyPill,
               {
+                width: '100%',
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -327,7 +329,7 @@ export const OnboardingGroupCreationScreen: React.FC<OnboardingGroupCreationScre
             }}
             activeOpacity={0.8}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 12 }}>
               <View
                 style={{
                   width: 36,
@@ -343,18 +345,31 @@ export const OnboardingGroupCreationScreen: React.FC<OnboardingGroupCreationScre
                   {getCurrencySymbol(currency)}
                 </Text>
               </View>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>
                   {currency}
                 </Text>
-                <Text style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.6)' }}>
+                <Text style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.6)' }} numberOfLines={1}>
                   {getCurrencyName(currency)}
                 </Text>
               </View>
             </View>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: '#34D399' }}>
-              Change
-            </Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                borderRadius: 20,
+                backgroundColor: 'rgba(5, 150, 105, 0.2)',
+              }}
+            >
+              <Text style={{ fontSize: 12.5, fontWeight: '600', color: '#34D399' }}>
+                Change
+              </Text>
+              <ChevronRight size={14} color="#34D399" strokeWidth={2.4} />
+            </View>
           </TouchableOpacity>
         </View>
 

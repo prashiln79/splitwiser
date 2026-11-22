@@ -19,6 +19,7 @@ import {
   Home,
   Heart,
   Grid,
+  ChevronRight,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -285,16 +286,7 @@ export const CreateGroupScreen = ({ navigation }: any) => {
           <View style={styles.typeSection}>
             <Text style={styles.typeSectionTitle}>Group Currency</Text>
             <TouchableOpacity
-              style={[
-                styles.typeChip,
-                {
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  paddingHorizontal: 16,
-                  paddingVertical: 12,
-                },
-              ]}
+              style={styles.currencyCard}
               onPress={() => {
                 if (Platform.OS !== 'web') {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -303,34 +295,25 @@ export const CreateGroupScreen = ({ navigation }: any) => {
               }}
               activeOpacity={0.7}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: 12,
-                  }}
-                >
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>
+              <View style={styles.currencyCardLeft}>
+                <View style={styles.currencyIconBadge}>
+                  <Text style={styles.currencyIconText}>
                     {getCurrencySymbol(currency)}
                   </Text>
                 </View>
-                <View>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textPrimary }}>
+                <View style={styles.currencyTextCol}>
+                  <Text style={styles.currencyCodeText}>
                     {currency}
                   </Text>
-                  <Text style={{ fontSize: 12, color: colors.textMuted }}>
+                  <Text style={styles.currencyNameText} numberOfLines={1}>
                     {getCurrencyName(currency)}
                   </Text>
                 </View>
               </View>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>
-                Change
-              </Text>
+              <View style={styles.changeActionBadge}>
+                <Text style={styles.changeActionText}>Change</Text>
+                <ChevronRight size={14} color={colors.primary} strokeWidth={2.4} />
+              </View>
             </TouchableOpacity>
           </View>
 
@@ -520,6 +503,65 @@ const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create
     color: colors.textPrimary,
   },
   typeChipTextSelected: {
+    color: colors.primary,
+  },
+  currencyCard: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  currencyCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 12,
+  },
+  currencyIconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  currencyIconText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  currencyTextCol: {
+    flex: 1,
+  },
+  currencyCodeText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  currencyNameText: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+  changeActionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#ECFDF5',
+  },
+  changeActionText: {
+    fontSize: 12.5,
+    fontWeight: '600',
     color: colors.primary,
   },
   coverSection: {

@@ -526,16 +526,23 @@ export const AccountScreen = ({ navigation }: any) => {
         animationType="fade"
         onRequestClose={() => setLanguageModalVisible(false)}
       >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setLanguageModalVisible(false)}
-        >
+        <View style={styles.modalBackdrop}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setLanguageModalVisible(false)}
+          />
           <View style={styles.dialogCard}>
             <Text style={styles.dialogTitle}>Language</Text>
             <Text style={styles.dialogSub}>Select your preferred app language.</Text>
 
-            <ScrollView style={{ maxHeight: 260 }} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={{ maxHeight: 300 }}
+              contentContainerStyle={{ paddingBottom: 12 }}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
+              keyboardShouldPersistTaps="handled"
+            >
               {/* System default option */}
               <TouchableOpacity
                 style={[
@@ -614,7 +621,7 @@ export const AccountScreen = ({ navigation }: any) => {
               <Text style={styles.dialogPrimaryBtnText}>Apply Language</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
 
       {/* ── Email Settings Modal ───────────────────────────────────────────── */}
@@ -624,11 +631,12 @@ export const AccountScreen = ({ navigation }: any) => {
         animationType="fade"
         onRequestClose={() => setEmailSettingsVisible(false)}
       >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setEmailSettingsVisible(false)}
-        >
+        <View style={styles.modalBackdrop}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setEmailSettingsVisible(false)}
+          />
           <View style={styles.dialogCard}>
             <Text style={styles.dialogTitle}>Email Preferences</Text>
             <Text style={styles.dialogSub}>
@@ -675,7 +683,7 @@ export const AccountScreen = ({ navigation }: any) => {
               <Text style={styles.dialogPrimaryBtnText}>Save Preferences</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
 
       {/* ── Notification Settings Modal ───────────────────────────────────── */}
@@ -685,11 +693,12 @@ export const AccountScreen = ({ navigation }: any) => {
         animationType="fade"
         onRequestClose={() => setNotificationSettingsVisible(false)}
       >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setNotificationSettingsVisible(false)}
-        >
+        <View style={styles.modalBackdrop}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setNotificationSettingsVisible(false)}
+          />
           <View style={styles.dialogCard}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <Text style={styles.dialogTitle}>Notification Settings</Text>
@@ -737,7 +746,13 @@ export const AccountScreen = ({ navigation }: any) => {
               )}
             </View>
 
-            <ScrollView style={{ maxHeight: 280 }} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={{ maxHeight: 340 }}
+              contentContainerStyle={{ paddingBottom: 14 }}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
+              keyboardShouldPersistTaps="handled"
+            >
               <View style={styles.switchRow}>
                 <View style={{ flex: 1, paddingRight: 10 }}>
                   <Text style={styles.switchLabel}>In-App Banners</Text>
@@ -840,7 +855,7 @@ export const AccountScreen = ({ navigation }: any) => {
               <Text style={styles.dialogPrimaryBtnText}>Done</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
 
       {/* ── Security Modal ─────────────────────────────────────────────────── */}
@@ -856,11 +871,12 @@ export const AccountScreen = ({ navigation }: any) => {
         animationType="fade"
         onRequestClose={() => setAppearanceVisible(false)}
       >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setAppearanceVisible(false)}
-        >
+        <View style={styles.modalBackdrop}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setAppearanceVisible(false)}
+          />
           <View style={styles.dialogCard}>
             <Text style={styles.dialogTitle}>Appearance</Text>
             <Text style={styles.dialogSub}>Select your preferred app theme.</Text>
@@ -910,7 +926,7 @@ export const AccountScreen = ({ navigation }: any) => {
               <Text style={styles.dialogPrimaryBtnText}>Apply Theme</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
 
       {/* ── Help Center Modal ──────────────────────────────────────────────── */}
@@ -920,16 +936,23 @@ export const AccountScreen = ({ navigation }: any) => {
         animationType="fade"
         onRequestClose={() => setHelpCenterVisible(false)}
       >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setHelpCenterVisible(false)}
-        >
+        <View style={styles.modalBackdrop}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setHelpCenterVisible(false)}
+          />
           <View style={styles.dialogCard}>
             <Text style={styles.dialogTitle}>Help Center</Text>
             <Text style={styles.dialogSub}>Common questions and guides for Splitwiser.</Text>
 
-            <ScrollView style={{ maxHeight: 240 }} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={{ maxHeight: 280 }}
+              contentContainerStyle={{ paddingBottom: 12 }}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
+              keyboardShouldPersistTaps="handled"
+            >
               <View style={styles.faqItem}>
                 <Text style={styles.faqQ}>How does balance simplification work?</Text>
                 <Text style={styles.faqA}>
@@ -957,7 +980,7 @@ export const AccountScreen = ({ navigation }: any) => {
               <Text style={styles.dialogPrimaryBtnText}>Close</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
 
       {/* ── Contact Support Modal ──────────────────────────────────────────── */}
@@ -967,11 +990,12 @@ export const AccountScreen = ({ navigation }: any) => {
         animationType="fade"
         onRequestClose={() => setSupportModalVisible(false)}
       >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setSupportModalVisible(false)}
-        >
+        <View style={styles.modalBackdrop}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setSupportModalVisible(false)}
+          />
           <View style={styles.dialogCard}>
             <Text style={styles.dialogTitle}>Contact Support</Text>
             <Text style={styles.dialogSub}>Send feedback, report bugs, or ask our team a question.</Text>
@@ -1010,7 +1034,7 @@ export const AccountScreen = ({ navigation }: any) => {
               <Text style={styles.dialogCancelBtnText}>Cancel</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
 
 
