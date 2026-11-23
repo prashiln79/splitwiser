@@ -638,6 +638,7 @@ export async function signInWithGoogleCredential(
       imageUrl: googlePhoto,
       isAnonymous: false,
       authProvider: 'google',
+      onboardingCompleted: false,
       createdAt: now,
       updatedAt: now,
     };

@@ -106,13 +106,17 @@ export const AuthSelectionScreen: React.FC<AuthSelectionScreenProps> = ({
       }
 
       // If profile incomplete, complete it
-      if (!userProfile.name || !userProfile.hasCompletedProfile) {
-        navigation.navigate('GuestProfileSetup', {
-          suggestedName: tokens.displayName || '',
-          suggestedPhoto: tokens.photoUrl || undefined,
-        });
-      } else if (!userProfile.onboardingCompleted) {
-        navigation.navigate('IntroSlides');
+      try {
+        if (!userProfile.name || !userProfile.hasCompletedProfile) {
+          navigation.navigate('GuestProfileSetup', {
+            suggestedName: tokens.displayName || '',
+            suggestedPhoto: tokens.photoUrl || undefined,
+          });
+        } else if (!userProfile.onboardingCompleted) {
+          navigation.navigate('IntroSlides');
+        }
+      } catch (navErr) {
+        console.warn('[handleGoogleSuccess] Navigation safely handled:', navErr);
       }
       // If returning user with onboarding completed, AppNavigator handles immediate landing on MainNavigator!
     } catch (err: any) {

@@ -147,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           syncService.initialize(firebaseUser.uid);
         } else {
           const hasCompletedProfile = Boolean(firebaseUser.displayName && !firebaseUser.isAnonymous);
-          const onboardingCompleted = localOnboardingDone || hasCompletedProfile;
+          const onboardingCompleted = Boolean(localOnboardingDone);
 
           const initialProfile: AppUser = {
             uid: firebaseUser.uid,

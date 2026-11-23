@@ -309,7 +309,11 @@ export function useGoogleAuth(
 
     if (result.type === 'success') {
       if (onSuccessRef.current) {
-        onSuccessRef.current(result.tokens);
+        try {
+          await Promise.resolve(onSuccessRef.current(result.tokens));
+        } catch (callbackErr) {
+          console.error('[useGoogleAuth] Error in onSuccess handler:', callbackErr);
+        }
       }
       return { type: 'success' };
     }

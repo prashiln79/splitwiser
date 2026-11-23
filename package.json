@@ -1,6 +1,6 @@
 {
   "name": "splitwiser",
-  "version": "2.0.1",
+  "version": "4.0.21",
   "main": "index.js",
   "scripts": {
     "start": "node init && expo start",

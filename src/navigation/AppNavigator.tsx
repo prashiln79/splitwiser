@@ -68,22 +68,22 @@ const AppNavigator = () => {
     >
       <View style={{ flex: 1, backgroundColor: colors.background }}>
         <InAppNotificationBanner navigationRef={navigationRef} />
-        {user && user.hasCompletedProfile && user.onboardingCompleted ? (
-          // @ts-ignore react-navigation v7 id prop
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="Main" component={MainNavigator} />
-            <Stack.Screen
-              name="NotificationCenter"
-              component={NotificationCenterScreen}
-              options={{ animation: 'slide_from_right' }}
-            />
-          </Stack.Navigator>
-        ) : (
-          // @ts-ignore react-navigation v7 id prop
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {/* Single persistent Stack.Navigator to prevent FragmentManager transaction collision on native Android */}
+        {/* @ts-ignore react-navigation v7 id prop */}
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {user && user.hasCompletedProfile && user.onboardingCompleted ? (
+            <>
+              <Stack.Screen name="Main" component={MainNavigator} />
+              <Stack.Screen
+                name="NotificationCenter"
+                component={NotificationCenterScreen}
+                options={{ animation: 'slide_from_right' }}
+              />
+            </>
+          ) : (
             <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
-          </Stack.Navigator>
-        )}
+          )}
+        </Stack.Navigator>
       </View>
     </NavigationContainer>
   );
