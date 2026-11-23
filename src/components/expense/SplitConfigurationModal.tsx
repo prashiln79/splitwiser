@@ -1159,6 +1159,7 @@ export const SplitConfigurationModal: React.FC<SplitConfigurationModalProps> = (
               style={[
                 styles.summaryPreviewBar,
                 isKeyboardVisible && styles.summaryPreviewBarCompact,
+                { paddingBottom: Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 16) + (isKeyboardVisible ? 6 : 10) },
               ]}
             >
               <View style={[styles.summaryTopRow, isKeyboardVisible && styles.summaryTopRowCompact]}>
@@ -1629,7 +1630,6 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
       borderTopColor: colors.border,
       paddingHorizontal: 20,
       paddingTop: 12,
-      paddingBottom: Platform.OS === 'ios' ? 24 : 14,
       backgroundColor: colors.surface,
     },
     summaryTopRow: {

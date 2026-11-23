@@ -20,6 +20,7 @@ import {
   Check,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GroupSettings, SplitType } from '../../types';
 import { useAppTheme, ThemeColors } from '../../theme';
 
@@ -42,8 +43,14 @@ export const ExpensePreferencesModal: React.FC<ExpensePreferencesModalProps> = (
   onUpdateGroupSettings,
   onUpdateHideUninvolved,
 }) => {
+  const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+
+  const bottomPadding = useMemo(() => {
+    const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 16);
+    return bottomInset + 16;
+  }, [insets.bottom]);
   const [simplifyDebts, setSimplifyDebts] = useState<boolean>(
     groupSettings.simplifyDebts ?? true
   );
@@ -133,7 +140,7 @@ export const ExpensePreferencesModal: React.FC<ExpensePreferencesModalProps> = (
         onPress={onClose}
       >
         <View
-          style={styles.sheetContainer}
+          style={[styles.sheetContainer, { paddingBottom: bottomPadding }]}
           onStartShouldSetResponder={() => true}
         >
           {/* Header */}
@@ -327,7 +334,6 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       maxHeight: '90%',
-      paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     },
     sheetHeader: {
       flexDirection: 'row',

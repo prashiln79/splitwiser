@@ -17,6 +17,7 @@ import {
   AlertCircle,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GroupMember, OptimizedSettlement } from '../../types';
 import { MemberAvatar } from '../common/MemberAvatar';
 import { formatCurrency } from '../../utils/currency';
@@ -47,8 +48,14 @@ export const BalanceRemindersModal: React.FC<BalanceRemindersModalProps> = ({
   members,
   onClose,
 }) => {
+  const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+
+  const bottomPadding = useMemo(() => {
+    const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 16);
+    return bottomInset + 12;
+  }, [insets.bottom]);
   const [remindedUserIds, setRemindedUserIds] = useState<Set<string>>(new Set());
 
   // Members who owe ME money
@@ -149,7 +156,7 @@ export const BalanceRemindersModal: React.FC<BalanceRemindersModalProps> = ({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={styles.sheetContainer}>
+        <View style={[styles.sheetContainer, { paddingBottom: bottomPadding }]}>
           {/* Header */}
           <View style={styles.sheetHeader}>
             <View>
@@ -247,7 +254,6 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       maxHeight: '80%',
-      paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     },
     sheetHeader: {
       flexDirection: 'row',

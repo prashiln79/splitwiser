@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { X, ArrowRight, RefreshCw, AlertCircle, Check, DollarSign } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme, ThemeColors } from '../../theme';
 import {
   SUPPORTED_CURRENCIES,
@@ -55,8 +56,14 @@ export const CurrencyConversionModal: React.FC<CurrencyConversionModalProps> = (
 }) => {
   const handleClose = onClose || onDismiss || (() => {});
   const handleSuccess = onSuccess || onConversionSuccess || (() => {});
+  const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+
+  const bottomPadding = useMemo(() => {
+    const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 16);
+    return bottomInset + 12;
+  }, [insets.bottom]);
 
   const sources = useMemo(() => {
     const list = availableSourceCurrencies.length > 0 ? availableSourceCurrencies : ['INR', 'USD'];
@@ -210,7 +217,7 @@ export const CurrencyConversionModal: React.FC<CurrencyConversionModalProps> = (
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
       <View style={styles.backdrop}>
-        <View style={styles.sheetContainer}>
+        <View style={[styles.sheetContainer, { paddingBottom: bottomPadding }]}>
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Convert Currency</Text>
@@ -397,7 +404,6 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       maxHeight: '90%',
-      paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     },
     header: {
       flexDirection: 'row',

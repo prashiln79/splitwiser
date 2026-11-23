@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { X, Search, Check, AlertCircle } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme, ThemeColors } from '../../theme';
 import {
   SUPPORTED_CURRENCIES,
@@ -43,8 +44,14 @@ export const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
   onClose,
   onSelect,
 }) => {
+  const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+
+  const bottomPadding = useMemo(() => {
+    const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 16);
+    return bottomInset + 16;
+  }, [insets.bottom]);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<CurrencyInfo | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -100,7 +107,7 @@ export const CurrencySelectorModal: React.FC<CurrencySelectorModalProps> = ({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={styles.sheetContainer}>
+        <View style={[styles.sheetContainer, { paddingBottom: bottomPadding }]}>
           {/* Header */}
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>{title}</Text>
@@ -237,7 +244,6 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       maxHeight: '85%',
-      paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     },
     sheetHeader: {
       flexDirection: 'row',

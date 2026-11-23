@@ -24,6 +24,7 @@ import {
   Info,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Group, GroupType } from '../../types';
 import { useAppTheme, ThemeColors } from '../../theme';
 
@@ -62,8 +63,14 @@ export const EditGroupInfoModal: React.FC<EditGroupInfoModalProps> = ({
   onClose,
   onSave,
 }) => {
+  const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
+
+  const bottomPadding = useMemo(() => {
+    const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 16);
+    return bottomInset + (isAdmin ? 12 : 16);
+  }, [insets.bottom, isAdmin]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<GroupType>('home');
@@ -121,7 +128,7 @@ export const EditGroupInfoModal: React.FC<EditGroupInfoModalProps> = ({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.backdrop}
       >
-        <View style={styles.sheetContainer}>
+        <View style={[styles.sheetContainer, { paddingBottom: bottomPadding }]}>
           {/* Header */}
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>Group Information</Text>
@@ -287,7 +294,6 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       maxHeight: '90%',
-      paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     },
     sheetHeader: {
       flexDirection: 'row',

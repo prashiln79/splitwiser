@@ -464,7 +464,7 @@ export const GroupCoverPhotoModal: React.FC<GroupCoverPhotoModalProps> = ({
         </ScrollView>
 
         {/* Bottom Save Bar */}
-        <View style={[styles.bottomSaveBar, { paddingBottom: Math.max(insets.bottom + 8, 14) }]}>
+        <View style={[styles.bottomSaveBar, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 16) + 8 }]}>
           <TouchableOpacity
             style={[
               styles.saveBtn,

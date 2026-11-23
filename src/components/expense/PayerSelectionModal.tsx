@@ -188,7 +188,7 @@ export const PayerSelectionModal: React.FC<PayerSelectionModalProps> = ({
                 minHeight: isKeyboardVisible ? undefined : sheetMinHeight,
                 maxHeight: isKeyboardVisible ? sheetMaxHeight : '92%',
                 paddingTop: isKeyboardVisible ? 10 : 14,
-                paddingBottom: isKeyboardVisible ? 10 : Math.max(insets.bottom + 8, 16),
+                paddingBottom: isKeyboardVisible ? 10 : Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 16) + 8,
               },
             ]}
             onPress={(e) => e.stopPropagation()}

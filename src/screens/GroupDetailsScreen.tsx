@@ -1904,7 +1904,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
             <View
               style={[
                 styles.bottomCommentBar,
-                { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom + 8, 12) },
+                { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 16) + 8 },
               ]}
             >
               <View style={[styles.commentInputWrapper, { backgroundColor: colors.inputBackground, borderColor: colors.border }]}>
