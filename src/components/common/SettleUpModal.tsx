@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { Check, X, ArrowRight, Edit3 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -60,14 +61,29 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
   );
   const displaySettlements = mySettlements.length > 0 ? mySettlements : settlements;
 
-  // Auto-select if only 1 settlement exists
+  // Track whether we have already auto-selected on this modal open,
+  // to prevent repeated resets when the settlements prop changes after onSuccess refresh.
+  const hasAutoSelected = React.useRef(false);
+
   useEffect(() => {
-    if (visible && displaySettlements.length === 1 && !selectedSettlement) {
+    if (!visible) {
+      // Reset all state when modal closes
+      hasAutoSelected.current = false;
+      setSelectedSettlement(null);
+      setCustomAmount('');
+      setIsEditingAmount(false);
+      setNote('');
+      return;
+    }
+
+    // Auto-select only once per open, only when there is exactly 1 settlement
+    if (displaySettlements.length === 1 && !hasAutoSelected.current) {
+      hasAutoSelected.current = true;
       const s = displaySettlements[0];
       setSelectedSettlement(s);
       setCustomAmount(String(s.amount));
     }
-  }, [visible, displaySettlements, selectedSettlement]);
+  }, [visible, displaySettlements]);
 
   const handleSelect = (s: OptimizedSettlement) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -115,6 +131,12 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
       const toPerson = selectedSettlement.toUserName;
       const paymentNote = note.trim() || undefined;
 
+      // Dismiss the modal BEFORE showing the alert and triggering onSuccess,
+      // so that the settlements prop update from onSuccess refresh does not
+      // race with the still-open modal state and cause a loop.
+      onDismiss();
+      if (onSuccess) onSuccess();
+
       Alert.alert(
         'Payment Recorded',
         `Recorded payment of ${formatted} from ${fromPerson} to ${toPerson} in ${settlementCurrency}.`,
@@ -140,13 +162,6 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
           { text: 'Done', style: 'cancel' },
         ]
       );
-
-      setSelectedSettlement(null);
-      setCustomAmount('');
-      setIsEditingAmount(false);
-      setNote('');
-      onDismiss();
-      if (onSuccess) onSuccess();
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to record settlement.');
     } finally {
@@ -188,13 +203,13 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
               {displaySettlements.length > 1 && (
                 <View style={styles.selectorContainer}>
                   <Text style={styles.sectionSubtitle}>Select balance to settle:</Text>
-                  <View style={styles.settlementsList}>
+                  <ScrollView style={styles.settlementsList} showsVerticalScrollIndicator={false}>
                     {displaySettlements.map((s, idx) => {
                       const cur = s.currency || groupCurrency || 'INR';
                       const isSelected =
                         selectedSettlement?.fromUserId === s.fromUserId &&
                         selectedSettlement?.toUserId === s.toUserId &&
-                        (selectedSettlement?.currency || groupCurrency) === cur;
+                        (selectedSettlement?.currency || groupCurrency || 'INR') === cur;
                       return (
                         <TouchableOpacity
                           key={`${s.fromUserId}-${s.toUserId}-${cur}-${idx}`}
@@ -222,7 +237,7 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
                         </TouchableOpacity>
                       );
                     })}
-                  </View>
+                  </ScrollView>
                 </View>
               )}
 
