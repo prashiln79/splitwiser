@@ -437,6 +437,27 @@ export async function upsertRemoteExpenses(groupId: string, remoteExpenses: Expe
       } catch {}
     }
 
+    const splitsJson = JSON.stringify(remote.splits);
+    const tagsJson = JSON.stringify(mergedTags);
+    const remoteCurrency = remote.currency || 'INR';
+
+    // Content-change check: skip SQLite write if all values are already identical
+    if (
+      local &&
+      local.sync_status === 'synced' &&
+      local.is_deleted === 0 &&
+      local.updated_at === updatedAtMs &&
+      local.amount === remote.amount &&
+      local.description === remote.description &&
+      local.paid_by === remote.paidBy &&
+      local.split_type === remote.splitType &&
+      (local.currency || 'INR') === remoteCurrency &&
+      local.splits_json === splitsJson &&
+      local.tags_json === tagsJson
+    ) {
+      continue;
+    }
+
     await database.runAsync(
       `INSERT INTO local_expenses (
         id, group_id, created_by, paid_by, description, amount, split_type, splits_json, currency, tags_json, created_at, updated_at, sync_status, is_deleted
@@ -452,7 +473,8 @@ export async function upsertRemoteExpenses(groupId: string, remoteExpenses: Expe
         updated_at = excluded.updated_at,
         sync_status = 'synced',
         is_deleted = 0
-      WHERE local_expenses.sync_status != 'pending'`,
+      WHERE local_expenses.sync_status != 'pending'
+        AND local_expenses.updated_at <= excluded.updated_at`,
       [
         remote.id,
         groupId,
@@ -461,9 +483,9 @@ export async function upsertRemoteExpenses(groupId: string, remoteExpenses: Expe
         remote.description,
         remote.amount,
         remote.splitType,
-        JSON.stringify(remote.splits),
-        remote.currency || 'INR',
-        JSON.stringify(mergedTags),
+        splitsJson,
+        remoteCurrency,
+        tagsJson,
         createdAtMs,
         updatedAtMs,
       ]

@@ -51,7 +51,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { getGroupById, getGroupMembers } from '../services/groups';
-import { getLocalGroupById, getLocalGroupMembers } from '../repositories/groupRepository';
+import { getLocalGroupById, getLocalGroupMembers, upsertRemoteGroups, upsertRemoteMembers } from '../repositories/groupRepository';
 import { getGroupExpensesLocal, deleteExpenseLocal } from '../repositories/expenseRepository';
 import { getGroupSettlementsLocal } from '../repositories/settlementRepository';
 import { syncService } from '../sync/syncService';
@@ -276,8 +276,12 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
         getGroupById(groupId),
         getGroupMembers(groupId),
       ]);
-      if (g) setGroup(g);
+      if (g) {
+        setGroup(g);
+        await upsertRemoteGroups([g]);
+      }
       if (m && m.length > 0) {
+        await upsertRemoteMembers(groupId, m);
         const currentUserPhoto = user
           ? resolveProfilePicture(user).displayUrl || user.imageUrl || user.photoURL || user.googlePhotoUrl
           : null;

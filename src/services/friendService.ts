@@ -155,16 +155,34 @@ export function subscribeToFriendships(
   return onSnapshot(
     q,
     async (snap) => {
-      const friendships: Friendship[] = [];
+      const activeFriendships: Friendship[] = [];
+      const removedIds: string[] = [];
+
       snap.forEach((docSnap) => {
         const data = docSnap.data();
-        if (data.status !== 'removed') {
-          friendships.push(mapFriendship(docSnap.id, data, userId));
+        if (data.status === 'removed') {
+          removedIds.push(docSnap.id);
+        } else {
+          activeFriendships.push(mapFriendship(docSnap.id, data, userId));
         }
       });
 
-      await upsertRemoteFriendships(friendships);
-      onUpdate(friendships);
+      // Persist active friendships into SQLite
+      await upsertRemoteFriendships(activeFriendships);
+
+      // Propagate remote soft-deletions into local SQLite
+      if (removedIds.length > 0) {
+        const { getDatabase } = await import('../db/sqlite');
+        const database = await getDatabase();
+        for (const id of removedIds) {
+          await database.runAsync(
+            `UPDATE local_friendships SET is_deleted = 1, sync_status = 'synced', updated_at = ? WHERE id = ? AND sync_status != 'pending'`,
+            [Date.now(), id]
+          );
+        }
+      }
+
+      onUpdate(activeFriendships);
     },
     (err) => {
       console.warn('[subscribeToFriendships] snapshot error:', err);

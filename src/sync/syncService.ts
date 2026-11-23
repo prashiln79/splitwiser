@@ -1,10 +1,10 @@
 import { AppState, AppStateStatus } from 'react-native';
 import {
   collection,
-  doc,
   query,
   where,
   orderBy,
+  limit,
   onSnapshot,
   getDocs,
   Timestamp,
@@ -18,6 +18,10 @@ import { upsertRemoteExpenses } from '../repositories/expenseRepository';
 import { upsertRemoteSettlements } from '../repositories/settlementRepository';
 import { upsertRemoteGroups, upsertRemoteMembers } from '../repositories/groupRepository';
 import { Expense, Settlement, Group, GroupMember } from '../types';
+
+// Overlap window in ms to avoid missing records at cursor boundary
+const SYNC_OVERLAP_MS = 5 * 60 * 1000; // 5 minutes
+const SYNC_PAGE_SIZE = 100;
 
 class SyncService {
   private activeGroupUnsubscribers: Map<string, Unsubscribe[]> = new Map();
@@ -304,16 +308,99 @@ class SyncService {
   }
 
   /**
-   * One-time sync for user groups when coming online or manually refreshing.
+   * Incremental one-time sync for user groups.
+   * On first call: fetches all groups (no cursor).
+   * On subsequent calls: fetches only groups updated since the last cursor
+   * minus an overlap window to handle clock skew.
+   * Advances the cursor only after successful SQLite persistence.
    */
   public async syncUserGroups(userId: string): Promise<void> {
     if (!networkMonitor.isCurrentlyOnline()) return;
 
     try {
+      const cursorKey = `groups_sync_${userId}`;
+      const lastSyncMs = await this.getSyncCursor(cursorKey);
+      const overlapMs = lastSyncMs > 0 ? lastSyncMs - SYNC_OVERLAP_MS : 0;
+
+      const groupsCol = collection(db, 'splitwiser', 'data', 'groups');
+
+      let snap;
+      if (overlapMs > 0) {
+        try {
+          const incrementalQuery = query(
+            groupsCol,
+            where('memberIds', 'array-contains', userId),
+            where('updatedAt', '>', Timestamp.fromMillis(overlapMs)),
+            orderBy('updatedAt', 'asc')
+          );
+          snap = await getDocs(incrementalQuery);
+        } catch (indexErr: any) {
+          // If Firestore composite index is missing, gracefully fall back to full query
+          console.warn('[SyncService] incremental query fallback:', indexErr?.message);
+          snap = await getDocs(query(groupsCol, where('memberIds', 'array-contains', userId)));
+        }
+      } else {
+        snap = await getDocs(query(groupsCol, where('memberIds', 'array-contains', userId)));
+      }
+
+      if (snap.empty) return;
+
+      let maxUpdatedAtMs = lastSyncMs;
+
+      const remoteGroups: Group[] = snap.docs.map((d) => {
+        const data = d.data();
+        const coverPhoto = data.coverPhoto || (data.bannerUrl ? { type: 'preset', imageUrl: data.bannerUrl } : undefined);
+        const updatedAt: Date = data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date();
+        maxUpdatedAtMs = Math.max(maxUpdatedAtMs, updatedAt.getTime());
+        return {
+          id: d.id,
+          name: data.name,
+          currency: data.currency ?? 'INR',
+          joinCode: data.joinCode ?? '',
+          createdBy: data.createdBy,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+          imageUrl: data.imageUrl,
+          bannerUrl: coverPhoto?.imageUrl || data.bannerUrl,
+          coverPhoto,
+          icon: data.icon,
+          memberIds: data.memberIds ?? [],
+          updatedAt,
+          syncStatus: 'synced',
+        };
+      });
+
+      await upsertRemoteGroups(remoteGroups, overlapMs > 0 ? undefined : userId);
+
+      // Advance cursor only after successful local persistence
+      if (maxUpdatedAtMs > lastSyncMs) {
+        await this.setSyncCursor(cursorKey, maxUpdatedAtMs);
+      }
+
+      // If this was an incremental sync, also trigger full soft-delete sweep
+      // so that groups removed from Firestore still get marked locally deleted.
+      // We do this at most once per hour to avoid overhead.
+      if (overlapMs > 0) {
+        const sweepKey = `groups_sweep_${userId}`;
+        const lastSweepMs = await this.getSyncCursor(sweepKey);
+        if (Date.now() - lastSweepMs > 60 * 60 * 1000) {
+          await this.sweepDeletedGroups(userId);
+          await this.setSyncCursor(sweepKey, Date.now());
+        }
+      }
+    } catch (e) {
+      console.warn('[SyncService] failed to sync user groups:', e);
+    }
+  }
+
+  /**
+   * Full sweep to soft-delete local groups that are no longer in Firestore
+   * (e.g. user was removed from group by another member). Called periodically.
+   */
+  private async sweepDeletedGroups(userId: string): Promise<void> {
+    try {
       const groupsCol = collection(db, 'splitwiser', 'data', 'groups');
       const q = query(groupsCol, where('memberIds', 'array-contains', userId));
       const snap = await getDocs(q);
-
       const remoteGroups: Group[] = snap.docs.map((d) => {
         const data = d.data();
         const coverPhoto = data.coverPhoto || (data.bannerUrl ? { type: 'preset', imageUrl: data.bannerUrl } : undefined);
@@ -333,10 +420,10 @@ class SyncService {
           syncStatus: 'synced',
         };
       });
-
+      // Pass userId so soft-deletes are applied to groups no longer returned
       await upsertRemoteGroups(remoteGroups, userId);
     } catch (e) {
-      console.warn('[SyncService] failed to sync user groups:', e);
+      console.warn('[SyncService] sweepDeletedGroups failed:', e);
     }
   }
 }

@@ -17,6 +17,7 @@ export interface LocalSettlementRow {
   status: SettlementStatus;
   note: string | null;
   created_at: number;
+  updated_at: number;
   sync_status: SyncStatus;
   is_deleted: number;
 }
@@ -158,6 +159,7 @@ export async function upsertRemoteSettlements(
   remoteSettlements: Settlement[]
 ): Promise<void> {
   const database = await getDatabase();
+  const remoteIds = new Set(remoteSettlements.map((s) => s.id));
 
   const localRows = await database.getAllAsync<LocalSettlementRow>(
     `SELECT * FROM local_settlements WHERE group_id = ?`,
@@ -178,18 +180,35 @@ export async function upsertRemoteSettlements(
     const createdAtMs = remote.createdAt.getTime();
     const remoteCurrency = remote.currency ? normalizeCurrencyCode(remote.currency) : 'INR';
 
+    // Content-change check: skip SQLite write if all values are already identical
+    if (
+      local &&
+      local.sync_status === 'synced' &&
+      local.is_deleted === 0 &&
+      local.amount === remote.amount &&
+      local.currency === remoteCurrency &&
+      local.status === remote.status &&
+      (local.note ?? null) === (remote.note ?? null) &&
+      local.from_user_id === remote.fromUserId &&
+      local.to_user_id === remote.toUserId
+    ) {
+      continue;
+    }
+
     await database.runAsync(
       `INSERT INTO local_settlements (
-        id, group_id, from_user_id, to_user_id, from_user_name, to_user_name, amount, currency, status, note, created_at, sync_status, is_deleted
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', 0)
+        id, group_id, from_user_id, to_user_id, from_user_name, to_user_name, amount, currency, status, note, created_at, updated_at, sync_status, is_deleted
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', 0)
       ON CONFLICT(id) DO UPDATE SET
         amount = excluded.amount,
         currency = excluded.currency,
         status = excluded.status,
         note = excluded.note,
+        updated_at = excluded.updated_at,
         sync_status = 'synced',
         is_deleted = 0
-      WHERE local_settlements.sync_status != 'pending'`,
+      WHERE local_settlements.sync_status != 'pending'
+        AND local_settlements.updated_at <= excluded.updated_at`,
       [
         remote.id,
         groupId,
@@ -202,7 +221,18 @@ export async function upsertRemoteSettlements(
         remote.status,
         remote.note ?? null,
         createdAtMs,
+        createdAtMs,
       ]
     );
+  }
+
+  // Soft-delete local settlements absent from the remote snapshot (deletion propagation)
+  for (const local of localRows) {
+    if (!remoteIds.has(local.id) && local.sync_status === 'synced' && local.is_deleted === 0) {
+      await database.runAsync(
+        `UPDATE local_settlements SET is_deleted = 1 WHERE id = ?`,
+        [local.id]
+      );
+    }
   }
 }

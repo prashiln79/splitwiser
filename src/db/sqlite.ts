@@ -86,6 +86,7 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
           status TEXT NOT NULL DEFAULT 'completed',
           note TEXT,
           created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL DEFAULT 0,
           sync_status TEXT NOT NULL DEFAULT 'synced',
           is_deleted INTEGER NOT NULL DEFAULT 0
         );
@@ -174,6 +175,33 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
       } catch (_) {
         // Column already exists
       }
+
+      // Add updated_at to local_settlements for incremental sync cursor support
+      try {
+        await db.execAsync(`ALTER TABLE local_settlements ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0;`);
+      } catch (_) {
+        // Column already exists
+      }
+
+      // Backfill updated_at = created_at for existing settlement rows
+      try {
+        await db.execAsync(`UPDATE local_settlements SET updated_at = created_at WHERE updated_at = 0;`);
+      } catch (_) {}
+
+      // Add index on settlements updated_at for incremental sync queries
+      try {
+        await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_settlements_updated ON local_settlements (group_id, updated_at ASC);`);
+      } catch (_) {}
+
+      // Add index on expenses updated_at for incremental sync queries
+      try {
+        await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_expenses_updated ON local_expenses (group_id, updated_at ASC);`);
+      } catch (_) {}
+
+      // Add index on groups updated_at for incremental sync queries
+      try {
+        await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_groups_updated ON local_groups (updated_at ASC);`);
+      } catch (_) {}
 
       dbInstance = db;
       return db;

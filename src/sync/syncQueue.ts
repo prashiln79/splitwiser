@@ -279,6 +279,7 @@ class SyncQueue {
           status: status || 'completed',
           note: note || null,
           createdAt: createdAt ? Timestamp.fromMillis(createdAt) : serverTimestamp(),
+          updatedAt: serverTimestamp(),
         });
 
         try {
@@ -433,25 +434,28 @@ class SyncQueue {
   private async markEntitySynced(entityType: string, entityId: string): Promise<void> {
     if (entityType === 'user') return;
     const database = await getDatabase();
+    // Stamp updated_at with current time so the next incremental sync doesn't
+    // re-download the same record (server updatedAt >= our local updated_at).
+    const now = Date.now();
     if (entityType === 'expense') {
       await database.runAsync(
-        `UPDATE local_expenses SET sync_status = 'synced' WHERE id = ?`,
-        [entityId]
+        `UPDATE local_expenses SET sync_status = 'synced', updated_at = ? WHERE id = ?`,
+        [now, entityId]
       );
     } else if (entityType === 'settlement') {
       await database.runAsync(
-        `UPDATE local_settlements SET sync_status = 'synced' WHERE id = ?`,
-        [entityId]
+        `UPDATE local_settlements SET sync_status = 'synced', created_at = MAX(created_at, ?) WHERE id = ?`,
+        [now, entityId]
       );
     } else if (entityType === 'group') {
       await database.runAsync(
-        `UPDATE local_groups SET sync_status = 'synced' WHERE id = ?`,
-        [entityId]
+        `UPDATE local_groups SET sync_status = 'synced', updated_at = ? WHERE id = ?`,
+        [now, entityId]
       );
     } else if (entityType === 'friendship') {
       await database.runAsync(
-        `UPDATE local_friendships SET sync_status = 'synced' WHERE id = ?`,
-        [entityId]
+        `UPDATE local_friendships SET sync_status = 'synced', updated_at = ? WHERE id = ?`,
+        [now, entityId]
       );
     }
   }

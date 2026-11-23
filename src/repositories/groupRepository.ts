@@ -365,9 +365,40 @@ export async function leaveGroupLocal(groupId: string, uid: string): Promise<voi
 export async function upsertRemoteGroups(remoteGroups: Group[], userId?: string): Promise<void> {
   const database = await getDatabase();
 
+  const localRows = await database.getAllAsync<LocalGroupRow>(
+    `SELECT * FROM local_groups`
+  );
+  const localMap = new Map<string, LocalGroupRow>();
+  for (const row of localRows) {
+    localMap.set(row.id, row);
+  }
+
   for (const group of remoteGroups) {
+    const local = localMap.get(group.id);
+    if (local && local.sync_status === 'pending') {
+      continue;
+    }
+
     const createdAtMs = group.createdAt.getTime();
     const updatedAtMs = group.updatedAt ? group.updatedAt.getTime() : createdAtMs;
+    const memberIdsJson = JSON.stringify(group.memberIds || []);
+
+    // Change detection: skip SQLite write if nothing has changed
+    if (
+      local &&
+      local.sync_status === 'synced' &&
+      local.is_deleted === 0 &&
+      local.updated_at === updatedAtMs &&
+      local.name === group.name &&
+      local.currency === (group.currency || 'INR') &&
+      (local.join_code ?? '') === (group.joinCode ?? '') &&
+      (local.image_url ?? null) === (group.imageUrl ?? null) &&
+      (local.banner_url ?? null) === (group.bannerUrl ?? null) &&
+      (local.icon ?? null) === (group.icon ?? null) &&
+      local.member_ids_json === memberIdsJson
+    ) {
+      continue;
+    }
 
     await database.runAsync(
       `INSERT INTO local_groups (
@@ -384,7 +415,8 @@ export async function upsertRemoteGroups(remoteGroups: Group[], userId?: string)
         updated_at = excluded.updated_at,
         sync_status = 'synced',
         is_deleted = 0
-      WHERE local_groups.sync_status != 'pending'`,
+      WHERE local_groups.sync_status != 'pending'
+        AND local_groups.updated_at <= excluded.updated_at`,
       [
         group.id,
         group.name,
@@ -395,7 +427,7 @@ export async function upsertRemoteGroups(remoteGroups: Group[], userId?: string)
         group.imageUrl ?? null,
         group.bannerUrl ?? null,
         group.icon ?? null,
-        JSON.stringify(group.memberIds || []),
+        memberIdsJson,
         updatedAtMs,
       ]
     );
@@ -458,8 +490,29 @@ export async function updateLocalMemberProfile(
  */
 export async function upsertRemoteMembers(groupId: string, members: GroupMember[]): Promise<void> {
   const database = await getDatabase();
+  const remoteUserIds = new Set(members.map((m) => m.userId));
+
+  const localMembers = await database.getAllAsync<LocalMemberRow>(
+    `SELECT * FROM local_group_members WHERE group_id = ?`,
+    [groupId]
+  );
+  const localMap = new Map<string, LocalMemberRow>();
+  for (const lm of localMembers) {
+    localMap.set(lm.user_id, lm);
+  }
 
   for (const member of members) {
+    const local = localMap.get(member.userId);
+    // Change detection: skip SQLite write if identical
+    if (
+      local &&
+      local.user_name === member.userName &&
+      local.role === (member.role || 'member') &&
+      (local.image_url ?? null) === (member.imageUrl ?? null)
+    ) {
+      continue;
+    }
+
     const joinedAtMs = member.joinedAt ? member.joinedAt.getTime() : Date.now();
 
     await database.runAsync(
@@ -479,6 +532,16 @@ export async function upsertRemoteMembers(groupId: string, members: GroupMember[
         member.imageUrl ?? null,
       ]
     );
+  }
+
+  // Deletion propagation: remove local members that no longer exist on remote
+  for (const local of localMembers) {
+    if (!remoteUserIds.has(local.user_id)) {
+      await database.runAsync(
+        `DELETE FROM local_group_members WHERE group_id = ? AND user_id = ?`,
+        [groupId, local.user_id]
+      );
+    }
   }
 }
 

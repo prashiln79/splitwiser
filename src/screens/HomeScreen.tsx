@@ -34,8 +34,8 @@ import {
   getGroupMembers,
 } from '../services/groups';
 import { resolveProfilePicture } from '../utils/profilePhotoHelper';
-import { getLocalGroups, getLocalGroupMembers } from '../repositories/groupRepository';
-import { getGroupExpensesLocal } from '../repositories/expenseRepository';
+import { getLocalGroups, getLocalGroupMembers, upsertRemoteMembers } from '../repositories/groupRepository';
+import { getGroupExpensesLocal, upsertRemoteExpenses } from '../repositories/expenseRepository';
 import { getGroupSettlementsLocal } from '../repositories/settlementRepository';
 import { syncService } from '../sync/syncService';
 import { syncQueue } from '../sync/syncQueue';
@@ -97,12 +97,18 @@ const HomeScreen = ({ navigation }: any) => {
             let expenses = await getGroupExpensesLocal(group.id);
             let recordedSets = await getGroupSettlementsLocal(group.id);
 
-            // If empty and online, fetch from remote
+            // If empty and online, fetch from remote and persist immediately to SQLite
             if (members.length === 0 && networkMonitor.isCurrentlyOnline()) {
               const [remM, remE] = await Promise.all([
                 getGroupMembers(group.id),
                 getGroupExpenses(group.id),
               ]);
+              if (remM?.length) {
+                await upsertRemoteMembers(group.id, remM);
+              }
+              if (remE?.length) {
+                await upsertRemoteExpenses(group.id, remE);
+              }
               members = remM;
               expenses = remE;
             }
