@@ -97,6 +97,14 @@ export const AuthSelectionScreen: React.FC<AuthSelectionScreenProps> = ({
         tokens.email
       );
 
+      // Safety guard: userProfile should always be set after signInWithGoogle,
+      // but guard against null/undefined to prevent crash if Firestore is offline.
+      if (!userProfile) {
+        // Firebase auth succeeded (session persisted), AppNavigator will route correctly
+        // when it re-evaluates user state from onAuthStateChanged.
+        return;
+      }
+
       // If profile incomplete, complete it
       if (!userProfile.name || !userProfile.hasCompletedProfile) {
         navigation.navigate('GuestProfileSetup', {

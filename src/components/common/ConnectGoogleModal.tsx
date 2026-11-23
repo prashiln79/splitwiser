@@ -54,7 +54,7 @@ export const ConnectGoogleModal: React.FC<ConnectGoogleModalProps> = ({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       Alert.alert(
         'Account Connected!',
-        `Your Splitwiser account is now linked to Google (${result.user.email || 'Google'}). Your UID and all existing groups remain intact.`
+        `Your Splitwiser account is now linked to Google (${result.user?.email || 'Google'}). Your UID and all existing groups remain intact.`
       );
       if (onSuccess) onSuccess();
       onDismiss();

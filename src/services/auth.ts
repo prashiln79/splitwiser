@@ -533,7 +533,18 @@ export async function linkGoogleCredential(
   }
 
   return {
-    user: refreshedProfile!,
+    user: refreshedProfile || {
+      uid: linkedFirebaseUser.uid,
+      name: googleDisplayName || linkedFirebaseUser.displayName || 'Splitwiser User',
+      email: googleEmail || linkedFirebaseUser.email || undefined,
+      imageUrl: googlePhoto || linkedFirebaseUser.photoURL || undefined,
+      photoURL: googlePhoto || linkedFirebaseUser.photoURL || undefined,
+      isAnonymous: false,
+      authProvider: 'google' as const,
+      hasCompletedProfile: Boolean(googleDisplayName || linkedFirebaseUser.displayName),
+      onboardingCompleted: false,
+      createdAt: new Date(),
+    },
     isSameUid,
   };
 }
@@ -908,7 +919,18 @@ export async function migrateAnonymousDataToExistingGoogleAccount(
       }
     }
   }
-  return profile!;
+  return profile || {
+    uid: googleUid,
+    name: resolvedDisplayName || googleUserName || 'Splitwiser User',
+    email: resolvedEmail || userCredential.user.email || undefined,
+    imageUrl: googlePhoto || userCredential.user.photoURL || undefined,
+    photoURL: googlePhoto || userCredential.user.photoURL || undefined,
+    isAnonymous: false,
+    authProvider: 'google' as const,
+    hasCompletedProfile: Boolean(resolvedDisplayName || googleUserName),
+    onboardingCompleted: false,
+    createdAt: new Date(),
+  };
 }
 
 /**
