@@ -22,6 +22,7 @@ import {
   normalizeCurrencyCode,
 } from '../../utils/currency';
 import { useAppTheme, ThemeColors } from '../../theme';
+import { shareService } from '../../services/shareService';
 
 interface SettleUpModalProps {
   visible: boolean;
@@ -110,9 +111,34 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({
       }
 
       const formatted = formatCurrency(amountNum, settlementCurrency);
+      const fromPerson = selectedSettlement.fromUserName;
+      const toPerson = selectedSettlement.toUserName;
+      const paymentNote = note.trim() || undefined;
+
       Alert.alert(
         'Payment Recorded',
-        `Recorded payment of ${formatted} from ${selectedSettlement.fromUserName} to ${selectedSettlement.toUserName} in ${settlementCurrency}.`
+        `Recorded payment of ${formatted} from ${fromPerson} to ${toPerson} in ${settlementCurrency}.`,
+        [
+          {
+            text: 'Share Receipt',
+            onPress: () => {
+              const msg = shareService.buildSettlementShareMessage({
+                fromName: fromPerson,
+                toName: toPerson,
+                amount: amountNum,
+                currency: settlementCurrency,
+                date: new Date(),
+                note: paymentNote,
+              });
+              shareService.shareWithOptions({
+                message: msg,
+                title: `Payment Receipt: ${fromPerson} to ${toPerson}`,
+                dialogTitle: 'Share Payment Receipt',
+              });
+            },
+          },
+          { text: 'Done', style: 'cancel' },
+        ]
       );
 
       setSelectedSettlement(null);

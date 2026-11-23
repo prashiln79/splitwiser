@@ -47,7 +47,9 @@ import {
   ImagePlus,
   Gem,
   RefreshCw,
+  Share2,
 } from 'lucide-react-native';
+import { shareService } from '../services/shareService';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { getGroupById, getGroupMembers } from '../services/groups';
@@ -356,13 +358,68 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
     if (!group?.joinCode) return;
-    try {
-      await Share.share({
-        message: `Join our "${group.name}" group on Splitwiser! Use code: ${group.joinCode}`,
-      });
-    } catch {
-      // Ignored
+    const message = shareService.buildGroupInviteMessage({
+      groupName: group.name,
+      joinCode: group.joinCode,
+      memberCount: members.length,
+      groupType: group.type,
+    });
+    await shareService.shareWithOptions({
+      message,
+      title: `Join ${group.name}`,
+      dialogTitle: 'Share Group Invitation',
+    });
+  };
+
+  const handleShareSelectedExpense = async () => {
+    if (!selectedExpense || !group) return;
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
+    const payerName =
+      (selectedExpense.paidBy || selectedExpense.createdBy) === user?.uid
+        ? 'You'
+        : getMemberName(selectedExpense.paidBy || selectedExpense.createdBy);
+
+    const message = shareService.buildExpenseShareMessage({
+      groupName: group.name,
+      description: selectedExpense.description,
+      amount: selectedExpense.amount,
+      currency: selectedExpense.currency,
+      paidByName: payerName,
+      date: selectedExpense.createdAt,
+      splitCount: selectedExpense.splits?.length || 1,
+    });
+
+    await shareService.shareWithOptions({
+      message,
+      title: `Expense: ${selectedExpense.description}`,
+      dialogTitle: 'Share Expense Details',
+    });
+  };
+
+  const handleShareSettlementRecord = async (rec: any) => {
+    if (!group) return;
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    const fromName = rec.fromUserId === user?.uid ? 'You' : getMemberName(rec.fromUserId);
+    const toName = rec.toUserId === user?.uid ? 'You' : getMemberName(rec.toUserId);
+
+    const message = shareService.buildSettlementShareMessage({
+      fromName,
+      toName,
+      amount: rec.amount,
+      currency: rec.currency,
+      date: rec.createdAt,
+      note: rec.note,
+    });
+
+    await shareService.shareWithOptions({
+      message,
+      title: `Payment Receipt: ${fromName} to ${toName}`,
+      dialogTitle: 'Share Payment Receipt',
+    });
   };
 
   const handleAddExpenseClick = () => {
@@ -1054,6 +1111,14 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                   <Text style={styles.settledHistoryAmount}>
                     {formatAmount(rec.amount, rec.currency)}
                   </Text>
+                  <TouchableOpacity
+                    onPress={() => handleShareSettlementRecord(rec)}
+                    style={{ padding: 6, marginLeft: 8 }}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Share payment receipt"
+                  >
+                    <Share2 size={16} color={colors.textMuted} />
+                  </TouchableOpacity>
                 </View>
               ))
             )}
@@ -1718,6 +1783,15 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
                 </TouchableOpacity>
 
                 <View style={styles.expDetailRightActions}>
+                  <TouchableOpacity
+                    onPress={handleShareSelectedExpense}
+                    style={styles.expDetailIconBtn}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Share expense"
+                  >
+                    <Share2 size={22} color={colors.textPrimary} strokeWidth={2.2} />
+                  </TouchableOpacity>
+
                   <TouchableOpacity
                     onPress={() => {
                       if (selectedExpenseReceiptUri) {

@@ -56,6 +56,7 @@ import { CurrencySelectorModal } from '../components/groupSettings/CurrencySelec
 import { getCurrencySymbol, getCurrencyName } from '../utils/currency';
 import { submitSupportTicket } from '../services/support';
 import { hapticsService } from '../services/hapticsService';
+import { shareService } from '../services/shareService';
 
 export const AccountScreen = ({ navigation }: any) => {
   const { user, signOut, updateProfile } = useAuth();
@@ -106,6 +107,16 @@ export const AccountScreen = ({ navigation }: any) => {
     const unsub = hapticsService.subscribe(setHapticsEnabled);
     return unsub;
   }, []);
+
+  const handleShareApp = async () => {
+    hapticsService.impact(Haptics.ImpactFeedbackStyle.Light);
+    const message = shareService.buildAppShareMessage();
+    await shareService.shareWithOptions({
+      message,
+      title: 'Splitwiser - Share Expenses Easily',
+      dialogTitle: 'Share Splitwiser',
+    });
+  };
 
   const handleSelectDefaultCurrency = async (newCode: string) => {
     try {
@@ -448,6 +459,26 @@ export const AccountScreen = ({ navigation }: any) => {
                 </Text>
                 <ChevronRight size={18} color={colors.textMuted} />
               </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Section: Spread the Word */}
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>Spread the Word</Text>
+          <View style={styles.sectionBody}>
+            <TouchableOpacity
+              style={[styles.settingItemRow, { borderBottomWidth: 0 }]}
+              onPress={handleShareApp}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Share Splitwiser"
+            >
+              <View style={styles.settingItemLeft}>
+                <Share2 size={19} color={colors.textPrimary} strokeWidth={2} style={styles.rowIcon} />
+                <Text style={styles.settingItemTitle}>Share Splitwiser</Text>
+              </View>
+              <ChevronRight size={18} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
         </View>

@@ -25,6 +25,7 @@ import { AppUser, GroupMember } from '../../types';
 import { searchUsers } from '../../services/friendService';
 import { MemberAvatar } from '../common/MemberAvatar';
 import { useAppTheme, ThemeColors } from '../../theme';
+import { shareService } from '../../services/shareService';
 
 interface AddMembersModalProps {
   visible: boolean;
@@ -126,14 +127,17 @@ export const AddMembersModal: React.FC<AddMembersModalProps> = ({
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
-    try {
-      await Share.share({
-        message: `Join my group "${groupName}" on Splitwiser! Use this join code: ${joinCode}`,
-      });
-      setCopiedCode(true);
-    } catch {
-      // Ignored
-    }
+    const message = shareService.buildGroupInviteMessage({
+      groupName,
+      joinCode,
+      memberCount: existingMembers?.length,
+    });
+    setCopiedCode(true);
+    await shareService.shareWithOptions({
+      message,
+      title: `Join ${groupName}`,
+      dialogTitle: 'Share Group Invitation',
+    });
   };
 
   return (

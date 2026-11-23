@@ -29,6 +29,7 @@ import { addFriendRemote } from '../../services/friendService';
 import { joinGroup } from '../../services/groups';
 import { MemberAvatar } from './MemberAvatar';
 import { useAppTheme, ThemeColors } from '../../theme';
+import { shareService } from '../../services/shareService';
 
 interface QrCodeModalProps {
   visible: boolean;
@@ -63,13 +64,15 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
-    try {
-      await Share.share({
-        message: `Connect with me on Splitwiser! My Friend ID is: ${user?.uid}\nOr scan my QR code in the app.`,
-      });
-    } catch {
-      // Ignored
-    }
+    const message = shareService.buildFriendInviteMessage({
+      name: user?.name,
+      uid: user?.uid,
+    });
+    await shareService.shareWithOptions({
+      message,
+      title: 'Connect on Splitwiser',
+      dialogTitle: 'Share Friend Details',
+    });
   };
 
   const handleOpenScanner = async () => {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Alert,
   StyleSheet,
@@ -24,8 +24,16 @@ const JoinGroupScreen = ({ navigation, route }: any) => {
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const insets = useSafeAreaInsets();
 
-  const [joinCode, setJoinCode] = useState('');
+  const initialCode = (route?.params?.code || route?.params?.joinCode || '').toUpperCase();
+  const [joinCode, setJoinCode] = useState(initialCode);
   const [isJoining, setIsJoining] = useState(false);
+
+  useEffect(() => {
+    const paramCode = route?.params?.code || route?.params?.joinCode;
+    if (paramCode && typeof paramCode === 'string') {
+      setJoinCode(paramCode.trim().toUpperCase());
+    }
+  }, [route?.params?.code, route?.params?.joinCode]);
 
   const handleJoinGroup = async () => {
     const code = joinCode.trim().toUpperCase();

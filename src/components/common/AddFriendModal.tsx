@@ -22,6 +22,7 @@ import { createLocalFriendship } from '../../repositories/friendRepository';
 import { networkMonitor } from '../../sync/networkMonitor';
 import { AppUser, Friendship } from '../../types';
 import { useAppTheme, ThemeColors } from '../../theme';
+import { shareService } from '../../services/shareService';
 
 interface AddFriendModalProps {
   visible: boolean;
@@ -155,14 +156,15 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
-    try {
-      await Share.share({
-        message: `Hey! Let's track our shared expenses on Splitwiser. Add me using my name: "${currentUserName}"!`,
-        title: 'Join me on Splitwiser',
-      });
-    } catch (err) {
-      console.warn('Share error:', err);
-    }
+    const message = shareService.buildFriendInviteMessage({
+      name: currentUserName,
+      uid: currentUserId,
+    });
+    await shareService.shareWithOptions({
+      message,
+      title: 'Join me on Splitwiser',
+      dialogTitle: 'Invite Friend',
+    });
   };
 
   return (

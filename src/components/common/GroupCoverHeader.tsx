@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '../../theme';
 import { Group, OptimizedSettlement } from '../../types';
 import { formatCurrency } from '../../utils/currency';
+import { shareService } from '../../services/shareService';
 
 export const COVER_SCROLL_DISTANCE = 140; // Scroll distance after which the cover body completely collapses
 
@@ -72,13 +73,16 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
-    try {
-      await Share.share({
-        message: `Join our "${group.name}" group on Splitwiser! Use code: ${group.joinCode}`,
-      });
-    } catch {
-      // Ignored
-    }
+    const message = shareService.buildGroupInviteMessage({
+      groupName: group.name,
+      joinCode: group.joinCode,
+      groupType: group.type,
+    });
+    await shareService.shareWithOptions({
+      message,
+      title: `Join ${group.name}`,
+      dialogTitle: 'Share Group Invitation',
+    });
   };
 
   // Resolved cover image URL: only if explicitly set via coverPhoto or bannerUrl (no default)

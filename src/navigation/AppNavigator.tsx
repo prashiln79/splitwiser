@@ -13,6 +13,28 @@ import { attachNotificationResponseListener } from '../services/localNotificatio
 
 export const navigationRef = createNavigationContainerRef();
 
+const linking = {
+  prefixes: ['splitwiser://', 'com.prashiln79.splitwiser://'],
+  config: {
+    screens: {
+      Main: {
+        screens: {
+          Groups: {
+            screens: {
+              JoinGroup: 'join',
+            },
+          },
+        },
+      },
+      Onboarding: {
+        screens: {
+          JoinGroup: 'join',
+        },
+      },
+    },
+  },
+};
+
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
@@ -64,6 +86,7 @@ const AppNavigator = () => {
     <NavigationContainer
       theme={navTheme}
       ref={navigationRef}
+      linking={linking}
       onReady={dismissSplash}
     >
       <View style={{ flex: 1, backgroundColor: colors.background }}>

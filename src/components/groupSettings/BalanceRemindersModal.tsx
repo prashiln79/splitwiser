@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GroupMember, OptimizedSettlement } from '../../types';
 import { MemberAvatar } from '../common/MemberAvatar';
 import { formatCurrency } from '../../utils/currency';
+import { shareService } from '../../services/shareService';
 import { logGroupActivity } from '../../services/activityService';
 import { dispatchNotificationEvent } from '../../services/notificationService';
 import { useAppTheme, ThemeColors } from '../../theme';
@@ -68,15 +69,19 @@ export const BalanceRemindersModal: React.FC<BalanceRemindersModalProps> = ({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
 
-    const message = `Hey ${settlement.fromUserName}! Just a friendly reminder from our group "${groupName}" on Splitwiser. You have an outstanding balance of ${formatCurrency(
-      settlement.amount,
-      currency
-    )} with me. Let's settle up whenever you have a moment! 👍`;
+    const message = shareService.buildReminderMessage({
+      recipientName: settlement.fromUserName,
+      groupName,
+      amount: settlement.amount,
+      currency,
+      payToName: currentUserName,
+    });
 
     try {
-      await Share.share({
+      await shareService.shareWithOptions({
         message,
         title: `Balance Reminder for ${groupName}`,
+        dialogTitle: 'Send Balance Reminder',
       });
 
       setRemindedUserIds((prev) => new Set(prev).add(settlement.fromUserId));
@@ -86,7 +91,7 @@ export const BalanceRemindersModal: React.FC<BalanceRemindersModalProps> = ({
         groupId,
         { id: currentUserId, name: currentUserName },
         'reminder_sent',
-        `${currentUserName} sent a balance reminder to ${settlement.fromUserName} (${formatCurrency(
+        `${currentUserName} shared a balance reminder for ${settlement.fromUserName} (${formatCurrency(
           settlement.amount,
           currency
         )})`
@@ -117,12 +122,13 @@ export const BalanceRemindersModal: React.FC<BalanceRemindersModalProps> = ({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
 
-    const message = `Hey everyone! Friendly balance check for our group "${groupName}" on Splitwiser. Please review your pending balances and settle up when convenient. Thanks!`;
+    const message = shareService.buildGroupReminderMessage({ groupName });
 
     try {
-      await Share.share({
+      await shareService.shareWithOptions({
         message,
         title: `Group Balance Reminder for ${groupName}`,
+        dialogTitle: 'Send Group Reminder',
       });
 
       const allIds = new Set(debtorsToMe.map((d) => d.fromUserId));
@@ -132,7 +138,7 @@ export const BalanceRemindersModal: React.FC<BalanceRemindersModalProps> = ({
         groupId,
         { id: currentUserId, name: currentUserName },
         'reminder_sent',
-        `${currentUserName} sent a balance reminder to all debtors in the group`
+        `${currentUserName} shared a balance reminder to all debtors in the group`
       );
 
       // In-app notifications to all debtors

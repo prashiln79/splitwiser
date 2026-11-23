@@ -66,6 +66,7 @@ import { TypedConfirmDialog } from '../components/common/TypedConfirmDialog';
 import { GroupCoverPhotoModal } from '../components/common/GroupCoverPhotoModal';
 import { getDefaultCoverPhoto } from '../constants/presetCovers';
 import { formatCurrency } from '../utils/currency';
+import { shareService } from '../services/shareService';
 import { logGroupActivity } from '../services/activityService';
 import {
   getGroupUserPreferences,
@@ -243,13 +244,17 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
     }
     const code = group?.joinCode;
     if (!code) return;
-    try {
-      await Share.share({
-        message: `Join my "${group.name}" group on Splitwiser! Use code: ${code}`,
-      });
-    } catch {
-      // Ignored
-    }
+    const message = shareService.buildGroupInviteMessage({
+      groupName: group?.name || 'Group',
+      joinCode: code,
+      memberCount: members.length,
+      groupType: group?.type,
+    });
+    await shareService.shareWithOptions({
+      message,
+      title: `Join ${group?.name || 'Group'}`,
+      dialogTitle: 'Share Group Invitation',
+    });
   };
 
   // Save info updates (Name, Type, Description)
