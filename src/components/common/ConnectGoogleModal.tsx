@@ -54,7 +54,7 @@ export const ConnectGoogleModal: React.FC<ConnectGoogleModalProps> = ({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       Alert.alert(
         'Account Connected!',
-        `Your Splitwiser account is now linked to Google (${result.user?.email || 'Google'}). Your UID and all existing groups remain intact.`
+        `Your Tapit account is now linked to Google (${result.user?.email || 'Google'}). Your UID and all existing groups remain intact.`
       );
       if (onSuccess) onSuccess();
       onDismiss();
@@ -108,7 +108,7 @@ export const ConnectGoogleModal: React.FC<ConnectGoogleModalProps> = ({
         conflictTokens.email
       );
       setConflictTokens(null);
-      Alert.alert('Signed In', 'Logged into your existing Google Splitwiser account.');
+      Alert.alert('Signed In', 'Logged into your existing Google Tapit account.');
       onDismiss();
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to switch account.');
@@ -174,7 +174,7 @@ export const ConnectGoogleModal: React.FC<ConnectGoogleModalProps> = ({
               <View style={[styles.warningBox, { backgroundColor: colors.warningLight }]}>
                 <AlertTriangle size={20} color={colors.warning} strokeWidth={2.2} style={{ marginRight: 8 }} />
                 <Text style={[styles.warningText, { color: colors.textPrimary }]}>
-                  This Google account is already linked to another Splitwiser account.
+                  This Google account is already linked to another Tapit account.
                 </Text>
               </View>
 

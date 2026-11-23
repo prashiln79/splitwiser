@@ -172,7 +172,7 @@ export const AppLockOverlay: React.FC = () => {
         <View style={[styles.shieldCircle, { backgroundColor: isDark ? colors.surfaceSecondary : '#ECFDF5' }]}>
           <Shield size={36} color={colors.primary} strokeWidth={2.4} />
         </View>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Splitwiser is Locked</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Tapit is Locked</Text>
         <Text style={[styles.subtitle, { color: colors.textMuted }]}>
           {lockoutSeconds > 0
             ? `Please wait ${lockoutSeconds}s before trying again`

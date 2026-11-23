@@ -113,8 +113,8 @@ export const AccountScreen = ({ navigation }: any) => {
     const message = shareService.buildAppShareMessage();
     await shareService.shareWithOptions({
       message,
-      title: 'Splitwiser - Share Expenses Easily',
-      dialogTitle: 'Share Splitwiser',
+      title: 'Tapit - Share Expenses Easily',
+      dialogTitle: 'Share Tapit',
     });
   };
 
@@ -472,11 +472,11 @@ export const AccountScreen = ({ navigation }: any) => {
               onPress={handleShareApp}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel="Share Splitwiser"
+              accessibilityLabel="Share Tapit"
             >
               <View style={styles.settingItemLeft}>
                 <Share2 size={19} color={colors.textPrimary} strokeWidth={2} style={styles.rowIcon} />
-                <Text style={styles.settingItemTitle}>Share Splitwiser</Text>
+                <Text style={styles.settingItemTitle}>Share Tapit</Text>
               </View>
               <ChevronRight size={18} color={colors.textMuted} />
             </TouchableOpacity>
@@ -531,7 +531,7 @@ export const AccountScreen = ({ navigation }: any) => {
         )}
 
         {/* App Version */}
-        <Text style={styles.versionText}>Splitwiser v2.0.1</Text>
+        <Text style={styles.versionText}>Tapit v2.0.1</Text>
       </ScrollView>
 
       {/* ── Scan Code / QR Modal ───────────────────────────────────────────── */}
@@ -975,7 +975,7 @@ export const AccountScreen = ({ navigation }: any) => {
           />
           <View style={styles.dialogCard}>
             <Text style={styles.dialogTitle}>Help Center</Text>
-            <Text style={styles.dialogSub}>Common questions and guides for Splitwiser.</Text>
+            <Text style={styles.dialogSub}>Common questions and guides for Tapit.</Text>
 
             <ScrollView
               style={{ maxHeight: 280 }}
@@ -987,11 +987,11 @@ export const AccountScreen = ({ navigation }: any) => {
               <View style={styles.faqItem}>
                 <Text style={styles.faqQ}>How does balance simplification work?</Text>
                 <Text style={styles.faqA}>
-                  Splitwiser automatically minimizes the total number of transactions needed so everyone can settle debts in the fewest payments.
+                  Tapit automatically minimizes the total number of transactions needed so everyone can settle debts in the fewest payments.
                 </Text>
               </View>
               <View style={styles.faqItem}>
-                <Text style={styles.faqQ}>Can I use Splitwiser offline?</Text>
+                <Text style={styles.faqQ}>Can I use Tapit offline?</Text>
                 <Text style={styles.faqA}>
                   Yes! All expenses and settlements are saved locally on your device and automatically synced once an internet connection is available.
                 </Text>
@@ -1078,7 +1078,7 @@ export const AccountScreen = ({ navigation }: any) => {
         message={
           user?.isAnonymous
             ? 'You are currently signed in as a guest. Logging out will end this guest session on this device. If you want to keep your groups and expenses, you can link an account before signing out. Are you sure you want to log out?'
-            : 'Are you sure you want to log out of your Splitwiser account?'
+            : 'Are you sure you want to log out of your Tapit account?'
         }
         confirmLabel="Log Out"
         isDestructive

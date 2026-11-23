@@ -82,7 +82,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
               </View>
             </View>
 
-            <Text style={styles.brandTitle}>Splitwiser</Text>
+            <Text style={styles.brandTitle}>Tapit</Text>
             <Text style={styles.brandTagline}>Split expenses, stay friends.</Text>
           </View>
 
@@ -134,7 +134,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ navigation }) => {
 
           {/* Terms & Privacy Legal Notice */}
           <Text style={styles.legalNotice}>
-            By continuing, you agree to Splitwiser's Terms of Service and Privacy Policy.
+            By continuing, you agree to Tapit's Terms of Service and Privacy Policy.
           </Text>
         </View>
       </ScrollView>

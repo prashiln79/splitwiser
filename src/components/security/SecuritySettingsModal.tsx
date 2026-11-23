@@ -122,12 +122,12 @@ export const SecuritySettingsModal: React.FC<SecuritySettingsModalProps> = ({
 
   const getBiometricSubtitle = () => {
     if (biometricType === 'face') {
-      return 'Unlock Splitwiser using facial recognition';
+      return 'Unlock Tapit using facial recognition';
     }
     if (biometricType === 'fingerprint') {
-      return 'Unlock Splitwiser using your fingerprint';
+      return 'Unlock Tapit using your fingerprint';
     }
-    return 'Unlock Splitwiser using device biometrics';
+    return 'Unlock Tapit using device biometrics';
   };
 
   if (!visible) return null;
@@ -224,7 +224,7 @@ export const SecuritySettingsModal: React.FC<SecuritySettingsModalProps> = ({
                 <View style={styles.settingMetaCol}>
                   <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>Passcode Lock</Text>
                   <Text style={[styles.settingDescription, { color: colors.textMuted }]}>
-                    Require a 4-digit passcode to open Splitwiser
+                    Require a 4-digit passcode to open Tapit
                   </Text>
                 </View>
                 <Switch

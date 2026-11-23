@@ -111,7 +111,7 @@ export async function promptBiometricAuth(promptMessage?: string): Promise<boole
     if (!hasHardware || !isEnrolled) return false;
 
     const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: promptMessage || 'Unlock Splitwiser',
+      promptMessage: promptMessage || 'Unlock Tapit',
       cancelLabel: 'Use Passcode',
       disableDeviceFallback: true, // Keypad passcode is handled by our app
     });

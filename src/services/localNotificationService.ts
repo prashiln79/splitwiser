@@ -35,7 +35,7 @@ export async function initLocalNotifications(): Promise<void> {
     // 2. Set Android Notification Channel (required BEFORE any notification can appear)
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
-        name: 'Splitwiser Notifications',
+        name: 'Tapit Notifications',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#059669',

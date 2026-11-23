@@ -47,7 +47,7 @@ function runTests() {
 
   // 1. Official App Constants
   console.log('\n--- 1. Official App Constants ---');
-  assert(APP_NAME === 'Splitwiser', 'App name is Splitwiser');
+  assert(APP_NAME === 'Tapit', 'App name is Tapit');
   assert(
     PLAY_STORE_URL === 'https://play.google.com/store/apps/details?id=com.prashiln79.splitwiser',
     'Play Store URL matches official target URL'
@@ -118,7 +118,7 @@ function runTests() {
   // 6. General App Share Message
   console.log('\n--- 6. General App Sharing Message ---');
   const appMsg = buildAppShareMessage();
-  assert(appMsg.includes('💚 *Meet Splitwiser!*'), 'App share has header');
+  assert(appMsg.includes('💚 *Meet Tapit!*'), 'App share has header');
   assert(appMsg.includes('✨ Split expenses with friends and family.'), 'App share lists key features');
   assert(appMsg.includes(PLAY_STORE_URL), 'App share includes Play Store download link');
   assert(appMsg.includes('Share expenses. Stay organized. 💚'), 'App share includes footer');
@@ -162,7 +162,7 @@ function runTests() {
     date: testDate,
     note: 'GPay transfer',
   });
-  assert(setMsg.includes('💸 *Payment Receipt — Splitwiser*'), 'Settlement has header');
+  assert(setMsg.includes('💸 *Payment Receipt — Tapit*'), 'Settlement has header');
   assert(setMsg.includes('✅ Status: Settled'), 'Settlement shows settled status');
   assert(setMsg.includes('👤 Paid by: Prashil'), 'Settlement shows who paid');
   assert(setMsg.includes('🤝 Paid to: Rahul'), 'Settlement shows recipient');

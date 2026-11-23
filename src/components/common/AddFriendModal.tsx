@@ -162,7 +162,7 @@ export const AddFriendModal: React.FC<AddFriendModalProps> = ({
     });
     await shareService.shareWithOptions({
       message,
-      title: 'Join me on Splitwiser',
+      title: 'Join me on Tapit',
       dialogTitle: 'Invite Friend',
     });
   };

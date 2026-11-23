@@ -538,7 +538,7 @@ export async function linkGoogleCredential(
   return {
     user: refreshedProfile || {
       uid: linkedFirebaseUser.uid,
-      name: googleDisplayName || linkedFirebaseUser.displayName || 'Splitwiser User',
+      name: googleDisplayName || linkedFirebaseUser.displayName || 'Tapit User',
       email: googleEmail || linkedFirebaseUser.email || undefined,
       imageUrl: googlePhoto || linkedFirebaseUser.photoURL || undefined,
       photoURL: googlePhoto || linkedFirebaseUser.photoURL || undefined,
@@ -633,7 +633,7 @@ export async function signInWithGoogleCredential(
     const now = serverTimestamp();
     const newProfile = {
       uid: googleUser.uid,
-      name: googleDisplayName || googleUser.displayName || 'Splitwiser User',
+      name: googleDisplayName || googleUser.displayName || 'Tapit User',
       email: googleEmail || googleUser.email || null,
       photoURL: googlePhoto,
       googlePhotoUrl: googlePhoto,
@@ -695,7 +695,7 @@ export async function signInWithGoogleCredential(
   return (
     profile || {
       uid: googleUser.uid,
-      name: googleDisplayName || googleUser.displayName || 'Splitwiser User',
+      name: googleDisplayName || googleUser.displayName || 'Tapit User',
       email: googleEmail || googleUser.email || undefined,
       photoURL: googlePhoto || googleUser.photoURL || undefined,
       imageUrl: googlePhoto || googleUser.photoURL || undefined,
@@ -734,7 +734,7 @@ export async function migrateAnonymousDataToExistingGoogleAccount(
   const credential = GoogleAuthProvider.credential(idToken, accessToken);
   const userCredential = await signInWithCredential(auth, credential);
   const googleUid = userCredential.user.uid;
-  const googleUserName = userCredential.user.displayName || 'Splitwiser User';
+  const googleUserName = userCredential.user.displayName || 'Tapit User';
 
   // 3. Migrate group memberships, expenses, and settlements to the Google UID
   for (const groupDocSnap of groupSnaps.docs) {
@@ -860,7 +860,7 @@ export async function migrateAnonymousDataToExistingGoogleAccount(
     const now = serverTimestamp();
     const newProfile = {
       uid: googleUid,
-      name: resolvedDisplayName || 'Splitwiser User',
+      name: resolvedDisplayName || 'Tapit User',
       email: resolvedEmail || null,
       photoURL: googlePhoto,
       googlePhotoUrl: googlePhoto,
@@ -925,7 +925,7 @@ export async function migrateAnonymousDataToExistingGoogleAccount(
   }
   return profile || {
     uid: googleUid,
-    name: resolvedDisplayName || googleUserName || 'Splitwiser User',
+    name: resolvedDisplayName || googleUserName || 'Tapit User',
     email: resolvedEmail || userCredential.user.email || undefined,
     imageUrl: googlePhoto || userCredential.user.photoURL || undefined,
     photoURL: googlePhoto || userCredential.user.photoURL || undefined,

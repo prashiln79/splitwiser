@@ -169,7 +169,7 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const handleAuthenticateWithBiometrics = useCallback(async (): Promise<boolean> => {
     if (!config.isBiometricsEnabled) return false;
-    const success = await promptBiometricAuth('Unlock Splitwiser');
+    const success = await promptBiometricAuth('Unlock Tapit');
     if (success) {
       unlockApp();
     }

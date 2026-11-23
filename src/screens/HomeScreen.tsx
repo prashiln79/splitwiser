@@ -436,7 +436,7 @@ const HomeScreen = ({ navigation }: any) => {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyWelcomeTitle}>
-          Welcome to Splitwiser{firstName ? ` ${firstName}` : ''}!
+          Welcome to Tapit{firstName ? ` ${firstName}` : ''}!
         </Text>
 
         <View style={styles.emptyIllustrationCircle}>
@@ -444,7 +444,7 @@ const HomeScreen = ({ navigation }: any) => {
         </View>
 
         <Text style={styles.emptyDescription}>
-          Splitwiser groups you create or are added to will show here.
+          Tapit groups you create or are added to will show here.
         </Text>
 
         <TouchableOpacity

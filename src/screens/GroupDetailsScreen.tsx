@@ -1388,7 +1388,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={styles.currencyConvertTitle}>Multi-Currency Balances</Text>
               <Text style={styles.currencyConvertSub}>
-                Splitwiser tracks each currency independently. Convert explicitly at live exchange rates.
+                Tapit tracks each currency independently. Convert explicitly at live exchange rates.
               </Text>
             </View>
             <TouchableOpacity

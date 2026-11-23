@@ -1,7 +1,7 @@
 import { formatCurrency } from '../utils/currency';
 
 // ── Official App Constants ──────────────────────────────────────────────────
-export const APP_NAME = 'Splitwiser';
+export const APP_NAME = 'Tapit';
 export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.prashiln79.splitwiser';
 export const APP_SCHEME = 'splitwiser://';
 

@@ -70,7 +70,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
     });
     await shareService.shareWithOptions({
       message,
-      title: 'Connect on Splitwiser',
+      title: 'Connect on Tapit',
       dialogTitle: 'Share Friend Details',
     });
   };
@@ -136,7 +136,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
           friendEmail
         );
 
-        Alert.alert('Friend Connected!', `You and ${friendName} are now connected on Splitwiser.`);
+        Alert.alert('Friend Connected!', `You and ${friendName} are now connected on Tapit.`);
         onSuccess?.('friend', friendName);
         handleClose();
         return;
@@ -173,7 +173,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
         return;
       }
 
-      throw new Error('Unrecognized Splitwiser QR Code. Please make sure you are scanning a valid friend or group code.');
+      throw new Error('Unrecognized Tapit QR Code. Please make sure you are scanning a valid friend or group code.');
     } catch (err: any) {
       Alert.alert('Unable to Connect', err.message || 'Failed to process QR code.', [
         {
@@ -246,7 +246,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
           {mode === 'my_code' && (
             <View style={styles.myCodeContent}>
               <Text style={styles.dialogSub}>
-                Friends can scan this code to connect with you instantly on Splitwiser.
+                Friends can scan this code to connect with you instantly on Tapit.
               </Text>
 
               {/* QR Code Container */}
@@ -306,7 +306,7 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({
           {mode === 'scanner' && (
             <View style={styles.scannerContent}>
               <Text style={styles.scannerSub}>
-                Center your friend's Splitwiser QR code in the frame below.
+                Center your friend's Tapit QR code in the frame below.
               </Text>
 
               <View style={styles.cameraBox}>
