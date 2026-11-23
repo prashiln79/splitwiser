@@ -20,6 +20,7 @@ import {
   CheckCircle2,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppUser, GroupMember } from '../../types';
 import { searchUsers } from '../../services/friendService';
 import { MemberAvatar } from '../common/MemberAvatar';
@@ -46,6 +47,7 @@ export const AddMembersModal: React.FC<AddMembersModalProps> = ({
   onClose,
   onAddMembers,
 }) => {
+  const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -54,6 +56,12 @@ export const AddMembersModal: React.FC<AddMembersModalProps> = ({
   const [searching, setSearching] = useState(false);
   const [adding, setAdding] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+
+  // Dynamic bottom padding to ensure confirm button stays comfortably above Android navigation bar
+  const bottomPadding = useMemo(() => {
+    const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 16);
+    return bottomInset + (selectedUsers.length > 0 ? 12 : 16);
+  }, [insets.bottom, selectedUsers.length]);
 
   const existingMemberIds = new Set(existingMembers.map((m) => m.userId));
 
@@ -131,7 +139,7 @@ export const AddMembersModal: React.FC<AddMembersModalProps> = ({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={styles.sheetContainer}>
+        <View style={[styles.sheetContainer, { paddingBottom: bottomPadding }]}>
           {/* Header */}
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>Add Members</Text>
@@ -288,7 +296,6 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
       maxHeight: '90%',
-      paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     },
     sheetHeader: {
       flexDirection: 'row',

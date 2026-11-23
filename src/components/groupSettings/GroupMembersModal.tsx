@@ -17,6 +17,7 @@ import {
   ChevronRight,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GroupMember, OptimizedSettlement } from '../../types';
 import { MemberAvatar } from '../common/MemberAvatar';
 import { formatCurrency } from '../../utils/currency';
@@ -45,9 +46,16 @@ export const GroupMembersModal: React.FC<GroupMembersModalProps> = ({
   onOpenAddMembers,
   onSelectMember,
 }) => {
+  const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Dynamic bottom padding to ensure buttons stay comfortably above Android navigation bar and iOS home indicator
+  const bottomPadding = useMemo(() => {
+    const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 16);
+    return bottomInset + (isAdmin ? 12 : 16);
+  }, [insets.bottom, isAdmin]);
 
   // Compute individual net balance in this group for each member
   const memberNetBalances = useMemo(() => {
@@ -75,7 +83,7 @@ export const GroupMembersModal: React.FC<GroupMembersModalProps> = ({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={styles.sheetContainer}>
+        <View style={[styles.sheetContainer, { paddingBottom: bottomPadding }]}>
           {/* Header */}
           <View style={styles.sheetHeader}>
             <View>
@@ -187,8 +195,7 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
       backgroundColor: colors.surface,
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
-      maxHeight: '85%',
-      paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+      maxHeight: '88%',
     },
     sheetHeader: {
       flexDirection: 'row',
@@ -235,6 +242,7 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
     membersList: {
       paddingHorizontal: 20,
       maxHeight: 380,
+      flexShrink: 1,
     },
     memberCard: {
       flexDirection: 'row',
