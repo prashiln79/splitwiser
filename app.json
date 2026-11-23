@@ -32,6 +32,7 @@
     "android": {
       "package": "com.prashiln79.splitwiser",
       "googleServicesFile": "./google-services.json",
+      "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#015c43"

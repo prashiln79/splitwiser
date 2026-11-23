@@ -23,6 +23,7 @@ import {
   signInWithGoogleCredential,
   migrateAnonymousDataToExistingGoogleAccount,
   signOutUser,
+  clearAllUserData,
   getCachedUserProfile,
   saveCachedUserProfile,
   clearCachedUserProfile,
@@ -179,7 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else {
         setUser(null);
-        clearCachedUserProfile().catch(() => {});
+        clearAllUserData().catch(() => {});
         setIsLoading(false);
       }
     });

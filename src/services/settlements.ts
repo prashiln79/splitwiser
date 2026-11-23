@@ -108,7 +108,13 @@ export function subscribeToSettlements(
   callback: (settlements: Settlement[]) => void
 ): Unsubscribe {
   const q = query(settlementsCol(groupId), orderBy('createdAt', 'desc'));
-  return onSnapshot(q, (snap) => {
-    callback(snap.docs.map((d) => mapSettlement(d.id, d.data())));
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      callback(snap.docs.map((d) => mapSettlement(d.id, d.data())));
+    },
+    (err) => {
+      console.warn('[subscribeToSettlements] snapshot notice:', err?.message || err);
+    }
+  );
 }

@@ -142,7 +142,13 @@ export function subscribeToExpenses(
   callback: (expenses: Expense[]) => void
 ): Unsubscribe {
   const q = query(expensesCol(groupId), orderBy('createdAt', 'desc'));
-  return onSnapshot(q, (snap) => {
-    callback(snap.docs.map((d) => mapExpense(d.id, d.data())));
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      callback(snap.docs.map((d) => mapExpense(d.id, d.data())));
+    },
+    (err) => {
+      console.warn('[subscribeToExpenses] snapshot notice:', err?.message || err);
+    }
+  );
 }

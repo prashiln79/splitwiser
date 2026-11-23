@@ -23,34 +23,78 @@ class SyncService {
   private activeGroupUnsubscribers: Map<string, Unsubscribe[]> = new Map();
   private userGroupsUnsubscribe: Unsubscribe | null = null;
   private isInitialized = false;
+  private currentUserId: string | null = null;
+  private appStateSubscription: any = null;
+  private networkUnsubscribe: (() => void) | null = null;
 
   public initialize(currentUserId?: string) {
+    if (currentUserId) {
+      this.currentUserId = currentUserId;
+    }
+
     if (this.isInitialized) return;
     this.isInitialized = true;
 
     // Listen for app state changes (foreground catch-up sync)
-    AppState.addEventListener('change', (nextState: AppStateStatus) => {
+    this.appStateSubscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
       if (nextState === 'active') {
-        this.onAppForeground(currentUserId);
+        this.onAppForeground();
       }
     });
 
     // Listen for network connectivity restoration
-    networkMonitor.subscribe((online) => {
+    this.networkUnsubscribe = networkMonitor.subscribe((online) => {
       if (online) {
         syncQueue.processQueue();
-        if (currentUserId) {
-          this.syncUserGroups(currentUserId);
+        if (this.currentUserId) {
+          this.syncUserGroups(this.currentUserId);
         }
       }
     });
   }
 
-  private async onAppForeground(currentUserId?: string) {
+  public reset(): void {
+    // 1. Unsubscribe user groups listener
+    if (this.userGroupsUnsubscribe) {
+      try {
+        this.userGroupsUnsubscribe();
+      } catch {}
+      this.userGroupsUnsubscribe = null;
+    }
+
+    // 2. Unsubscribe all active group listeners
+    for (const [, unsubs] of this.activeGroupUnsubscribers.entries()) {
+      unsubs.forEach((unsub) => {
+        try {
+          unsub();
+        } catch {}
+      });
+    }
+    this.activeGroupUnsubscribers.clear();
+
+    // 3. Remove AppState and network listeners
+    if (this.appStateSubscription) {
+      try {
+        this.appStateSubscription.remove();
+      } catch {}
+      this.appStateSubscription = null;
+    }
+    if (this.networkUnsubscribe) {
+      try {
+        this.networkUnsubscribe();
+      } catch {}
+      this.networkUnsubscribe = null;
+    }
+
+    this.currentUserId = null;
+    this.isInitialized = false;
+  }
+
+  private async onAppForeground() {
     if (networkMonitor.isCurrentlyOnline()) {
       syncQueue.processQueue();
-      if (currentUserId) {
-        this.syncUserGroups(currentUserId);
+      if (this.currentUserId) {
+        this.syncUserGroups(this.currentUserId);
       }
     }
   }

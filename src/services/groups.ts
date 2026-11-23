@@ -434,7 +434,13 @@ export function subscribeToGroups(
   callback: (groups: Group[]) => void
 ): Unsubscribe {
   const q = query(groupsCol(), where('memberIds', 'array-contains', uid));
-  return onSnapshot(q, (snap) => {
-    callback(snap.docs.map((d) => mapGroup(d.id, d.data())));
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      callback(snap.docs.map((d) => mapGroup(d.id, d.data())));
+    },
+    (err) => {
+      console.warn('[subscribeToGroups] snapshot notice:', err?.message || err);
+    }
+  );
 }

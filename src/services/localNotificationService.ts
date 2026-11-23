@@ -87,6 +87,10 @@ export {
 const NOTIFIED_IDS_KEY = '@splitwiser:notified_notification_ids';
 let notifiedIdsCache: Set<string> | null = null;
 
+export function resetNotifiedIdsCache(): void {
+  notifiedIdsCache = null;
+}
+
 export async function getNotifiedIds(): Promise<Set<string>> {
   if (notifiedIdsCache) return notifiedIdsCache;
   try {

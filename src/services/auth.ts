@@ -32,6 +32,9 @@ import { updateLocalMemberProfile } from '../repositories/groupRepository';
 import { updateUserAcrossGroups } from './groups';
 import { syncQueue } from '../sync/syncQueue';
 import { clearLocalData } from '../db/sqlite';
+import { syncService } from '../sync/syncService';
+import { globalMemberNameCache } from '../utils/notificationUtils';
+import { resetNotifiedIdsCache } from './localNotificationService';
 import {
   resolveProfilePicture,
   calculateGoogleSyncUpdates,
@@ -935,6 +938,50 @@ export async function migrateAnonymousDataToExistingGoogleAccount(
 }
 
 /**
+ * Completely purges all local user data, active sync listeners, and memory caches.
+ * Preserves app-wide settings (language and appearance theme).
+ */
+export async function clearAllUserData(): Promise<void> {
+  // 1. Reset SyncService and detach all active Firestore subscriptions
+  try {
+    syncService.reset();
+  } catch (err) {
+    console.warn('[clearAllUserData] syncService.reset notice:', err);
+  }
+
+  // 2. Clear in-memory caches
+  try {
+    globalMemberNameCache.clear();
+  } catch {}
+  try {
+    resetNotifiedIdsCache();
+  } catch {}
+
+  // 3. Clear SQLite offline database
+  try {
+    await clearLocalData();
+  } catch (err) {
+    console.warn('[clearAllUserData] clearLocalData notice:', err);
+  }
+
+  // 4. Clear all user-specific AsyncStorage data while preserving language and theme
+  try {
+    const allKeys = await AsyncStorage.getAllKeys();
+    const preservedKeys = new Set([
+      '@splitwiser_language',
+      '@splitwiser_language_mode',
+      'splitwiser_appearance_mode',
+    ]);
+    const keysToRemove = allKeys.filter((k) => !preservedKeys.has(k));
+    if (keysToRemove.length > 0) {
+      await AsyncStorage.multiRemove(keysToRemove);
+    }
+  } catch (err) {
+    console.warn('[clearAllUserData] AsyncStorage multiRemove notice:', err);
+  }
+}
+
+/**
  * Sign out current user.
  */
 export async function signOutUser(): Promise<void> {
@@ -943,16 +990,7 @@ export async function signOutUser(): Promise<void> {
   } catch (err) {
     console.warn('[signOutUser] Failed to sign out from native Google:', err);
   }
-  try {
-    await clearLocalData();
-  } catch (err) {
-    console.warn('[signOutUser] Failed to clear local SQLite data:', err);
-  }
-  try {
-    await clearCachedUserProfile();
-  } catch (err) {
-    console.warn('[signOutUser] Failed to clear cached user profile:', err);
-  }
+  await clearAllUserData();
   await signOut(auth);
 }
 

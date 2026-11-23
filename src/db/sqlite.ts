@@ -194,8 +194,10 @@ export async function clearLocalData(): Promise<void> {
     DELETE FROM local_expenses;
     DELETE FROM local_settlements;
     DELETE FROM local_currency_conversions;
+    DELETE FROM local_friendships;
     DELETE FROM sync_queue;
     DELETE FROM sync_metadata;
+    VACUUM;
   `);
 }
 
