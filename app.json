@@ -11,7 +11,7 @@
       "android",
       "web"
     ],
-    "version": "4.0.19",
+    "version": "4.0.20",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -92,7 +92,9 @@
               "armeabi-v7a",
               "x86_64"
             ],
-            "extraProguardRules": "-keep public class com.horcrux.svg.** { *; }"
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "-keep public class com.horcrux.svg.** { *; }\n-keep class com.reactnativegooglesignin.** { *; }\n-dontwarn com.reactnativegooglesignin.**"
           }
         }
       ]
