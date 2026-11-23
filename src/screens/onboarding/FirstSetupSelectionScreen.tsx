@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -41,6 +41,16 @@ export const FirstSetupSelectionScreen: React.FC<FirstSetupSelectionScreenProps>
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
   const { finishOnboarding } = useAuth();
+
+  // Guarantee onboardingCompleted is written no matter how this screen is exited
+  // (back gesture, Android hardware back, or the explicit Skip buttons).
+  // finishOnboarding() is idempotent — calling it multiple times is safe.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', () => {
+      finishOnboarding().catch(() => {});
+    });
+    return unsubscribe;
+  }, [navigation, finishOnboarding]);
 
   const handleSkip = async () => {
     if (Platform.OS !== 'web') {
