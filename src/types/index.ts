@@ -29,7 +29,7 @@ export interface AppUser {
 // ─── Group ───────────────────────────────────────────────────────────────────
 export type MemberRole = 'admin' | 'member';
 
-export type GroupType = 'home' | 'trip' | 'couple' | 'family' | 'friends' | 'office' | 'other';
+export type GroupType = 'home' | 'trip' | 'couple' | 'family' | 'friends' | 'office' | 'other' | 'personal';
 
 export interface GroupSettings {
   simplifyDebts?: boolean;
@@ -104,6 +104,7 @@ export interface Group {
   bannerUrl?: string;
   coverPhoto?: GroupCoverPhoto;
   icon?: string;
+  isPersonal?: boolean;
   memberIds: string[];
   settings?: GroupSettings;
   isArchived?: boolean;

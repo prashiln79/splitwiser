@@ -508,10 +508,10 @@ export async function upsertRemoteExpenses(groupId: string, remoteExpenses: Expe
  */
 export async function getAllUserExpensesLocal(
   uid: string
-): Promise<(Expense & { groupName?: string })[]> {
+): Promise<(Expense & { groupName?: string; isPersonal?: boolean })[]> {
   const database = await getDatabase();
-  const rows = await database.getAllAsync<LocalExpenseRow & { group_name?: string }>(
-    `SELECT e.*, g.name AS group_name 
+  const rows = await database.getAllAsync<LocalExpenseRow & { group_name?: string; group_type?: string; is_personal?: number }>(
+    `SELECT e.*, g.name AS group_name, g.group_type, g.is_personal 
      FROM local_expenses e
      LEFT JOIN local_groups g ON e.group_id = g.id
      WHERE e.is_deleted = 0 
@@ -519,10 +519,14 @@ export async function getAllUserExpensesLocal(
   );
 
   return rows
-    .map((r) => ({
-      ...rowToExpense(r),
-      groupName: r.group_name || 'Group',
-    }))
+    .map((r) => {
+      const isPersonal = Boolean(r.is_personal) || r.group_type === 'personal';
+      return {
+        ...rowToExpense(r),
+        groupName: r.group_name || 'Group',
+        isPersonal,
+      };
+    })
     .filter((e) => {
       // User is either creator, payer, or in the splits
       if (e.createdBy === uid || e.paidBy === uid) return true;

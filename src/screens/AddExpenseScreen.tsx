@@ -53,6 +53,7 @@ import {
   GraduationCap,
   Laptop,
   PartyPopper,
+  Wallet,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -173,6 +174,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
   });
   const [manualCategory, setManualCategory] = useState<ExpenseCategory | null>(initialCategory);
   const [group, setGroup] = useState<Group | null>(null);
+  const isPersonal = useMemo(() => Boolean(group?.type === 'personal' || group?.isPersonal), [group]);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -193,6 +195,14 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
     { id: string; title: string; amount: string; assignedMemberIds: string[] }[]
   >([]);
   const [itemizedTax, setItemizedTax] = useState<string>('');
+
+  useEffect(() => {
+    if (isPersonal && user?.uid) {
+      setPayerId(user.uid);
+      setSelectedMembers({ [user.uid]: true });
+      setSplitMethod('equal');
+    }
+  }, [isPersonal, user?.uid]);
   const [itemizedTip, setItemizedTip] = useState<string>('');
 
   // Additional details (date, receipt photo, notes)
@@ -576,14 +586,15 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
       return;
     }
 
-    if (!payerId) {
+    const effectivePayerId = isPersonal ? (user?.uid || payerId) : payerId;
+    if (!effectivePayerId) {
       Alert.alert('Payer Required', 'Please select who paid for this expense.');
       return;
     }
 
     const totalExpenseCents = toCents(numericAmount);
 
-    if (payerId === '__MULTIPLE__') {
+    if (!isPersonal && effectivePayerId === '__MULTIPLE__') {
       const totalPaidCents = Object.values(payerAmounts).reduce((sum, v) => sum + toCents(v), 0);
       if (totalPaidCents !== totalExpenseCents) {
         Alert.alert(
@@ -616,7 +627,16 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
       let splits: ExpenseSplit[] = [];
       let finalSplitType: SplitType = splitMethod;
 
-      if (splitMethod === 'equal') {
+      if (isPersonal) {
+        finalSplitType = 'equal';
+        splits = [
+          {
+            userId: user?.uid || effectivePayerId,
+            amount: numericAmount,
+            type: 'equal',
+          },
+        ];
+      } else if (splitMethod === 'equal') {
         const included = Object.keys(selectedMembers).filter((uid) => selectedMembers[uid]);
         if (included.length === 0) throw new Error('Please select at least one member to split with.');
 
@@ -737,7 +757,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
       if (receiptImage) tags.push(`receipt:${receiptImage}`);
 
       // Encode multiple payer tags if multiple people paid
-      if (payerId === '__MULTIPLE__') {
+      if (!isPersonal && payerId === '__MULTIPLE__') {
         Object.entries(payerAmounts).forEach(([uid, val]) => {
           const amt = parseFloat(val || '0');
           if (amt > 0) {
@@ -746,12 +766,16 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         });
       }
 
+      const finalPaidBy = isPersonal
+        ? (user?.uid || effectivePayerId)
+        : (payerId === '__MULTIPLE__' ? '__MULTIPLE__' : (payerId || user?.uid || ''));
+
       if (isEditing && expenseToEdit) {
         await updateExpenseLocal(groupId, expenseToEdit.id, {
           description: trimmedDesc,
           amount: numericAmount,
           currency: currencyCode,
-          paidBy: payerId,
+          paidBy: finalPaidBy,
           splitType: finalSplitType,
           splits,
           tags,
@@ -762,7 +786,7 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
           description: trimmedDesc,
           amount: numericAmount,
           currency: currencyCode,
-          paidBy: payerId,
+          paidBy: finalPaidBy,
           splitType: finalSplitType,
           splits,
           tags,
@@ -1011,60 +1035,75 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
           </View>
 
           {/* 5. Paid by [you] and split [equally] */}
-          <View style={styles.paidByContainer}>
-            <View style={styles.paidByRow}>
-              <Text style={styles.paidByText}>Paid by </Text>
-
-              <TouchableOpacity
-                style={styles.pillButton}
-                onPress={() => {
-                  if (Platform.OS !== 'web') {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                  }
-                  setPayerModalVisible(true);
-                }}
-                activeOpacity={0.8}
-                accessibilityLabel={`Paid by ${payerDisplayName}. Tap to select payer.`}
-                accessibilityRole="button"
-              >
-                <Text style={styles.pillButtonText}>{payerDisplayName}</Text>
-              </TouchableOpacity>
-
-              <Text style={styles.paidByText}> and split </Text>
-
-              <TouchableOpacity
-                style={styles.pillButton}
-                onPress={() => {
-                  if (Platform.OS !== 'web') {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                  }
-                  setSplitModalVisible(true);
-                }}
-                activeOpacity={0.8}
-                accessibilityLabel={`Split ${splitLabel}. Tap to change split method.`}
-                accessibilityRole="button"
-              >
-                <Text style={styles.pillButtonText}>{splitLabel}</Text>
-              </TouchableOpacity>
+          {isPersonal ? (
+            <View style={styles.paidByContainer}>
+              <View style={styles.paidByRow}>
+                <Text style={styles.paidByText}>Tracked as a </Text>
+                <View style={[styles.pillButton, { backgroundColor: isDark ? 'rgba(5, 150, 105, 0.2)' : '#ECFDF5' }]}>
+                  <Text style={[styles.pillButtonText, { color: '#059669', fontWeight: '700' }]}>Personal expense</Text>
+                </View>
+              </View>
+              <Text style={styles.equalSummaryText}>
+                (100% assigned to you · No shared debt)
+              </Text>
             </View>
+          ) : (
+            <View style={styles.paidByContainer}>
+              <View style={styles.paidByRow}>
+                <Text style={styles.paidByText}>Paid by </Text>
 
-            {/* Quick inline context summary */}
-            <Text style={styles.equalSummaryText}>
-              {splitMethod === 'equal' && numericAmount > 0
-                ? `(${currencySymbol}${equalSharePerPerson.toFixed(2)}/person · ${equalSplitsCount} included)`
-                : splitMethod === 'unequal'
-                ? `(Exact amounts · ${currencySymbol}${exactTotal.toFixed(2)} allocated)`
-                : splitMethod === 'percentage'
-                ? `(Percentages · ${percentageTotal.toFixed(0)}% allocated)`
-                : splitMethod === 'shares'
-                ? `(${sharesTotal} total shares)`
-                : splitMethod === 'adjustment'
-                ? `(Adjusted equal shares · ${equalSplitsCount} members)`
-                : `(${itemizedItems.length} items itemized)`}
-            </Text>
-          </View>
+                <TouchableOpacity
+                  style={styles.pillButton}
+                  onPress={() => {
+                    if (Platform.OS !== 'web') {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                    }
+                    setPayerModalVisible(true);
+                  }}
+                  activeOpacity={0.8}
+                  accessibilityLabel={`Paid by ${payerDisplayName}. Tap to select payer.`}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.pillButtonText}>{payerDisplayName}</Text>
+                </TouchableOpacity>
+
+                <Text style={styles.paidByText}> and split </Text>
+
+                <TouchableOpacity
+                  style={styles.pillButton}
+                  onPress={() => {
+                    if (Platform.OS !== 'web') {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                    }
+                    setSplitModalVisible(true);
+                  }}
+                  activeOpacity={0.8}
+                  accessibilityLabel={`Split ${splitLabel}. Tap to change split method.`}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.pillButtonText}>{splitLabel}</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Quick inline context summary */}
+              <Text style={styles.equalSummaryText}>
+                {splitMethod === 'equal' && numericAmount > 0
+                  ? `(${currencySymbol}${equalSharePerPerson.toFixed(2)}/person · ${equalSplitsCount} included)`
+                  : splitMethod === 'unequal'
+                  ? `(Exact amounts · ${currencySymbol}${exactTotal.toFixed(2)} allocated)`
+                  : splitMethod === 'percentage'
+                  ? `(Percentages · ${percentageTotal.toFixed(0)}% allocated)`
+                  : splitMethod === 'shares'
+                  ? `(${sharesTotal} total shares)`
+                  : splitMethod === 'adjustment'
+                  ? `(Adjusted equal shares · ${equalSplitsCount} members)`
+                  : `(${itemizedItems.length} items itemized)`}
+              </Text>
+            </View>
+          )}
 
           {/* 6. Contextual Split Breakdown */}
+          {!isPersonal && (
           <View style={styles.splitBreakdownSection}>
             {/* Equal Split Member Checklist */}
             {splitMethod === 'equal' && (
@@ -1400,11 +1439,16 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
               </View>
             )}
           </View>
+          )}
 
           {/* 7. Bottom Toolbar: Group Context, Date, Camera, Notes */}
           <View style={styles.bottomToolbar}>
             <View style={styles.toolbarLeft}>
-              <Users size={16} color="#059669" style={{ marginRight: 6 }} />
+              {isPersonal ? (
+                <Wallet size={16} color="#059669" style={{ marginRight: 6 }} />
+              ) : (
+                <Users size={16} color="#059669" style={{ marginRight: 6 }} />
+              )}
               <Text style={styles.toolbarGroupText} numberOfLines={1}>
                 {isDirectFriendExpense ? (friendName || 'Friend') : (group?.name || 'Group')}
               </Text>

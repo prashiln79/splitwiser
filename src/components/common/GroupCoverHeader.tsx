@@ -10,7 +10,7 @@ import {
   ScrollView,
   Share,
 } from 'react-native';
-import { ArrowLeft, Settings, Camera, Gem, Share2, Users } from 'lucide-react-native';
+import { ArrowLeft, Settings, Camera, Gem, Share2, Users, Wallet } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '../../theme';
@@ -36,6 +36,12 @@ export const TABS: TabItem[] = [
   { key: 'charts', label: 'Charts', hasSparkle: true },
 ];
 
+export const PERSONAL_TABS: TabItem[] = [
+  { key: 'expenses', label: 'Expenses' },
+  { key: 'total', label: 'Totals' },
+  { key: 'charts', label: 'Charts', hasSparkle: true },
+];
+
 export interface GroupCoverHeaderProps {
   group: Group | null;
   initialGroupName?: string;
@@ -46,6 +52,7 @@ export interface GroupCoverHeaderProps {
   settlements?: OptimizedSettlement[];
   currentUserId?: string;
   onShareCode?: () => void;
+  isPersonal?: boolean;
   children?: React.ReactNode;
 }
 
@@ -59,10 +66,12 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
   settlements = [],
   currentUserId = '',
   onShareCode,
+  isPersonal,
   children,
 }) => {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
+  const isPersonalGroup = isPersonal ?? Boolean(group?.type === 'personal' || group?.isPersonal);
 
   const handleShareCode = async () => {
     if (onShareCode) {
@@ -210,28 +219,47 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
         </Text>
 
         {/* Member Count & Group Join Code in one row */}
-        <View style={[styles.metaRow, !balanceSummary && { marginBottom: 16 }]}>
-          <View
-            style={styles.memberCountContainer}
-            accessibilityLabel={`${memberCount} ${memberCount === 1 ? 'person' : 'people'}`}
-          >
-            <Users
-              size={13}
-              color={hasCover ? 'rgba(255, 255, 255, 0.92)' : colors.textMuted}
-              strokeWidth={2.4}
-              style={{ marginRight: 4 }}
-            />
-            <Text
-              style={[
-                styles.metaText,
-                hasCover ? styles.metaTextDark : [styles.metaTextLight, { color: colors.textMuted }],
-              ]}
+        <View style={[styles.metaRow, (!balanceSummary || isPersonalGroup) && { marginBottom: 16 }]}>
+          {isPersonalGroup ? (
+            <View style={styles.memberCountContainer}>
+              <Wallet
+                size={13}
+                color={hasCover ? 'rgba(255, 255, 255, 0.92)' : colors.textMuted}
+                strokeWidth={2.4}
+                style={{ marginRight: 4 }}
+              />
+              <Text
+                style={[
+                  styles.metaText,
+                  hasCover ? styles.metaTextDark : [styles.metaTextLight, { color: colors.textMuted }],
+                ]}
+              >
+                Personal
+              </Text>
+            </View>
+          ) : (
+            <View
+              style={styles.memberCountContainer}
+              accessibilityLabel={`${memberCount} ${memberCount === 1 ? 'person' : 'people'}`}
             >
-              {memberCount}
-            </Text>
-          </View>
+              <Users
+                size={13}
+                color={hasCover ? 'rgba(255, 255, 255, 0.92)' : colors.textMuted}
+                strokeWidth={2.4}
+                style={{ marginRight: 4 }}
+              />
+              <Text
+                style={[
+                  styles.metaText,
+                  hasCover ? styles.metaTextDark : [styles.metaTextLight, { color: colors.textMuted }],
+                ]}
+              >
+                {memberCount}
+              </Text>
+            </View>
+          )}
 
-          {group?.joinCode ? (
+          {!isPersonalGroup && group?.joinCode ? (
             <>
               <Text
                 style={[
@@ -281,7 +309,7 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
         </View>
 
         {/* Current Balance Summary Sentence or Multi-Currency Pills */}
-        {currencyBalances && currencyBalances.length > 1 ? (
+        {!isPersonalGroup && (currencyBalances && currencyBalances.length > 1 ? (
           <View
             style={{
               flexDirection: 'row',
@@ -385,7 +413,7 @@ export const GroupCoverHeader: React.FC<GroupCoverHeaderProps> = ({
               </Text>
             )}
           </View>
-        ) : null}
+        ) : null)}
       </View>
 
       {/* Optional Children (Inline Navigation Pill Tabs) */}
@@ -569,6 +597,7 @@ export interface GroupPillTabsProps {
   onTabPress: (index: number) => void;
   hasCover?: boolean;
   isSticky?: boolean;
+  tabs?: TabItem[];
 }
 
 export const GroupPillTabs: React.FC<GroupPillTabsProps> = ({
@@ -576,8 +605,10 @@ export const GroupPillTabs: React.FC<GroupPillTabsProps> = ({
   onTabPress,
   hasCover = false,
   isSticky = false,
+  tabs,
 }) => {
   const { colors, isDark } = useAppTheme();
+  const tabList = tabs || TABS;
 
   return (
     <View
@@ -591,7 +622,7 @@ export const GroupPillTabs: React.FC<GroupPillTabsProps> = ({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.pillTabsScrollContent}
       >
-        {TABS.map((tab, idx) => {
+        {tabList.map((tab, idx) => {
           const isActive = activeTabIndex === idx;
 
           let pillBgStyle: any;

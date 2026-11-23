@@ -80,6 +80,7 @@ import {
   GroupPillTabs,
   COVER_SCROLL_DISTANCE,
   TABS,
+  PERSONAL_TABS,
   TabKey,
 } from '../components/common/GroupCoverHeader';
 import { GroupCoverPhotoModal } from '../components/common/GroupCoverPhotoModal';
@@ -136,6 +137,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
   });
 
   const [group, setGroup] = useState<Group | null>(null);
+  const isPersonal = useMemo(() => Boolean(group?.type === 'personal' || group?.isPersonal), [group]);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [recordedSettlements, setRecordedSettlements] = useState<Settlement[]>([]);
@@ -426,7 +428,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
-    if (members.length <= 1) {
+    if (!isPersonal && members.length <= 1) {
       setOnlyMemberPromptVisible(true);
     } else {
       navigation.navigate('AddExpense', { groupId });
@@ -838,13 +840,15 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
       netBalance={netBalance}
       settlements={settlements}
       currentUserId={user?.uid || ''}
-      onShareCode={handleShareCode}
+      onShareCode={isPersonal ? undefined : handleShareCode}
       currencyBalances={myCurrencyBalances}
+      isPersonal={isPersonal}
     >
       <GroupPillTabs
         activeTabIndex={activeTabIndex}
         onTabPress={handleTabPress}
         hasCover={hasCover}
+        tabs={isPersonal ? PERSONAL_TABS : TABS}
       />
     </GroupCoverHeader>
   );
@@ -1653,11 +1657,21 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
         </View>
       ) : (
         <View style={{ flex: 1 }}>
-          {activeTabIndex === 0 && renderExpensesSection()}
-          {activeTabIndex === 1 && renderSettleUpSection()}
-          {activeTabIndex === 2 && renderBalancesSection()}
-          {activeTabIndex === 3 && renderTotalSection()}
-          {activeTabIndex === 4 && renderChartsSection()}
+          {isPersonal ? (
+            <>
+              {activeTabIndex === 0 && renderExpensesSection()}
+              {activeTabIndex === 1 && renderTotalSection()}
+              {activeTabIndex === 2 && renderChartsSection()}
+            </>
+          ) : (
+            <>
+              {activeTabIndex === 0 && renderExpensesSection()}
+              {activeTabIndex === 1 && renderSettleUpSection()}
+              {activeTabIndex === 2 && renderBalancesSection()}
+              {activeTabIndex === 3 && renderTotalSection()}
+              {activeTabIndex === 4 && renderChartsSection()}
+            </>
+          )}
         </View>
       )}
 
@@ -1687,6 +1701,7 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
           onTabPress={handleTabPress}
           hasCover={hasCover}
           isSticky
+          tabs={isPersonal ? PERSONAL_TABS : TABS}
         />
       </Animated.View>
 
@@ -2049,47 +2064,49 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
       )}
 
       {/* Splitwise Prompt: Only Member in Group */}
-      <Modal
-        visible={onlyMemberPromptVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setOnlyMemberPromptVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setOnlyMemberPromptVisible(false)}
+      {!isPersonal && (
+        <Modal
+          visible={onlyMemberPromptVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setOnlyMemberPromptVisible(false)}
         >
-          <View style={styles.onlyMemberDialog}>
-            <Text style={styles.onlyMemberTitle}>
-              You are the only person in this group.
-            </Text>
-            <Text style={styles.onlyMemberSub}>
-              Do you need to add anyone to your group before you start adding expenses?
-            </Text>
-            <TouchableOpacity
-              style={styles.onlyMemberPrimaryBtn}
-              onPress={() => {
-                setOnlyMemberPromptVisible(false);
-                navigation.navigate('AddExpense', { groupId });
-              }}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.onlyMemberPrimaryBtnText}>Start adding expenses</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.onlyMemberSecondaryBtn}
-              onPress={() => {
-                setOnlyMemberPromptVisible(false);
-                handleShareCode();
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.onlyMemberSecondaryBtnText}>Add group members</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setOnlyMemberPromptVisible(false)}
+          >
+            <View style={styles.onlyMemberDialog}>
+              <Text style={styles.onlyMemberTitle}>
+                You are the only person in this group.
+              </Text>
+              <Text style={styles.onlyMemberSub}>
+                Do you need to add anyone to your group before you start adding expenses?
+              </Text>
+              <TouchableOpacity
+                style={styles.onlyMemberPrimaryBtn}
+                onPress={() => {
+                  setOnlyMemberPromptVisible(false);
+                  navigation.navigate('AddExpense', { groupId });
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.onlyMemberPrimaryBtnText}>Start adding expenses</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.onlyMemberSecondaryBtn}
+                onPress={() => {
+                  setOnlyMemberPromptVisible(false);
+                  handleShareCode();
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.onlyMemberSecondaryBtnText}>Add group members</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
 
       {/* Delete Expense Confirmation */}
       <ConfirmationDialog

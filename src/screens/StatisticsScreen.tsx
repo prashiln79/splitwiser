@@ -37,6 +37,7 @@ import { Expense } from '../types';
 interface GroupedExpense extends Expense {
   groupName?: string;
   category: ExpenseCategory;
+  isPersonal?: boolean;
 }
 
 interface CategoryTotal {
@@ -67,6 +68,7 @@ export const StatisticsScreen = ({ navigation }: any) => {
 
   // Month navigation: 0 = current month, -1 = last month, etc.
   const [monthOffset, setMonthOffset] = useState(0);
+  const [filterType, setFilterType] = useState<'all' | 'shared' | 'personal'>('all');
 
   const selectedDate = useMemo(() => {
     const d = new Date();
@@ -154,9 +156,14 @@ export const StatisticsScreen = ({ navigation }: any) => {
 
     return expenses.filter((e) => {
       const d = new Date(e.createdAt);
-      return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
+      const matchesDate = d.getMonth() === targetMonth && d.getFullYear() === targetYear;
+      if (!matchesDate) return false;
+
+      if (filterType === 'personal') return Boolean(e.isPersonal);
+      if (filterType === 'shared') return !e.isPersonal;
+      return true;
     });
-  }, [expenses, selectedDate]);
+  }, [expenses, selectedDate, filterType]);
 
   // Aggregate monthly spending metrics
   const {
@@ -299,6 +306,41 @@ export const StatisticsScreen = ({ navigation }: any) => {
         >
           <ChevronRight size={20} color={isCurrentMonth ? colors.border : colors.textPrimary} />
         </TouchableOpacity>
+      </View>
+
+      {/* Scope Filter Pills: All | Shared | Personal */}
+      <View style={[styles.scopeFilterRow, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        {(['all', 'shared', 'personal'] as const).map((type) => {
+          const isSelected = filterType === type;
+          const label = type === 'all' ? 'All' : type === 'shared' ? 'Shared Groups' : 'Personal';
+          return (
+            <TouchableOpacity
+              key={type}
+              style={[
+                styles.scopeFilterPill,
+                { backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6' },
+                isSelected && [styles.scopeFilterPillActive, { backgroundColor: colors.primary }],
+              ]}
+              onPress={() => {
+                if (Platform.OS !== 'web') {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                }
+                setFilterType(type);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[
+                  styles.scopeFilterPillText,
+                  { color: isDark ? colors.textMuted : '#4B5563' },
+                  isSelected && styles.scopeFilterPillTextActive,
+                ]}
+              >
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {isLoading ? (
@@ -571,6 +613,29 @@ const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create
     backgroundColor: colors.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
+  },
+  scopeFilterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  scopeFilterPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  scopeFilterPillActive: {
+    backgroundColor: '#059669',
+  },
+  scopeFilterPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  scopeFilterPillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   monthNavBtn: {
     width: 36,

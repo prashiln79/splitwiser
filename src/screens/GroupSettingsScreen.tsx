@@ -561,6 +561,7 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
   }
 
   const isArchived = Boolean(group?.isArchived || group?.status === 'archived');
+  const isPersonal = Boolean(group?.type === 'personal' || group?.isPersonal);
   const rawType = (group?.type || group?.icon || 'home').toLowerCase();
   const typeConfig = GROUP_TYPES.find((t) => t.key.toLowerCase() === rawType) || GROUP_TYPES[0];
   const TypeIcon = typeConfig.icon;
@@ -673,7 +674,7 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.settingRow}
+              style={[styles.settingRow, isPersonal && styles.lastRow]}
               onPress={() => setCoverModalVisible(true)}
               activeOpacity={0.7}
             >
@@ -689,90 +690,96 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
               <ChevronRight size={18} color="#D1D5DB" />
             </TouchableOpacity>
 
-            <View style={[styles.settingRow, styles.lastRow]}>
-              <View style={styles.rowIcon}>
-                <Share2 size={16} color="#7C3AED" />
+            {!isPersonal && (
+              <View style={[styles.settingRow, styles.lastRow]}>
+                <View style={styles.rowIcon}>
+                  <Share2 size={16} color="#7C3AED" />
+                </View>
+                <View style={styles.rowMeta}>
+                  <Text style={styles.rowTitle}>Group Join Code</Text>
+                  <Text style={styles.rowCodeText}>{group?.joinCode || '------'}</Text>
+                </View>
+                <TouchableOpacity style={styles.codeShareBtn} onPress={onShareInvite} activeOpacity={0.8}>
+                  <Text style={styles.codeShareBtnText}>Share</Text>
+                </TouchableOpacity>
               </View>
-              <View style={styles.rowMeta}>
-                <Text style={styles.rowTitle}>Group Join Code</Text>
-                <Text style={styles.rowCodeText}>{group?.joinCode || '------'}</Text>
-              </View>
-              <TouchableOpacity style={styles.codeShareBtn} onPress={onShareInvite} activeOpacity={0.8}>
-                <Text style={styles.codeShareBtnText}>Share</Text>
-              </TouchableOpacity>
-            </View>
+            )}
           </View>
         </View>
 
         {/* 2. MEMBERS & INVITATIONS */}
-        <View style={styles.section}>
-          <Text style={styles.sectionHeader}>Members & Invitations</Text>
-          <View style={styles.cardContainer}>
-            <TouchableOpacity
-              style={styles.settingRow}
-              onPress={() => setMembersListVisible(true)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.rowIcon}>
-                <Users size={16} color="#059669" />
-              </View>
-              <View style={styles.rowMeta}>
-                <Text style={styles.rowTitle}>Member List</Text>
-                <Text style={styles.rowSubtitle}>{members.length} members in group</Text>
-              </View>
-              <View style={styles.memberAvatarsPile}>
-                {members.slice(0, 3).map((m, i) => (
-                  <View key={m.userId} style={[styles.avatarPileItem, { marginLeft: i > 0 ? -8 : 0 }]}>
-                    <MemberAvatar name={m.userName} imageUrl={m.imageUrl} size={24} />
-                  </View>
-                ))}
-              </View>
-              <ChevronRight size={18} color="#D1D5DB" />
-            </TouchableOpacity>
-
-            {isAdmin && (
+        {!isPersonal && (
+          <View style={styles.section}>
+            <Text style={styles.sectionHeader}>Members & Invitations</Text>
+            <View style={styles.cardContainer}>
               <TouchableOpacity
-                style={[styles.settingRow, styles.lastRow]}
-                onPress={() => setAddMembersVisible(true)}
+                style={styles.settingRow}
+                onPress={() => setMembersListVisible(true)}
                 activeOpacity={0.7}
               >
                 <View style={styles.rowIcon}>
-                  <UserPlus size={16} color="#0284C7" />
+                  <Users size={16} color="#059669" />
                 </View>
                 <View style={styles.rowMeta}>
-                  <Text style={styles.rowTitle}>Add New Members</Text>
-                  <Text style={styles.rowSubtitle}>Invite friends by search or link</Text>
+                  <Text style={styles.rowTitle}>Member List</Text>
+                  <Text style={styles.rowSubtitle}>{members.length} members in group</Text>
+                </View>
+                <View style={styles.memberAvatarsPile}>
+                  {members.slice(0, 3).map((m, i) => (
+                    <View key={m.userId} style={[styles.avatarPileItem, { marginLeft: i > 0 ? -8 : 0 }]}>
+                      <MemberAvatar name={m.userName} imageUrl={m.imageUrl} size={24} />
+                    </View>
+                  ))}
                 </View>
                 <ChevronRight size={18} color="#D1D5DB" />
               </TouchableOpacity>
-            )}
+
+              {isAdmin && (
+                <TouchableOpacity
+                  style={[styles.settingRow, styles.lastRow]}
+                  onPress={() => setAddMembersVisible(true)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.rowIcon}>
+                    <UserPlus size={16} color="#0284C7" />
+                  </View>
+                  <View style={styles.rowMeta}>
+                    <Text style={styles.rowTitle}>Add New Members</Text>
+                    <Text style={styles.rowSubtitle}>Invite friends by search or link</Text>
+                  </View>
+                  <ChevronRight size={18} color="#D1D5DB" />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* 3. EXPENSE & BALANCE PREFERENCES */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>Expense & Balance Preferences</Text>
           <View style={styles.cardContainer}>
             {/* Quick Simplify Debts Toggle */}
-            <View style={styles.settingRow}>
-              <View style={styles.rowIcon}>
-                <Shuffle size={16} color="#059669" />
+            {!isPersonal && (
+              <View style={styles.settingRow}>
+                <View style={styles.rowIcon}>
+                  <Shuffle size={16} color="#059669" />
+                </View>
+                <View style={styles.rowMeta}>
+                  <Text style={styles.rowTitle}>Simplify Debts</Text>
+                  <Text style={styles.rowSubtitle}>Minimizes total payment transfers</Text>
+                </View>
+                <Switch
+                  value={simplifyDebts}
+                  onValueChange={handleToggleSimplifyDebts}
+                  disabled={!isAdmin}
+                  trackColor={{ false: '#D1D5DB', true: '#059669' }}
+                  thumbColor="#FFFFFF"
+                />
               </View>
-              <View style={styles.rowMeta}>
-                <Text style={styles.rowTitle}>Simplify Debts</Text>
-                <Text style={styles.rowSubtitle}>Minimizes total payment transfers</Text>
-              </View>
-              <Switch
-                value={simplifyDebts}
-                onValueChange={handleToggleSimplifyDebts}
-                disabled={!isAdmin}
-                trackColor={{ false: '#D1D5DB', true: '#059669' }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
+            )}
 
             <TouchableOpacity
-              style={styles.settingRow}
+              style={[styles.settingRow, isPersonal && styles.lastRow]}
               onPress={() => setCurrencyModalVisible(true)}
               activeOpacity={0.7}
             >
@@ -786,27 +793,29 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
               <ChevronRight size={18} color="#D1D5DB" />
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.settingRow, styles.lastRow]}
-              onPress={() => {
-                if (Platform.OS !== 'web') {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-                }
-                setPreferencesModalVisible(true);
-              }}
-              activeOpacity={0.7}
-            >
-              <View style={styles.rowIcon}>
-                <Sliders size={16} color="#7C3AED" />
-              </View>
-              <View style={styles.rowMeta}>
-                <Text style={styles.rowTitle}>Split & Permission Rules</Text>
-                <Text style={styles.rowSubtitle}>
-                  Default split: {group?.settings?.defaultSplitType || 'equal'}
-                </Text>
-              </View>
-              <ChevronRight size={18} color="#D1D5DB" />
-            </TouchableOpacity>
+            {!isPersonal && (
+              <TouchableOpacity
+                style={[styles.settingRow, styles.lastRow]}
+                onPress={() => {
+                  if (Platform.OS !== 'web') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  }
+                  setPreferencesModalVisible(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.rowIcon}>
+                  <Sliders size={16} color="#7C3AED" />
+                </View>
+                <View style={styles.rowMeta}>
+                  <Text style={styles.rowTitle}>Split & Permission Rules</Text>
+                  <Text style={styles.rowSubtitle}>
+                    Default split: {group?.settings?.defaultSplitType || 'equal'}
+                  </Text>
+                </View>
+                <ChevronRight size={18} color="#D1D5DB" />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -815,7 +824,7 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
           <Text style={styles.sectionHeader}>Notifications & Reminders</Text>
           <View style={styles.cardContainer}>
             <TouchableOpacity
-              style={styles.settingRow}
+              style={[styles.settingRow, isPersonal && styles.lastRow]}
               onPress={() => setNotificationsVisible(true)}
               activeOpacity={0.7}
             >
@@ -831,24 +840,26 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
               <ChevronRight size={18} color="#D1D5DB" />
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.settingRow, styles.lastRow]}
-              onPress={() => setRemindersVisible(true)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.rowIcon}>
-                <Clock size={16} color="#D97706" />
-              </View>
-              <View style={styles.rowMeta}>
-                <Text style={styles.rowTitle}>Send Balance Reminders</Text>
-                <Text style={styles.rowSubtitle}>
-                  {debtorsCount > 0
-                    ? `${debtorsCount} members currently owe you`
-                    : 'All members settled up'}
-                </Text>
-              </View>
-              <ChevronRight size={18} color="#D1D5DB" />
-            </TouchableOpacity>
+            {!isPersonal && (
+              <TouchableOpacity
+                style={[styles.settingRow, styles.lastRow]}
+                onPress={() => setRemindersVisible(true)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.rowIcon}>
+                  <Clock size={16} color="#D97706" />
+                </View>
+                <View style={styles.rowMeta}>
+                  <Text style={styles.rowTitle}>Send Balance Reminders</Text>
+                  <Text style={styles.rowSubtitle}>
+                    {debtorsCount > 0
+                      ? `${debtorsCount} members currently owe you`
+                      : 'All members settled up'}
+                  </Text>
+                </View>
+                <ChevronRight size={18} color="#D1D5DB" />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -919,20 +930,22 @@ const GroupSettingsScreen = ({ route, navigation }: any) => {
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity
-              style={styles.settingRow}
-              onPress={() => setConfirmLeaveVisible(true)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.rowIcon, { backgroundColor: isDark ? 'rgba(220, 38, 38, 0.2)' : '#FEF2F2' }]}>
-                <LogOut size={16} color="#DC2626" />
-              </View>
-              <View style={styles.rowMeta}>
-                <Text style={[styles.rowTitle, { color: '#DC2626' }]}>Leave Group</Text>
-                <Text style={styles.rowSubtitle}>Remove yourself from this group</Text>
-              </View>
-              <ChevronRight size={18} color={colors.textMuted} />
-            </TouchableOpacity>
+            {!isPersonal && (
+              <TouchableOpacity
+                style={styles.settingRow}
+                onPress={() => setConfirmLeaveVisible(true)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.rowIcon, { backgroundColor: isDark ? 'rgba(220, 38, 38, 0.2)' : '#FEF2F2' }]}>
+                  <LogOut size={16} color="#DC2626" />
+                </View>
+                <View style={styles.rowMeta}>
+                  <Text style={[styles.rowTitle, { color: '#DC2626' }]}>Leave Group</Text>
+                  <Text style={styles.rowSubtitle}>Remove yourself from this group</Text>
+                </View>
+                <ChevronRight size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+            )}
 
             {isAdmin && (
               <TouchableOpacity

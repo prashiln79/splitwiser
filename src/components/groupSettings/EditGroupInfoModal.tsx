@@ -22,6 +22,7 @@ import {
   Briefcase,
   Folder,
   Info,
+  Wallet,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -51,6 +52,7 @@ export const GROUP_TYPES: Array<{
   { key: 'family', label: 'Family', icon: Users, color: '#D97706', bgColor: '#FFFBEB' },
   { key: 'friends', label: 'Friends', icon: Smile, color: '#7C3AED', bgColor: '#F5F3FF' },
   { key: 'office', label: 'Office', icon: Briefcase, color: '#4B5563', bgColor: '#F3F4F6' },
+  { key: 'personal', label: 'Personal', icon: Wallet, color: '#059669', bgColor: '#ECFDF5' },
   { key: 'other', label: 'Other', icon: Folder, color: '#0D9488', bgColor: '#F0FDFA' },
 ];
 

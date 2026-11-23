@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
-import { Home, Plane, Utensils, Heart, Briefcase, Users } from 'lucide-react-native';
+import { Home, Plane, Utensils, Heart, Briefcase, Users, Wallet } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Group } from '../../types';
 import { formatCurrency } from '../../utils/currency';
@@ -96,7 +96,8 @@ export const GroupCard: React.FC<GroupCardProps> = ({
   }
 
   const hasValidImage = Boolean(imageUri && !imageError);
-  const smartConfig = getGroupSmartIcon(group.name || '');
+  const isPersonal = Boolean(group.type === 'personal' || group.isPersonal);
+  const smartConfig = isPersonal ? { icon: Wallet, bg: '#059669' } : getGroupSmartIcon(group.name || '');
   const bgColor = smartConfig?.bg || getGroupColor(group.name || 'Group');
   const SmartIcon = smartConfig?.icon;
   const initial = (group.name || '?').trim().charAt(0).toUpperCase();
@@ -104,10 +105,10 @@ export const GroupCard: React.FC<GroupCardProps> = ({
   const cardCurrency = group.currency || 'INR';
 
   // Determine balance text & color
-  let balanceText = 'settled up';
+  let balanceText = isPersonal ? 'Personal tracker' : 'settled up';
   let balanceColor = colors.textMuted;
 
-  if (!isSettled && Math.abs(netBalance) >= 0.01) {
+  if (!isPersonal && !isSettled && Math.abs(netBalance) >= 0.01) {
     if (netBalance > 0) {
       balanceText = `you are owed ${formatCurrency(netBalance, cardCurrency)}`;
       balanceColor = colors.income;

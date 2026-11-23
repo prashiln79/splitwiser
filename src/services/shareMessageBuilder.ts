@@ -39,6 +39,8 @@ export function getGroupTypeEmoji(type?: string): string {
       return '🏠';
     case 'couple':
       return '❤️';
+    case 'personal':
+      return '💰';
     case 'work':
       return '💼';
     case 'event':

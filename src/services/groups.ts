@@ -27,6 +27,7 @@ import {
   leaveGroupLocal,
   upsertRemoteGroups,
   upsertRemoteMembers,
+  getLocalGroupById,
 } from '../repositories/groupRepository';
 import { networkMonitor } from '../sync/networkMonitor';
 import { syncQueue } from '../sync/syncQueue';
@@ -50,10 +51,13 @@ function generateJoinCode(length = 6): string {
 
 function mapGroup(id: string, data: Record<string, any>): Group {
   const coverPhoto = data.coverPhoto || (data.bannerUrl ? { type: 'preset', imageUrl: data.bannerUrl } : undefined);
+  const rawType = (data.type || data.icon || undefined) as any;
+  const isPersonal = Boolean(data.isPersonal || rawType === 'personal' || data.icon === 'personal');
+
   return {
     id,
     name: data.name,
-    type: data.type || undefined,
+    type: rawType,
     description: data.description || undefined,
     currency: data.currency ?? 'INR',
     joinCode: data.joinCode,
@@ -63,6 +67,7 @@ function mapGroup(id: string, data: Record<string, any>): Group {
     bannerUrl: coverPhoto?.imageUrl || data.bannerUrl,
     coverPhoto,
     icon: data.icon,
+    isPersonal,
     memberIds: data.memberIds ?? [],
     settings: data.settings || undefined,
     isArchived: Boolean(data.isArchived || data.status === 'archived'),
@@ -96,12 +101,17 @@ export async function createGroup(
   imageUrl?: string,
   icon?: string,
   coverPhoto?: GroupCoverPhoto,
-  creatorPhotoUrl?: string
+  creatorPhotoUrl?: string,
+  isPersonal?: boolean
 ): Promise<Group> {
   const joinCode = generateJoinCode();
+  const personalFlag = Boolean(isPersonal || icon === 'personal');
+  const groupType = icon || (personalFlag ? 'personal' : 'home');
 
   const groupRef = await addDoc(groupsCol(), {
     name: name.trim(),
+    type: groupType,
+    isPersonal: personalFlag,
     currency,
     joinCode,
     createdBy: creatorUid,
@@ -232,6 +242,10 @@ export async function joinGroup(
   if (snap.empty) throw new Error('No group found with that join code.');
 
   const groupDocSnap = snap.docs[0];
+  const groupData = groupDocSnap.data();
+  if (groupData.isPersonal || groupData.type === 'personal') {
+    throw new Error('This is a personal group and cannot be joined.');
+  }
   const groupId = groupDocSnap.id;
 
   if (groupDocSnap.data().memberIds?.includes(uid)) {
@@ -310,6 +324,11 @@ export async function addMemberDirect(
   user: { uid: string; name: string; email?: string; photoUrl?: string },
   role: MemberRole = 'member'
 ): Promise<void> {
+  const localGroup = await getLocalGroupById(groupId);
+  if (localGroup?.type === 'personal' || localGroup?.isPersonal) {
+    throw new Error('Cannot add members to a personal group.');
+  }
+
   // 1. Immediately cache in SQLite
   await upsertRemoteMembers(groupId, [
     {

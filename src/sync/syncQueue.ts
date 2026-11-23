@@ -339,12 +339,16 @@ class SyncQueue {
       }
 
       case 'CREATE_GROUP': {
-        const { id, name, currency, joinCode, createdBy, createdAt, memberIds, creatorName, imageUrl, icon } = payload;
+        const { id, name, currency, joinCode, createdBy, createdAt, memberIds, creatorName, imageUrl, icon, type, isPersonal } = payload;
         const groupRef = doc(db, 'splitwiser', 'data', 'groups', id);
         const memberRef = doc(db, 'splitwiser', 'data', 'groups', id, 'members', createdBy);
+        const personalFlag = Boolean(isPersonal || type === 'personal' || icon === 'personal');
+        const groupType = type || icon || (personalFlag ? 'personal' : 'home');
 
         await setDoc(groupRef, {
           name,
+          type: groupType,
+          isPersonal: personalFlag,
           currency: currency || 'INR',
           joinCode,
           createdBy,

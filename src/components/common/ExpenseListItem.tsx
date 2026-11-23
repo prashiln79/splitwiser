@@ -103,6 +103,13 @@ export const ExpenseListItem: React.FC<ExpenseListItemProps> = ({
                 {formatCurrency(lentAmount, expCurrency)}
               </Text>
             </>
+          ) : myShare > 0 ? (
+            <>
+              <Text style={[styles.lentLabel, { color: colors.textMuted }]}>you paid</Text>
+              <Text style={[styles.lentAmount, { color: colors.textPrimary }]}>
+                {formatCurrency(expense.amount, expCurrency)}
+              </Text>
+            </>
           ) : (
             <Text style={[styles.notInvolved, { color: colors.textMuted }]}>not involved</Text>
           )

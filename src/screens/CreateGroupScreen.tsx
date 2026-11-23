@@ -19,6 +19,7 @@ import {
   Home,
   Heart,
   Grid,
+  Wallet,
   ChevronRight,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -38,12 +39,13 @@ import { getDefaultCurrency, normalizeCurrencyCode, getCurrencySymbol, getCurren
 import { CurrencySelectorModal } from '../components/groupSettings/CurrencySelectorModal';
 import { resolveProfilePicture } from '../utils/profilePhotoHelper';
 
-type GroupType = 'trip' | 'home' | 'couple' | 'other';
+type GroupType = 'trip' | 'home' | 'couple' | 'other' | 'personal';
 
 const GROUP_TYPES: { id: GroupType; label: string; icon: any }[] = [
   { id: 'trip', label: 'Trip', icon: Plane },
   { id: 'home', label: 'Home', icon: Home },
   { id: 'couple', label: 'Couple', icon: Heart },
+  { id: 'personal', label: 'Personal', icon: Wallet },
   { id: 'other', label: 'Other', icon: Grid },
 ];
 
@@ -55,6 +57,8 @@ const getGroupPlaceholder = (type: GroupType): string => {
       return 'e.g. Annual Retreat, Weekend Trip';
     case 'couple':
       return 'e.g. Household & Shared Expenses';
+    case 'personal':
+      return 'e.g. My Personal Expenses, Daily Budget';
     case 'other':
     default:
       return 'e.g. Project Team, Club Activities';
@@ -69,6 +73,16 @@ export const CreateGroupScreen = ({ navigation }: any) => {
 
   const [name, setName] = useState('');
   const [selectedType, setSelectedType] = useState<GroupType>('home');
+  const selectGroupType = (type: GroupType) => {
+    setSelectedType(type);
+    if (type === 'personal') {
+      if (!name.trim() || name === 'My Personal Expenses') {
+        setName('My Personal Expenses');
+      }
+    } else if (name === 'My Personal Expenses') {
+      setName('');
+    }
+  };
   const [currency, setCurrency] = useState(
     user?.currency ? normalizeCurrencyCode(user.currency) : getDefaultCurrency() || 'INR'
   );
@@ -119,6 +133,7 @@ export const CreateGroupScreen = ({ navigation }: any) => {
         resolveProfilePicture(user).displayUrl || user.imageUrl || user.photoURL || user.googlePhotoUrl;
 
       let createdGroupId = '';
+      const isPersonal = selectedType === 'personal';
       if (networkMonitor.isCurrentlyOnline()) {
         const created = await createGroup(
           trimmed,
@@ -128,7 +143,8 @@ export const CreateGroupScreen = ({ navigation }: any) => {
           imagePayload,
           selectedType,
           pickedCover || undefined,
-          creatorPhoto || undefined
+          creatorPhoto || undefined,
+          isPersonal
         );
         createdGroupId = created.id;
       } else {
@@ -140,7 +156,8 @@ export const CreateGroupScreen = ({ navigation }: any) => {
           imagePayload,
           selectedType,
           pickedCover || undefined,
-          creatorPhoto || undefined
+          creatorPhoto || undefined,
+          isPersonal
         );
         createdGroupId = created.id;
         await getLocalGroups(user.uid);
@@ -258,7 +275,7 @@ export const CreateGroupScreen = ({ navigation }: any) => {
                       if (Platform.OS !== 'web') {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
                       }
-                      setSelectedType(type.id);
+                      selectGroupType(type.id);
                     }}
                     activeOpacity={0.7}
                   >

@@ -38,6 +38,8 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
           image_url TEXT,
           banner_url TEXT,
           icon TEXT,
+          group_type TEXT DEFAULT 'home',
+          is_personal INTEGER NOT NULL DEFAULT 0,
           member_ids_json TEXT NOT NULL DEFAULT '[]',
           updated_at INTEGER NOT NULL,
           sync_status TEXT NOT NULL DEFAULT 'synced',
@@ -201,6 +203,14 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
       // Add index on groups updated_at for incremental sync queries
       try {
         await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_groups_updated ON local_groups (updated_at ASC);`);
+      } catch (_) {}
+
+      // Add is_personal and group_type to local_groups for personal group support
+      try {
+        await db.execAsync(`ALTER TABLE local_groups ADD COLUMN is_personal INTEGER NOT NULL DEFAULT 0;`);
+      } catch (_) {}
+      try {
+        await db.execAsync(`ALTER TABLE local_groups ADD COLUMN group_type TEXT DEFAULT 'home';`);
       } catch (_) {}
 
       dbInstance = db;

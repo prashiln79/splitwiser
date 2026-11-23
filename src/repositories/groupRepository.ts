@@ -13,6 +13,8 @@ export interface LocalGroupRow {
   image_url: string | null;
   banner_url: string | null;
   icon: string | null;
+  group_type?: string | null;
+  is_personal?: number;
   member_ids_json: string;
   updated_at: number;
   sync_status: string;
@@ -49,9 +51,13 @@ function rowToGroup(row: LocalGroupRow): Group {
     }
   }
 
+  const rawType = ((row.group_type || row.icon || 'home') as string).toLowerCase() as any;
+  const isPersonal = Boolean(row.is_personal) || rawType === 'personal' || row.icon === 'personal';
+
   return {
     id: row.id,
     name: row.name,
+    type: rawType,
     currency: row.currency || 'INR',
     joinCode: row.join_code ?? '',
     createdBy: row.created_by,
@@ -60,6 +66,7 @@ function rowToGroup(row: LocalGroupRow): Group {
     bannerUrl: coverPhoto?.imageUrl || row.banner_url || undefined,
     coverPhoto,
     icon: row.icon ?? undefined,
+    isPersonal,
     memberIds,
     updatedAt: new Date(row.updated_at),
     syncStatus: row.sync_status as any,
@@ -149,16 +156,20 @@ export async function createGroupLocal(
   imageUrl?: string,
   icon?: string,
   coverPhoto?: GroupCoverPhoto,
-  creatorPhotoUrl?: string
+  creatorPhotoUrl?: string,
+  isPersonal?: boolean
 ): Promise<Group> {
   const database = await getDatabase();
   const id = Crypto.randomUUID();
   const joinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
   const now = Date.now();
+  const personalFlag = Boolean(isPersonal || icon === 'personal');
+  const groupType = (icon as any) || (personalFlag ? 'personal' : 'home');
 
   const group: Group = {
     id,
     name: name.trim(),
+    type: groupType,
     currency,
     joinCode,
     createdBy: creatorUid,
@@ -167,6 +178,7 @@ export async function createGroupLocal(
     bannerUrl: coverPhoto?.imageUrl || undefined,
     coverPhoto,
     icon: icon || undefined,
+    isPersonal: personalFlag,
     memberIds: [creatorUid],
     updatedAt: new Date(now),
     syncStatus: 'pending',
@@ -175,8 +187,8 @@ export async function createGroupLocal(
 
   await database.runAsync(
     `INSERT INTO local_groups (
-      id, name, currency, join_code, created_by, created_at, image_url, banner_url, icon, member_ids_json, updated_at, sync_status, is_deleted
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0)`,
+      id, name, currency, join_code, created_by, created_at, image_url, banner_url, icon, group_type, is_personal, member_ids_json, updated_at, sync_status, is_deleted
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0)`,
     [
       id,
       name.trim(),
@@ -187,6 +199,8 @@ export async function createGroupLocal(
       imageUrl ?? null,
       coverPhoto?.imageUrl ?? null,
       icon ?? null,
+      groupType,
+      personalFlag ? 1 : 0,
       JSON.stringify([creatorUid]),
       now,
     ]
@@ -208,6 +222,8 @@ export async function createGroupLocal(
     creatorName,
     imageUrl: imageUrl || null,
     icon: icon || null,
+    type: groupType,
+    isPersonal: personalFlag,
     memberIds: [creatorUid],
     createdAt: now,
   });
@@ -400,10 +416,13 @@ export async function upsertRemoteGroups(remoteGroups: Group[], userId?: string)
       continue;
     }
 
+    const isPersonalVal = group.isPersonal || group.type === 'personal' || group.icon === 'personal' ? 1 : 0;
+    const groupTypeVal = group.type || group.icon || (isPersonalVal ? 'personal' : 'home');
+
     await database.runAsync(
       `INSERT INTO local_groups (
-        id, name, currency, join_code, created_by, created_at, image_url, banner_url, icon, member_ids_json, updated_at, sync_status, is_deleted
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', 0)
+        id, name, currency, join_code, created_by, created_at, image_url, banner_url, icon, group_type, is_personal, member_ids_json, updated_at, sync_status, is_deleted
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', 0)
       ON CONFLICT(id) DO UPDATE SET
         name = excluded.name,
         currency = excluded.currency,
@@ -411,6 +430,8 @@ export async function upsertRemoteGroups(remoteGroups: Group[], userId?: string)
         image_url = excluded.image_url,
         banner_url = excluded.banner_url,
         icon = excluded.icon,
+        group_type = excluded.group_type,
+        is_personal = excluded.is_personal,
         member_ids_json = excluded.member_ids_json,
         updated_at = excluded.updated_at,
         sync_status = 'synced',
@@ -427,6 +448,8 @@ export async function upsertRemoteGroups(remoteGroups: Group[], userId?: string)
         group.imageUrl ?? null,
         group.bannerUrl ?? null,
         group.icon ?? null,
+        groupTypeVal,
+        isPersonalVal,
         memberIdsJson,
         updatedAtMs,
       ]
