@@ -153,7 +153,22 @@ export async function signInWithNativeGoogle(): Promise<GoogleSignInResult> {
     configureGoogleSignIn();
 
     // 1. Ensure Google Play Services are available
-    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    // Wrap in try/catch — on some devices hasPlayServices() can throw a non-standard native error
+    try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    } catch (playServicesErr: any) {
+      const psErrCode = String(playServicesErr?.code || '');
+      if (psErrCode === 'PLAY_SERVICES_NOT_AVAILABLE' || psErrCode === '2' || psErrCode === '1') {
+        return {
+          type: 'error',
+          error: new Error(
+            'Google Play Services is not available or needs to be updated on this device.'
+          ),
+        };
+      }
+      // Re-throw if unknown error
+      throw playServicesErr;
+    }
 
     // 2. Clear previous sign-in session so the account chooser dialog is always shown
     await GoogleSignin.signOut().catch(() => {});
@@ -161,13 +176,22 @@ export async function signInWithNativeGoogle(): Promise<GoogleSignInResult> {
     // 3. Initiate native Google Play Services bottom-sheet prompt
     const response = await GoogleSignin.signIn();
 
+    // v13+ typed response: check cancel first
     if (isCancelledResponse && isCancelledResponse(response)) {
       return { type: 'cancel' };
     }
 
-    if (!isSuccessResponse || isSuccessResponse(response)) {
-      let idToken = response.data?.idToken;
-      let accessToken: string | undefined = undefined;
+    // v13+ typed response: check success
+    // Guard: only use isSuccessResponse if it is actually a function
+    const isSuccess =
+      typeof isSuccessResponse === 'function'
+        ? isSuccessResponse(response)
+        : Boolean(response?.data?.idToken || (response as any)?.idToken);
+
+    if (isSuccess) {
+      let idToken = response.data?.idToken || (response as any)?.idToken;
+      let accessToken: string | undefined =
+        response.data?.accessToken || (response as any)?.accessToken || undefined;
 
       // Extract native user profile (v13+ stores under response.data.user, legacy under response.user)
       const nativeUser = response.data?.user || (response as any).user;
