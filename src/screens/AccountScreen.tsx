@@ -95,10 +95,10 @@ export const AccountScreen = ({ navigation }: any) => {
   const [isSearchActive, setIsSearchActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Preference switches state
-  const [emailWeeklySummary, setEmailWeeklySummary] = useState(true);
-  const [emailExpenseAdded, setEmailExpenseAdded] = useState(true);
-  const [emailSettledUp, setEmailSettledUp] = useState(true);
+  // Preference switches state — read from persisted NotificationPreferences
+  const emailWeeklySummary = preferences.emailWeeklySummary ?? true;
+  const emailExpenseAdded = preferences.emailExpenseAdded ?? true;
+  const emailSettledUp = preferences.emailSettledUp ?? true;
 
   // Global Haptic Feedback preference
   const [hapticsEnabled, setHapticsEnabled] = useState(hapticsService.isEnabled());
@@ -678,7 +678,7 @@ export const AccountScreen = ({ navigation }: any) => {
               <Text style={styles.switchLabel}>Weekly spending summary</Text>
               <Switch
                 value={emailWeeklySummary}
-                onValueChange={setEmailWeeklySummary}
+                onValueChange={(val) => updatePreferences({ emailWeeklySummary: val })}
                 trackColor={switchTrackColor}
                 thumbColor={getSwitchThumbColor(emailWeeklySummary)}
               />
@@ -688,7 +688,7 @@ export const AccountScreen = ({ navigation }: any) => {
               <Text style={styles.switchLabel}>When someone adds an expense</Text>
               <Switch
                 value={emailExpenseAdded}
-                onValueChange={setEmailExpenseAdded}
+                onValueChange={(val) => updatePreferences({ emailExpenseAdded: val })}
                 trackColor={switchTrackColor}
                 thumbColor={getSwitchThumbColor(emailExpenseAdded)}
               />
@@ -698,7 +698,7 @@ export const AccountScreen = ({ navigation }: any) => {
               <Text style={styles.switchLabel}>When someone records a settlement</Text>
               <Switch
                 value={emailSettledUp}
-                onValueChange={setEmailSettledUp}
+                onValueChange={(val) => updatePreferences({ emailSettledUp: val })}
                 trackColor={switchTrackColor}
                 thumbColor={getSwitchThumbColor(emailSettledUp)}
               />

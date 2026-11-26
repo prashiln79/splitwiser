@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { GroupUserPreferences, DEFAULT_GROUP_PREFERENCES } from '../types';
+import { GroupUserPreferences, DEFAULT_GROUP_PREFERENCES, SplitType } from '../types';
 import { networkMonitor } from '../sync/networkMonitor';
 import { normalizeCurrencyCode } from '../utils/currency';
 
@@ -118,5 +118,37 @@ export async function setLastUsedCurrency(
     await updateGroupUserPreferences(groupId, userId, { lastUsedCurrency: norm });
   } catch (err) {
     console.warn('[setLastUsedCurrency] error:', err);
+  }
+}
+
+/**
+ * Retrieves the last-used split method for a specific user within a group.
+ */
+export async function getLastUsedSplitMethod(
+  groupId: string,
+  userId: string
+): Promise<SplitType | null> {
+  if (!groupId || !userId) return null;
+  try {
+    const prefs = await getGroupUserPreferences(groupId, userId);
+    return prefs.lastUsedSplitMethod ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Saves the last-used split method for a specific user within a group.
+ */
+export async function setLastUsedSplitMethod(
+  groupId: string,
+  userId: string,
+  splitMethod: SplitType
+): Promise<void> {
+  if (!groupId || !userId || !splitMethod) return;
+  try {
+    await updateGroupUserPreferences(groupId, userId, { lastUsedSplitMethod: splitMethod });
+  } catch (err) {
+    console.warn('[setLastUsedSplitMethod] error:', err);
   }
 }

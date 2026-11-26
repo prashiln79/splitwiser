@@ -21,6 +21,7 @@ import {
   ArrowUpRight,
   Calendar,
   Layers,
+  Share2,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../context/AuthContext';
@@ -33,6 +34,7 @@ import { syncService } from '../sync/syncService';
 import { detectCategory, CATEGORIES_CONFIG, ExpenseCategory } from '../components/common/CategoryIcon';
 import { formatCurrency } from '../utils/currency';
 import { Expense } from '../types';
+import { shareService } from '../services/shareService';
 
 interface GroupedExpense extends Expense {
   groupName?: string;
@@ -147,6 +149,42 @@ export const StatisticsScreen = ({ navigation }: any) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }
     setMonthOffset(0);
+  };
+
+  const handleExportStats = async () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    const curr = user?.currency || 'INR';
+    const scopeLabel =
+      filterType === 'all' ? 'All Expenses' : filterType === 'shared' ? 'Shared Groups' : 'Personal';
+    const lines: string[] = [
+      `📊 *Tapit Spending Summary — ${monthLabel}* (${scopeLabel})`,
+      '',
+      `• Total Spending: ${formatCurrency(totalGroupSpending, curr)}`,
+      `• You Paid: ${formatCurrency(totalYouPaid, curr)}`,
+      `• Your Share: ${formatCurrency(totalYourShare, curr)}`,
+      `• Transactions: ${monthlyExpenses.length}`,
+    ];
+    if (categoryBreakdown.length > 0) {
+      lines.push('', '*Top Categories:*');
+      categoryBreakdown.slice(0, 5).forEach((cat) => {
+        lines.push(
+          `  - ${cat.category}: ${formatCurrency(cat.yourShare, curr)} (${cat.percentage.toFixed(0)}%)`
+        );
+      });
+    }
+    if (topExpenses.length > 0) {
+      lines.push('', '*Largest Expenses:*');
+      topExpenses.slice(0, 5).forEach((exp) => {
+        lines.push(`  - ${exp.description}: ${formatCurrency(exp.amount, exp.currency || curr)}`);
+      });
+    }
+    await shareService.shareWithOptions({
+      message: lines.join('\n'),
+      title: `Spending Summary — ${monthLabel}`,
+      dialogTitle: 'Export Spending Summary',
+    });
   };
 
   // Filter expenses for selected month & year
@@ -270,7 +308,22 @@ export const StatisticsScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      <AppHeader title="Statistics" />
+      <AppHeader
+        title="Statistics"
+        rightAction={
+          monthlyExpenses.length > 0 ? (
+            <TouchableOpacity
+              onPress={handleExportStats}
+              style={{ padding: 6 }}
+              accessibilityLabel="Export monthly spending summary"
+              accessibilityRole="button"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Share2 size={20} color={colors.textPrimary} strokeWidth={2} />
+            </TouchableOpacity>
+          ) : undefined
+        }
+      />
 
       {/* Month Navigator Header */}
       <View style={styles.monthNavigator}>

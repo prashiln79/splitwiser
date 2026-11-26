@@ -48,6 +48,7 @@ import {
   Gem,
   RefreshCw,
   Share2,
+  Search,
 } from 'lucide-react-native';
 import { shareService } from '../services/shareService';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -158,6 +159,10 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
   const [confirmDeleteExpenseVisible, setConfirmDeleteExpenseVisible] = useState(false);
   const [viewReceiptModalVisible, setViewReceiptModalVisible] = useState(false);
 
+  // Expense search within the group expenses tab
+  const [expenseSearchQuery, setExpenseSearchQuery] = useState('');
+  const [isExpenseSearchActive, setIsExpenseSearchActive] = useState(false);
+
   const selectedExpenseReceiptUri = useMemo(() => {
     if (!selectedExpense?.tags) return null;
     const tag = selectedExpense.tags.find((t) => t.startsWith('receipt:'));
@@ -169,6 +174,13 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
     (amt: number, curr?: string) => formatCurrency(amt, curr || groupCurrency),
     [groupCurrency]
   );
+
+  // Filtered expenses for the search bar in the Expenses tab
+  const filteredExpenses = useMemo(() => {
+    const q = expenseSearchQuery.trim().toLowerCase();
+    if (!q) return expenses;
+    return expenses.filter((e) => e.description.toLowerCase().includes(q));
+  }, [expenses, expenseSearchQuery]);
 
   // Comments per expense
   const [commentText, setCommentText] = useState('');
@@ -870,12 +882,62 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
 
   // Section 0: Expenses (Default)
   const renderExpensesSection = () => {
+    const renderExpenseListHeader = () => (
+      <>
+        {renderSharedHeader()}
+        {/* Expense search bar */}
+        {expenses.length > 0 && (
+          <View style={styles.expenseSearchRow}>
+            {isExpenseSearchActive ? (
+              <>
+                <Search size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
+                <TextInput
+                  style={styles.expenseSearchInput}
+                  placeholder="Search expenses..."
+                  placeholderTextColor={colors.textMuted}
+                  value={expenseSearchQuery}
+                  onChangeText={setExpenseSearchQuery}
+                  autoFocus
+                  returnKeyType="search"
+                />
+                <TouchableOpacity
+                  onPress={() => {
+                    setIsExpenseSearchActive(false);
+                    setExpenseSearchQuery('');
+                  }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <X size={16} color={colors.textMuted} />
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity
+                style={styles.expenseSearchTrigger}
+                onPress={() => {
+                  if (Platform.OS !== 'web') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                  }
+                  setIsExpenseSearchActive(true);
+                }}
+                activeOpacity={0.7}
+                accessibilityLabel="Search expenses"
+                accessibilityRole="button"
+              >
+                <Search size={16} color={colors.textMuted} style={{ marginRight: 6 }} />
+                <Text style={styles.expenseSearchPlaceholder}>Search expenses...</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </>
+    );
+
     return (
       <FlatList
         style={{ flex: 1 }}
-        data={expenses}
+        data={filteredExpenses}
         keyExtractor={(item) => item.id}
-        ListHeaderComponent={renderSharedHeader}
+        ListHeaderComponent={renderExpenseListHeader}
         contentContainerStyle={[
           styles.pageScrollContent,
           {
@@ -896,12 +958,13 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
           });
           const prevMonthYear =
             index > 0
-              ? new Date(expenses[index - 1].createdAt).toLocaleDateString('en-US', {
+              ? new Date(filteredExpenses[index - 1].createdAt).toLocaleDateString('en-US', {
                   month: 'long',
                   year: 'numeric',
                 })
               : null;
-          const showMonthHeader = currentMonthYear !== prevMonthYear;
+          // Hide month headers when searching (results are out of order)
+          const showMonthHeader = !expenseSearchQuery.trim() && currentMonthYear !== prevMonthYear;
 
           return (
             <View>
@@ -920,13 +983,21 @@ export const GroupDetailsScreen = ({ route, navigation }: any) => {
           );
         }}
         ListEmptyComponent={
-          <EmptyState
-            icon={Receipt}
-            title="No expenses yet"
-            description="Keep track of meals, bills, or trips by adding the first expense to this group."
-            actionLabel="Add Expense"
-            onAction={handleAddExpenseClick}
-          />
+          expenseSearchQuery.trim() ? (
+            <View style={styles.searchEmptyContainer}>
+              <Text style={styles.searchEmptyText}>
+                No expenses matching "{expenseSearchQuery}"
+              </Text>
+            </View>
+          ) : (
+            <EmptyState
+              icon={Receipt}
+              title="No expenses yet"
+              description="Keep track of meals, bills, or trips by adding the first expense to this group."
+              actionLabel="Add Expense"
+              onAction={handleAddExpenseClick}
+            />
+          )
         }
         refreshControl={
           <RefreshControl
@@ -2849,6 +2920,44 @@ const createStyles = (colors: ThemeColors, isDark: boolean) => StyleSheet.create
     fontSize: 12,
     fontWeight: '700',
     color: colors.textPrimary,
+  },
+
+  // Expense search bar
+  expenseSearchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: isDark ? colors.surfaceSecondary : '#F3F4F6',
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  expenseSearchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.textPrimary,
+    paddingVertical: 0,
+  },
+  expenseSearchTrigger: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  expenseSearchPlaceholder: {
+    fontSize: 14,
+    color: colors.textMuted,
+  },
+  searchEmptyContainer: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  searchEmptyText: {
+    fontSize: 14,
+    color: colors.textMuted,
+    textAlign: 'center',
   },
 
   // Floating Action Button (Bottom Right)

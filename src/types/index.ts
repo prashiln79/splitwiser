@@ -42,6 +42,7 @@ export interface GroupUserPreferences {
   hideUninvolvedExpenses: boolean;
   muted: boolean;
   lastUsedCurrency?: string;
+  lastUsedSplitMethod?: SplitType;
   notifications: {
     newExpenses: boolean;
     expenseUpdates: boolean;

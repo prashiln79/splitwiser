@@ -65,6 +65,10 @@ export interface NotificationPreferences {
   memberActivity: boolean;
   inAppBanners: boolean;
   mutedGroupIds: string[];
+  // Email digest preferences
+  emailWeeklySummary: boolean;
+  emailExpenseAdded: boolean;
+  emailSettledUp: boolean;
 }
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
@@ -78,6 +82,10 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   memberActivity: true,
   inAppBanners: true,
   mutedGroupIds: [],
+  // Email digest preferences
+  emailWeeklySummary: true,
+  emailExpenseAdded: true,
+  emailSettledUp: true,
 };
 
 export interface NotificationEventInput {

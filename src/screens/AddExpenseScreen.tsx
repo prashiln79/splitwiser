@@ -87,7 +87,12 @@ import {
   SplitConfigurationData,
 } from '../components/expense/SplitConfigurationModal';
 import { SUPPORTED_CURRENCIES, CurrencyInfo } from '../utils/currencyData';
-import { getLastUsedCurrency, setLastUsedCurrency } from '../services/groupPreferencesService';
+import {
+  getLastUsedCurrency,
+  setLastUsedCurrency,
+  getLastUsedSplitMethod,
+  setLastUsedSplitMethod,
+} from '../services/groupPreferencesService';
 import {
   toCents,
   fromCents,
@@ -369,34 +374,50 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
     }
 
     if (groupId) {
+      let hasSavedCurrency = false;
       if (!expenseToEdit && user?.uid) {
-        getLastUsedCurrency(groupId, user.uid).then((lastUsed) => {
-          if (lastUsed) {
-            setCurrency(normalizeCurrencyCode(lastUsed));
-          }
-        }).catch(() => {});
+        getLastUsedCurrency(groupId, user.uid)
+          .then((lastUsed) => {
+            if (lastUsed) {
+              hasSavedCurrency = true;
+              setCurrency(normalizeCurrencyCode(lastUsed));
+            }
+          })
+          .catch(() => {});
+
+        getLastUsedSplitMethod(groupId, user.uid)
+          .then((lastSplit) => {
+            if (lastSplit) {
+              setSplitMethod(lastSplit);
+            }
+          })
+          .catch(() => {});
       }
 
-      getLocalGroupById(groupId).then((g) => {
-        if (g) {
-          setGroup(g);
-          if (!expenseToEdit && g.currency) {
-            // Only fall back to group currency if user has no last-used currency preference
-            if (user?.uid) {
-              getLastUsedCurrency(groupId, user.uid).then((lastUsed) => {
+      const applyGroupCurrencyFallback = (g: Group) => {
+        setGroup(g);
+        if (!expenseToEdit && g.currency && !hasSavedCurrency) {
+          if (user?.uid) {
+            getLastUsedCurrency(groupId, user.uid)
+              .then((lastUsed) => {
                 if (lastUsed) {
+                  hasSavedCurrency = true;
                   setCurrency(normalizeCurrencyCode(lastUsed));
                 } else {
-                  setCurrency(normalizeCurrencyCode(g.currency));
+                  setCurrency(normalizeCurrencyCode(g.currency!));
                 }
-              }).catch(() => {
-                setCurrency(normalizeCurrencyCode(g.currency));
+              })
+              .catch(() => {
+                setCurrency(normalizeCurrencyCode(g.currency!));
               });
-            } else {
-              setCurrency(normalizeCurrencyCode(g.currency));
-            }
+          } else {
+            setCurrency(normalizeCurrencyCode(g.currency));
           }
         }
+      };
+
+      getLocalGroupById(groupId).then((g) => {
+        if (g) applyGroupCurrencyFallback(g);
       });
 
       getLocalGroupMembers(groupId).then((localMembers) => {
@@ -406,26 +427,11 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         }
       });
 
-      getGroupById(groupId).then((g) => {
-        if (g) {
-          setGroup(g);
-          if (!expenseToEdit && g.currency) {
-            if (user?.uid) {
-              getLastUsedCurrency(groupId, user.uid).then((lastUsed) => {
-                if (lastUsed) {
-                  setCurrency(normalizeCurrencyCode(lastUsed));
-                } else {
-                  setCurrency(normalizeCurrencyCode(g.currency));
-                }
-              }).catch(() => {
-                setCurrency(normalizeCurrencyCode(g.currency));
-              });
-            } else {
-              setCurrency(normalizeCurrencyCode(g.currency));
-            }
-          }
-        }
-      }).catch(() => {});
+      getGroupById(groupId)
+        .then((g) => {
+          if (g) applyGroupCurrencyFallback(g);
+        })
+        .catch(() => {});
 
       getGroupMembers(groupId)
         .then((memberList) => {
@@ -794,9 +800,12 @@ export const AddExpenseScreen = ({ route, navigation }: any) => {
         });
       }
 
-      // Remember last-used currency for this group for the current user
+      // Remember last-used currency and split method for this group for the current user
       if (groupId && user?.uid) {
         setLastUsedCurrency(groupId, user.uid, currencyCode).catch(() => {});
+        if (!isPersonal) {
+          setLastUsedSplitMethod(groupId, user.uid, finalSplitType).catch(() => {});
+        }
       }
 
       if (Platform.OS !== 'web') {
