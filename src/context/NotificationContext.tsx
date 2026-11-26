@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { useAuth } from './AuthContext';
 import {
@@ -62,6 +62,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bannerQueueRef = useRef<InAppNotification[]>([]);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState as AppStateStatus);
+  const notificationsRef = useRef<InAppNotification[]>([]);
+  notificationsRef.current = notifications;
 
   // ─── Dismiss Active Banner ──────────────────────────────────────────────────
   const dismissBanner = useCallback(() => {
@@ -82,27 +84,6 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }, 300);
     }
   }, []);
-
-  // ─── Trigger In-App Toast Banner ───────────────────────────────────────────
-  const showBanner = useCallback(
-    (item: InAppNotification) => {
-      if (!preferences.inAppBanners) return;
-
-      if (!activeBanner) {
-        setActiveBanner(item);
-        if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
-        bannerTimerRef.current = setTimeout(() => {
-          dismissBanner();
-        }, 4500);
-      } else {
-        // Queue banner (limit max 3 queued items)
-        if (bannerQueueRef.current.length < 3) {
-          bannerQueueRef.current.push(item);
-        }
-      }
-    },
-    [activeBanner, preferences.inAppBanners, dismissBanner]
-  );
 
   // ─── Initial Load & Refresh ────────────────────────────────────────────────
   const refreshNotifications = useCallback(async () => {
@@ -172,27 +153,27 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const handleArchive = useCallback(
     async (id: string) => {
       if (!user?.uid) return;
-      const target = notifications.find((n) => n.id === id);
+      const target = notificationsRef.current.find((n) => n.id === id);
       if (target && !target.readAt) {
         setUnreadCount((c) => Math.max(0, c - 1));
       }
       setNotifications((prev) => prev.filter((item) => item.id !== id));
       await archiveNotification(user.uid, id);
     },
-    [user?.uid, notifications]
+    [user?.uid]
   );
 
   const handleDelete = useCallback(
     async (id: string) => {
       if (!user?.uid) return;
-      const target = notifications.find((n) => n.id === id);
+      const target = notificationsRef.current.find((n) => n.id === id);
       if (target && !target.readAt) {
         setUnreadCount((c) => Math.max(0, c - 1));
       }
       setNotifications((prev) => prev.filter((item) => item.id !== id));
       await deleteNotification(user.uid, id);
     },
-    [user?.uid, notifications]
+    [user?.uid]
   );
 
   const handleUpdatePreferences = useCallback(
@@ -264,27 +245,45 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       appStateSub.remove();
       if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
     };
-  }, [user?.uid, refreshNotifications, showBanner]);
+  }, [user?.uid, refreshNotifications]);
+
+  const value = useMemo<NotificationContextType>(
+    () => ({
+      notifications,
+      unreadCount,
+      activeBanner,
+      preferences,
+      isLoading,
+      hasMore,
+      dismissBanner,
+      markAsRead: handleMarkAsRead,
+      markAllAsRead: handleMarkAllAsRead,
+      archiveNotification: handleArchive,
+      deleteNotification: handleDelete,
+      refreshNotifications,
+      loadMoreNotifications,
+      updatePreferences: handleUpdatePreferences,
+    }),
+    [
+      notifications,
+      unreadCount,
+      activeBanner,
+      preferences,
+      isLoading,
+      hasMore,
+      dismissBanner,
+      handleMarkAsRead,
+      handleMarkAllAsRead,
+      handleArchive,
+      handleDelete,
+      refreshNotifications,
+      loadMoreNotifications,
+      handleUpdatePreferences,
+    ]
+  );
 
   return (
-    <NotificationContext.Provider
-      value={{
-        notifications,
-        unreadCount,
-        activeBanner,
-        preferences,
-        isLoading,
-        hasMore,
-        dismissBanner,
-        markAsRead: handleMarkAsRead,
-        markAllAsRead: handleMarkAllAsRead,
-        archiveNotification: handleArchive,
-        deleteNotification: handleDelete,
-        refreshNotifications,
-        loadMoreNotifications,
-        updatePreferences: handleUpdatePreferences,
-      }}
-    >
+    <NotificationContext.Provider value={value}>
       {children}
     </NotificationContext.Provider>
   );

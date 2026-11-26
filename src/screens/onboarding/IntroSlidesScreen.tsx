@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
+  useWindowDimensions,
   FlatList,
   Platform,
   NativeSyntheticEvent,
@@ -38,8 +38,6 @@ interface SlideItem {
   bulletPoints: { icon: any; text: string }[];
   accentColor: string;
 }
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const SLIDES: SlideItem[] = [
   {
@@ -88,6 +86,7 @@ const SLIDES: SlideItem[] = [
 
 export const IntroSlidesScreen: React.FC<IntroSlidesScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const { colors, isDark } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark]);
 
@@ -133,7 +132,7 @@ export const IntroSlidesScreen: React.FC<IntroSlidesScreenProps> = ({ navigation
   const renderSlide = ({ item }: { item: SlideItem }) => {
     const IconComponent = item.icon;
     return (
-      <View style={[styles.slideContainer, { width: SCREEN_WIDTH }]}>
+      <View style={[styles.slideContainer, { width: screenWidth }]}>
         {/* Visual Badge Banner */}
         <View style={styles.cardVisualWrapper}>
           <View style={styles.illustrationCard}>

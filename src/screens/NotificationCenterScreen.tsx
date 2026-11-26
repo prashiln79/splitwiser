@@ -394,7 +394,7 @@ export const NotificationCenterScreen = ({ navigation }: any) => {
             <View style={styles.footerLoader}>
               <ActivityIndicator size="small" color={colors.primary} />
             </View>
-          ) : null
+          ) : undefined
         }
         ListEmptyComponent={
           !isLoading ? (
@@ -411,7 +411,7 @@ export const NotificationCenterScreen = ({ navigation }: any) => {
                 })}
               </Text>
             </View>
-          ) : null
+          ) : undefined
         }
         renderItem={({ item }) => {
           if (item.type === 'header') {

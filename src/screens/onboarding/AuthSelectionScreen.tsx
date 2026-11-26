@@ -586,8 +586,8 @@ const createStyles = (colors: ThemeColors, isDark: boolean) =>
     },
     modalSheet: {
       backgroundColor: colors.surface,
-      borderTopLeftRadius: radii['2xl'],
-      borderTopRightRadius: radii['2xl'],
+      borderTopLeftRadius: radii.xl,
+      borderTopRightRadius: radii.xl,
       paddingHorizontal: 24,
       paddingTop: 20,
       maxHeight: '90%',

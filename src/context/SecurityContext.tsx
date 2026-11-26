@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { AppState, AppStateStatus, Platform } from 'react-native';
 import {
   BiometricType,
@@ -176,25 +176,46 @@ export const SecurityProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return success;
   }, [config.isBiometricsEnabled, unlockApp]);
 
-  const value: SecurityContextType = {
-    isSecurityEnabled: config.isSecurityEnabled,
-    isBiometricsEnabled: config.isBiometricsEnabled,
-    biometricType,
-    hasBiometricHardware,
-    isBiometricEnrolled,
-    autoLockTimeout: config.autoLockTimeout,
-    isAppLocked,
-    isInitialized,
-    unlockApp,
-    lockApp,
-    setPasscode: handleSetPasscode,
-    verifyPasscode: handleVerifyPasscode,
-    removePasscode: handleRemovePasscode,
-    changePasscode: handleChangePasscode,
-    setBiometricsEnabled: handleSetBiometricsEnabled,
-    setAutoLockTimeout: handleSetAutoLockTimeout,
-    authenticateWithBiometrics: handleAuthenticateWithBiometrics,
-  };
+  const value = useMemo<SecurityContextType>(
+    () => ({
+      isSecurityEnabled: config.isSecurityEnabled,
+      isBiometricsEnabled: config.isBiometricsEnabled,
+      biometricType,
+      hasBiometricHardware,
+      isBiometricEnrolled,
+      autoLockTimeout: config.autoLockTimeout,
+      isAppLocked,
+      isInitialized,
+      unlockApp,
+      lockApp,
+      setPasscode: handleSetPasscode,
+      verifyPasscode: handleVerifyPasscode,
+      removePasscode: handleRemovePasscode,
+      changePasscode: handleChangePasscode,
+      setBiometricsEnabled: handleSetBiometricsEnabled,
+      setAutoLockTimeout: handleSetAutoLockTimeout,
+      authenticateWithBiometrics: handleAuthenticateWithBiometrics,
+    }),
+    [
+      config.isSecurityEnabled,
+      config.isBiometricsEnabled,
+      config.autoLockTimeout,
+      biometricType,
+      hasBiometricHardware,
+      isBiometricEnrolled,
+      isAppLocked,
+      isInitialized,
+      unlockApp,
+      lockApp,
+      handleSetPasscode,
+      handleVerifyPasscode,
+      handleRemovePasscode,
+      handleChangePasscode,
+      handleSetBiometricsEnabled,
+      handleSetAutoLockTimeout,
+      handleAuthenticateWithBiometrics,
+    ]
+  );
 
   return (
     <SecurityContext.Provider value={value}>

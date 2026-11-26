@@ -214,7 +214,7 @@ export function attachNotificationResponseListener(
   if (Platform.OS === 'web' || !Notifications) return () => {};
 
   try {
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response: any) => {
       const data = response?.notification?.request?.content?.data;
       if (data) {
         onNotificationSelected(data);

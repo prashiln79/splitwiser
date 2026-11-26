@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react';
 import { I18nManager, Alert } from 'react-native';
 import i18n, {
   SupportedLocale,
@@ -160,16 +160,19 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   const isRTL = isRtlLocale(currentLocale);
 
-  const value: I18nContextValue = {
-    currentLocale,
-    isRTL,
-    isSystemLanguage,
-    changeLanguage,
-    formatAmount,
-    formatDate,
-    formatNumber,
-    syncUserLanguageOnLogin,
-  };
+  const value = useMemo<I18nContextValue>(
+    () => ({
+      currentLocale,
+      isRTL,
+      isSystemLanguage,
+      changeLanguage,
+      formatAmount,
+      formatDate,
+      formatNumber,
+      syncUserLanguageOnLogin,
+    }),
+    [currentLocale, isRTL, isSystemLanguage, changeLanguage, formatAmount, formatDate, formatNumber, syncUserLanguageOnLogin]
+  );
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }

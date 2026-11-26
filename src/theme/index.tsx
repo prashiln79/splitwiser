@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { Appearance, useColorScheme } from 'react-native';
 import { MD3LightTheme, MD3DarkTheme, MD3Theme } from 'react-native-paper';
 import { Theme as NavigationTheme, DefaultTheme as NavDefaultTheme, DarkTheme as NavDarkTheme } from '@react-navigation/native';
@@ -123,8 +123,8 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const resolvedTheme: ResolvedTheme = resolveTheme(themeMode, systemScheme);
   const isDark = resolvedTheme === 'dark';
   const colors = isDark ? darkColors : lightColors;
-  const paperTheme = getPaperTheme(isDark);
-  const navTheme = getNavTheme(isDark);
+  const paperTheme = useMemo(() => getPaperTheme(isDark), [isDark]);
+  const navTheme = useMemo(() => getNavTheme(isDark), [isDark]);
 
   const setThemeMode = useCallback(
     async (mode: AppearanceMode, uid?: string) => {
@@ -160,20 +160,23 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     []
   );
 
+  const value = useMemo<ThemeContextType>(
+    () => ({
+      colors,
+      isDark,
+      themeMode,
+      resolvedTheme,
+      setThemeMode,
+      toggleTheme,
+      paperTheme,
+      navTheme,
+      syncUserThemeOnLogin,
+    }),
+    [colors, isDark, themeMode, resolvedTheme, setThemeMode, toggleTheme, paperTheme, navTheme, syncUserThemeOnLogin]
+  );
+
   return (
-    <ThemeContext.Provider
-      value={{
-        colors,
-        isDark,
-        themeMode,
-        resolvedTheme,
-        setThemeMode,
-        toggleTheme,
-        paperTheme,
-        navTheme,
-        syncUserThemeOnLogin,
-      }}
-    >
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

@@ -21,7 +21,27 @@ import { Expense, Settlement, Group, GroupMember } from '../types';
 
 // Overlap window in ms to avoid missing records at cursor boundary
 const SYNC_OVERLAP_MS = 5 * 60 * 1000; // 5 minutes
-const SYNC_PAGE_SIZE = 100;
+
+function mapFirestoreDocToGroup(id: string, data: Record<string, any>): Group {
+  const coverPhoto =
+    data.coverPhoto ||
+    (data.bannerUrl ? { type: 'preset', imageUrl: data.bannerUrl } : undefined);
+  return {
+    id,
+    name: data.name,
+    currency: data.currency ?? 'INR',
+    joinCode: data.joinCode ?? '',
+    createdBy: data.createdBy,
+    createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+    imageUrl: data.imageUrl,
+    bannerUrl: coverPhoto?.imageUrl || data.bannerUrl,
+    coverPhoto,
+    icon: data.icon,
+    memberIds: data.memberIds ?? [],
+    updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(),
+    syncStatus: 'synced',
+  };
+}
 
 class SyncService {
   private activeGroupUnsubscribers: Map<string, Unsubscribe[]> = new Map();
@@ -271,25 +291,9 @@ class SyncService {
     this.userGroupsUnsubscribe = onSnapshot(
       q,
       async (snap) => {
-        const remoteGroups: Group[] = snap.docs.map((d) => {
-          const data = d.data();
-          const coverPhoto = data.coverPhoto || (data.bannerUrl ? { type: 'preset', imageUrl: data.bannerUrl } : undefined);
-          return {
-            id: d.id,
-            name: data.name,
-            currency: data.currency ?? 'INR',
-            joinCode: data.joinCode ?? '',
-            createdBy: data.createdBy,
-            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-            imageUrl: data.imageUrl,
-            bannerUrl: coverPhoto?.imageUrl || data.bannerUrl,
-            coverPhoto,
-            icon: data.icon,
-            memberIds: data.memberIds ?? [],
-            updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(),
-            syncStatus: 'synced',
-          };
-        });
+        const remoteGroups: Group[] = snap.docs.map((d) =>
+          mapFirestoreDocToGroup(d.id, d.data())
+        );
 
         await upsertRemoteGroups(remoteGroups, userId);
         onGroupsUpdated();
@@ -348,25 +352,9 @@ class SyncService {
       let maxUpdatedAtMs = lastSyncMs;
 
       const remoteGroups: Group[] = snap.docs.map((d) => {
-        const data = d.data();
-        const coverPhoto = data.coverPhoto || (data.bannerUrl ? { type: 'preset', imageUrl: data.bannerUrl } : undefined);
-        const updatedAt: Date = data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date();
-        maxUpdatedAtMs = Math.max(maxUpdatedAtMs, updatedAt.getTime());
-        return {
-          id: d.id,
-          name: data.name,
-          currency: data.currency ?? 'INR',
-          joinCode: data.joinCode ?? '',
-          createdBy: data.createdBy,
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-          imageUrl: data.imageUrl,
-          bannerUrl: coverPhoto?.imageUrl || data.bannerUrl,
-          coverPhoto,
-          icon: data.icon,
-          memberIds: data.memberIds ?? [],
-          updatedAt,
-          syncStatus: 'synced',
-        };
+        const group = mapFirestoreDocToGroup(d.id, d.data());
+        maxUpdatedAtMs = Math.max(maxUpdatedAtMs, (group.updatedAt ?? new Date()).getTime());
+        return group;
       });
 
       await upsertRemoteGroups(remoteGroups, overlapMs > 0 ? undefined : userId);
@@ -401,25 +389,9 @@ class SyncService {
       const groupsCol = collection(db, 'splitwiser', 'data', 'groups');
       const q = query(groupsCol, where('memberIds', 'array-contains', userId));
       const snap = await getDocs(q);
-      const remoteGroups: Group[] = snap.docs.map((d) => {
-        const data = d.data();
-        const coverPhoto = data.coverPhoto || (data.bannerUrl ? { type: 'preset', imageUrl: data.bannerUrl } : undefined);
-        return {
-          id: d.id,
-          name: data.name,
-          currency: data.currency ?? 'INR',
-          joinCode: data.joinCode ?? '',
-          createdBy: data.createdBy,
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
-          imageUrl: data.imageUrl,
-          bannerUrl: coverPhoto?.imageUrl || data.bannerUrl,
-          coverPhoto,
-          icon: data.icon,
-          memberIds: data.memberIds ?? [],
-          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(),
-          syncStatus: 'synced',
-        };
-      });
+      const remoteGroups: Group[] = snap.docs.map((d) =>
+        mapFirestoreDocToGroup(d.id, d.data())
+      );
       // Pass userId so soft-deletes are applied to groups no longer returned
       await upsertRemoteGroups(remoteGroups, userId);
     } catch (e) {

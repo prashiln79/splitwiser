@@ -58,7 +58,7 @@ const getGroupSmartIcon = (name: string) => {
   return null;
 };
 
-export const GroupCard: React.FC<GroupCardProps> = ({
+export const GroupCard: React.FC<GroupCardProps> = React.memo(({
   group,
   netBalance = 0,
   isSettled = true,
@@ -183,7 +183,7 @@ export const GroupCard: React.FC<GroupCardProps> = ({
       </View>
     </Pressable>
   );
-};
+});
 
 const createStyles = (colors: ThemeColors, isDark: boolean) =>
   StyleSheet.create({

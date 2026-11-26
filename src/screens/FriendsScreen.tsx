@@ -577,7 +577,10 @@ export const FriendsScreen = ({ navigation }: any) => {
         <FlatList
           data={displayedFriends}
           keyExtractor={(item) => item.userId}
-          ListHeaderComponent={friends.length > 0 ? renderBalanceSummary : null}
+          initialNumToRender={12}
+          maxToRenderPerBatch={12}
+          windowSize={7}
+          ListHeaderComponent={friends.length > 0 ? renderBalanceSummary : undefined}
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: 80 },
@@ -641,7 +644,7 @@ export const FriendsScreen = ({ navigation }: any) => {
               </TouchableOpacity>
             );
           }}
-          ListEmptyComponent={renderEmptyState()}
+          ListEmptyComponent={renderEmptyState() ?? undefined}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}

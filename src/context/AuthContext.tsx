@@ -3,6 +3,8 @@ import React, {
   useContext,
   useEffect,
   useState,
+  useCallback,
+  useMemo,
   ReactNode,
 } from 'react';
 import { AppUser } from '../types';
@@ -87,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     if (user?.uid) {
       const profile = await loadUserProfile(user.uid);
       if (profile) {
@@ -95,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         saveCachedUserProfile(profile).catch(() => {});
       }
     }
-  };
+  }, [user?.uid]);
 
   useEffect(() => {
     if (user?.currency) {
@@ -188,25 +190,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, []);
 
-  const signInAsGuest = async (): Promise<AppUser> => {
+  const signInAsGuest = useCallback(async (): Promise<AppUser> => {
     const profile = await serviceSignInAsGuest();
     setUser(profile);
     return profile;
-  };
+  }, []);
 
-  const signUpWithEmail = async (email: string, pass: string, name?: string): Promise<AppUser> => {
+  const signUpWithEmail = useCallback(async (email: string, pass: string, name?: string): Promise<AppUser> => {
     const profile = await serviceSignUpWithEmail(email, pass, name);
     setUser(profile);
     return profile;
-  };
+  }, []);
 
-  const signInWithEmail = async (email: string, pass: string): Promise<AppUser> => {
+  const signInWithEmail = useCallback(async (email: string, pass: string): Promise<AppUser> => {
     const profile = await serviceSignInWithEmail(email, pass);
     setUser(profile);
     return profile;
-  };
+  }, []);
 
-  const completeProfile = async (
+  const completeProfile = useCallback(async (
     name: string,
     avatarUrl?: string,
     currency?: string
@@ -215,29 +217,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (currency) setDefaultCurrency(currency);
     const updated = await serviceCompleteProfileSetup(user.uid, { name, avatarUrl, currency });
     setUser(updated);
-  };
+  }, [user]);
 
-  const finishOnboarding = async (): Promise<void> => {
+  const finishOnboarding = useCallback(async (): Promise<void> => {
     if (!user) return;
     await serviceMarkOnboardingCompleted(user.uid);
     setUser((prev) => (prev ? { ...prev, onboardingCompleted: true } : prev));
-  };
+  }, [user]);
 
-  const completeOnboarding = async (name: string): Promise<void> => {
+  const completeOnboarding = useCallback(async (name: string): Promise<void> => {
     const profile = await signInAndCreateProfile(name);
     setUser(profile);
-  };
+  }, []);
 
-  const updateProfile = async (
+  const updateProfile = useCallback(async (
     updates: Partial<AppUser>
   ): Promise<void> => {
     if (!user) throw new Error('No authenticated user');
     if (updates.currency) setDefaultCurrency(updates.currency);
     await updateUserProfile(user.uid, updates);
     setUser((prev) => (prev ? { ...prev, ...updates } : prev));
-  };
+  }, [user]);
 
-  const linkGoogleAccount = async (
+  const linkGoogleAccount = useCallback(async (
     idToken: string,
     accessToken?: string,
     photoUrl?: string | null,
@@ -253,9 +255,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
     setUser(result.user);
     return result;
-  };
+  }, []);
 
-  const signInWithGoogle = async (
+  const signInWithGoogle = useCallback(async (
     idToken: string,
     accessToken?: string,
     photoUrl?: string | null,
@@ -271,9 +273,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
     setUser(profile);
     return profile;
-  };
+  }, []);
 
-  const migrateAnonymousDataToGoogle = async (
+  const migrateAnonymousDataToGoogle = useCallback(async (
     idToken: string,
     accessToken?: string,
     photoUrl?: string | null,
@@ -291,32 +293,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
     setUser(profile);
     return profile;
-  };
+  }, [user]);
 
-  const signOut = async (): Promise<void> => {
+  const signOut = useCallback(async (): Promise<void> => {
     await signOutUser();
     setUser(null);
-  };
+  }, []);
+
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      isLoading,
+      signInAsGuest,
+      signUpWithEmail,
+      signInWithEmail,
+      completeProfile,
+      finishOnboarding,
+      completeOnboarding,
+      updateProfile,
+      linkGoogleAccount,
+      signInWithGoogle,
+      migrateAnonymousDataToGoogle,
+      signOut,
+      refreshUser,
+    }),
+    [
+      user,
+      isLoading,
+      signInAsGuest,
+      signUpWithEmail,
+      signInWithEmail,
+      completeProfile,
+      finishOnboarding,
+      completeOnboarding,
+      updateProfile,
+      linkGoogleAccount,
+      signInWithGoogle,
+      migrateAnonymousDataToGoogle,
+      signOut,
+      refreshUser,
+    ]
+  );
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading,
-        signInAsGuest,
-        signUpWithEmail,
-        signInWithEmail,
-        completeProfile,
-        finishOnboarding,
-        completeOnboarding,
-        updateProfile,
-        linkGoogleAccount,
-        signInWithGoogle,
-        migrateAnonymousDataToGoogle,
-        signOut,
-        refreshUser,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

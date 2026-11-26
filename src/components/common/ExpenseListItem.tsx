@@ -14,7 +14,7 @@ interface ExpenseListItemProps {
   onPress?: () => void;
 }
 
-export const ExpenseListItem: React.FC<ExpenseListItemProps> = ({
+export const ExpenseListItem: React.FC<ExpenseListItemProps> = React.memo(({
   expense,
   currentUserId,
   payerName,
@@ -126,7 +126,7 @@ export const ExpenseListItem: React.FC<ExpenseListItemProps> = ({
       </View>
     </TouchableOpacity>
   );
-};
+});
 
 const createStyles = (colors: ThemeColors, isDark: boolean) =>
   StyleSheet.create({

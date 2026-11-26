@@ -541,8 +541,11 @@ const HomeScreen = ({ navigation }: any) => {
       <FlatList
         data={visibleGroups}
         keyExtractor={(item) => item.id}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={7}
         ListHeaderComponent={renderHeader}
-        ListFooterComponent={visibleGroups.length > 0 ? renderFooter : null}
+        ListFooterComponent={visibleGroups.length > 0 ? renderFooter : undefined}
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: 90 },
@@ -564,7 +567,7 @@ const HomeScreen = ({ navigation }: any) => {
             />
           );
         }}
-        ListEmptyComponent={isLoading ? null : renderEmptyState}
+        ListEmptyComponent={isLoading ? undefined : renderEmptyState}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
