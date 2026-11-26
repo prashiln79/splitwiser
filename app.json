@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Tapit",
+    "name": "Tapit – Split Expenses",
     "slug": "splitwiser",
     "scheme": [
       "splitwiser",
@@ -11,7 +11,7 @@
       "android",
       "web"
     ],
-    "version": "4.0.25",
+    "version": "4.0.26",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
